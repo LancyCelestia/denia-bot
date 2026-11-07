@@ -86,6 +86,19 @@ class ViewTest(unittest.TestCase):
         self.assertEqual(view['uptime'], '1 天 6 小时')
         self.assertEqual(len(view['network']['chart']), 2)
 
+    def test_cpu_temperature_is_rendered_inside_ring_without_changing_detail(self):
+        raw = snapshot()
+        raw['cpu']['temp'] = {
+            'current_c': 42.3, 'avg_c': 40.1, 'window_minutes': 60, 'samples': 61,
+        }
+        cpu = logic.build_view(raw, now=1)['resources'][0]
+        self.assertEqual(cpu['note'], '42.3℃')
+        self.assertEqual(cpu['subnote'], '60m 均 40.1℃')
+        self.assertNotIn('℃', cpu['detail'], '详情行保持原样，小卡片宽度不变')
+        plain = logic.build_view(snapshot(), now=1)['resources'][0]
+        self.assertEqual(plain['note'], '')
+        self.assertEqual(plain['subnote'], '')
+
     def test_redaction_is_independent_and_display_only(self):
         view = logic.build_view(snapshot(), redact=['hostname', 'process'], now=1)
         self.assertEqual(view['system'][0]['value'], logic.HIDDEN)

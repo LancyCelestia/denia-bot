@@ -1,6 +1,6 @@
 # 四类灾害消息与卡片原型
 
-> **已选 B Bulletin**：用户选择 **B**；文案 **首报中性官方、后续达妮娅**。
+> **已选 B Bulletin**：用户选择 **B**；文案 **统一达妮娅口吻，同一预警只播报一次**。
 > 生产实现见 `nonebot/disaster_render.py`（B 卡）与 `nonebot/disaster_tone.py`；本文件保留 A/B/C 原型作为设计记录。
 > 固定样例、无外部资源、无持久化，不并入生产代码。
 
@@ -157,7 +157,7 @@ disaster-cards.html?type=earthquake&variant=A
 ## 结论（已选）
 
 - **结构：B Bulletin**。
-- **文案：首报中性官方、后续达妮娅**；图片与文字同口吻；首报判定见 `docs/research/disaster-v1-ux-spec.md`。
+- **文案：统一达妮娅口吻，同一预警只播报一次**；图片与文字同口吻；去重身份见 `docs/research/disaster-v1-ux-spec.md`。
 - 生产 B 卡样例：
   - `images/production-B-weather.png`
   - `images/production-B-typhoon.png`

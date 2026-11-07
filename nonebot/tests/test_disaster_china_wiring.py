@@ -208,7 +208,7 @@ class ChinaWiringTest(unittest.TestCase):
             self.assertEqual(len(self.pushed), 1)
             self.assertIn('台风', self.pushed[0])
             self.assertIn('桦加沙', self.pushed[0])
-            self.assertNotIn('达妮娅', self.pushed[0], '台风首次推送应为中性官方')
+            self.assertIn('达妮娅', self.pushed[0], '台风首次推送应为达妮娅口吻')
 
             stopped = copy.deepcopy(changed)
             stopped['isActive'] = False
@@ -220,7 +220,7 @@ class ChinaWiringTest(unittest.TestCase):
 
         asyncio.run(scenario())
 
-    def test_weather_first_neutral_then_update_character(self):
+    def test_weather_same_alert_pushed_once_character(self):
         async def scenario():
             first = dict(
                 JIAN_WEATHER,
@@ -232,7 +232,7 @@ class ChinaWiringTest(unittest.TestCase):
             )
             await self.runtime.handle_jian_message(self.message('weather', first))
             self.assertEqual(len(self.pushed), 1)
-            self.assertNotIn('达妮娅', self.pushed[0], '首报应为中性官方')
+            self.assertIn('达妮娅', self.pushed[0], '首报应为达妮娅口吻')
             rows = self.runtime.store.recent(10)
             self.assertTrue(any(
                 row['kind'] == 'weather' and row['status'] == 'pushed' for row in rows
@@ -244,8 +244,7 @@ class ChinaWiringTest(unittest.TestCase):
                 effective='2026-07-29 15:30:00',
             )
             await self.runtime.handle_jian_message(self.message('weather', update))
-            self.assertEqual(len(self.pushed), 2)
-            self.assertIn('达妮娅', self.pushed[1], '同一预警的后续更新应为达妮娅')
+            self.assertEqual(len(self.pushed), 1, '同一预警只播报一次')
 
         asyncio.run(scenario())
 

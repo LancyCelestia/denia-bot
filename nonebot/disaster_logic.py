@@ -249,7 +249,7 @@ def _headline(event: EarthquakeEvent) -> str:
 
 
 def event_lead(event: EarthquakeEvent, tone: str = 'neutral') -> str:
-    """卡片/消息用的一句导语；首报中性，后续达妮娅。"""
+    """卡片/消息用的一句导语；tone 由调用方传入，自动播报统一使用 character。"""
     place = event.place or '震中调查中'
     magnitude = f'M{event.magnitude:.1f}' if event.magnitude is not None else '震级调查中'
     if tone != 'character':

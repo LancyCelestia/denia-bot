@@ -67,6 +67,15 @@ def open_png(payload: bytes) -> Image.Image:
 
 
 class StatusCardTest(unittest.TestCase):
+    def test_cpu_temperature_note_renders_inside_ring(self):
+        current = view()
+        current['resources'][0]['note'] = '42.3℃'
+        current['resources'][0]['subnote'] = '60m 均 40.1℃'
+        html = image.build_status_html(current)
+        self.assertIn('42.3℃', html)
+        self.assertIn('60m 均 40.1℃', html)
+        self.assertNotIn('℃', current['resources'][0]['detail'])
+
     def test_website_readings_are_visible_and_have_space(self):
         current = view()
         baseline = image.render_status_card(current)

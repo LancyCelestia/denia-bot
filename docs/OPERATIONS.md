@@ -193,6 +193,14 @@ knowledge/*.md  ──build_index──▶  rag/index/{chunks,tokens,lexicon,vec
 | `data/statuscard.sqlite3` | 资源/网站/进程采样、异常事件、每日快照、报表发送记录 | 资源 30 天 / 事件 90 天 |
 | `data/statuscard/avatar-<QQ>.png` | QQ 头像缓存 | 24 小时 |
 
+**Grafana CPU 温度**（可选）：
+
+- 面板「服务器状态 → Grafana CPU 温度」填写地址、Prometheus 数据源 UID、PromQL、平均窗口和 API Key。
+- API Key 单独保存在 `data/status_grafana_secrets.json`（0600，不回显）；`statuscard.json` 只保留非密钥字段。
+- 查询走 `GET /api/datasources/proxy/uid/<uid>/api/v1/query_range`；当前值取窗口最后一个样本，平均值取窗口内全部样本均值。数据源需为 Prometheus。
+- 查询失败只省略温度，不影响状态卡其他内容；面板「测试连接」可直接验证。
+- Grafana 服务账号需要 `Data sources: Query` 权限；默认查询 `max(node_hwmon_temp_celsius)`，按实际指标调整。
+
 **依赖**：`psutil`（采集）、`Pillow`（素材预处理和缩放）与同机 Playwright 容器（排版截图）。
 `requirements.lock` 已包含。
 

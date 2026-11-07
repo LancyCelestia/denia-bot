@@ -1,0 +1,13 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - generic [aria-hidden] [ref=e4]: ✳
+    - generic [ref=e5]:
+      - heading "欢迎回来" [level=1] [ref=e6]
+      - paragraph [ref=e7]: 登录管理控制台，继续照看你的机器人。
+      - generic [ref=e8]:
+        - generic [ref=e9]: 管理员密码
+        - textbox "管理员密码" [ref=e10]:
+          - /placeholder: 请输入密码
+        - button "登录控制台 →" [ref=e11] [cursor=pointer]
+    - paragraph [ref=e12]: QQ BOT · 管理员控制台
+  - text: 暂无内容 暂无内容 暂无内容 暂无内容 暂无内容 暂无内容 暂无内容 暂无内容 暂无内容 暂无内容 暂无内容 暂无内容 暂无内容

@@ -185,12 +185,23 @@ def build_view(snapshot: dict[str, Any], *, redact: Iterable[str] = (), now: flo
     system = dict(snapshot.get('system') or {})
     bot = dict(snapshot.get('bot') or {})
 
+    cpu_temp = cpu.get('temp') if isinstance(cpu.get('temp'), dict) else None
+    cpu_note = ''
+    cpu_subnote = ''
+    if cpu_temp and cpu_temp.get('current_c') is not None:
+        cpu_note = f'{_as_float(cpu_temp.get("current_c")):.1f}℃'
+        if cpu_temp.get('avg_c') is not None:
+            minutes = int(_as_float(cpu_temp.get('window_minutes'), 60))
+            cpu_subnote = f'{minutes}m 均 {_as_float(cpu_temp.get("avg_c")):.1f}℃'
+
     resources = [
         {
             'key': 'cpu',
             'title': 'CPU',
             'percent': round(_as_float(cpu.get('percent')), 1),
             'detail': _cpu_detail(cpu),
+            'note': cpu_note,
+            'subnote': cpu_subnote,
         },
         {
             'key': 'memory',

@@ -12,6 +12,30 @@ def seg(kind, **data):
 
 
 class ParserRuntimeTests(unittest.TestCase):
+    def test_group_arbitration_switch_controls_processing(self):
+        async def run():
+            runtime = ParserRuntime()
+            try:
+                event = SimpleNamespace(self_id=10, user_id=20, group_id=30, message_id=40, time=1,
+                                        original_message=[seg('text', text='BV1xx411c7mD')], reply=None)
+                match = runtime.match(event)
+                parser = runtime.parsers[match[0]]
+                parser.parse = AsyncMock(return_value=ParseResult(platform=Platform('bilibili', 'B站'), title='test', url='https://example.com/a'))
+                runtime.sender.send_parse_result = AsyncMock()
+                runtime.arbiter.compete = AsyncMock(return_value=False)
+                runtime.cfg.arbiter = True
+                await runtime.process(SimpleNamespace(), event, match)
+                runtime.arbiter.compete.assert_awaited_once()
+                parser.parse.assert_not_awaited()
+                runtime.cfg.arbiter = False
+                await runtime.process(SimpleNamespace(), event, match)
+                self.assertEqual(runtime.arbiter.compete.await_count, 1)
+                parser.parse.assert_awaited_once()
+                runtime.sender.send_parse_result.assert_awaited_once()
+            finally:
+                await runtime.close()
+        asyncio.run(run())
+
     def test_parse_error_replies_without_leaking_exception(self):
         async def run():
             runtime = ParserRuntime()

@@ -61,7 +61,11 @@ def png_bytes(data: bytes, *, whole_card: bool = False) -> bytes:
 
 def decode_response(response: httpx.Response, pages: bool, *, whole_card: bool = False) -> list[bytes]:
     if response.status_code != 200:
-        raise RenderError(f'renderer http {response.status_code}', status=response.status_code)
+        detail = ' '.join((response.text or '').split())[:200]
+        raise RenderError(
+            f'renderer http {response.status_code}' + (f': {detail}' if detail else ''),
+            status=response.status_code,
+        )
     if len(response.content) > MAX_RESPONSE:
         raise RenderError('renderer response too large')
     content_type = response.headers.get('content-type', '').split(';')[0].strip()

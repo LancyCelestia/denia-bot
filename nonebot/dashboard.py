@@ -25,6 +25,7 @@ import master_settings
 import parser_settings
 import status_collect as status_live
 import status_config as status_config_mod
+import status_grafana as status_grafana_mod
 import status_store as status_store_mod
 import superuser_settings
 from bot_monitor import Monitor, Restart, RestartController, WindowsRestart  # noqa: F401 - 测试仍按旧名引用
@@ -278,11 +279,6 @@ async def clear_parser_events(req: Request):
     try: return parser_settings.clear_events()
     except (OSError, ValueError): raise HTTPException(503, '解析日志无法清理')
 
-from endfield_panel import register as register_endfield
-
-register_endfield(app, authorized=authorized, mutate=mutate, root=ROOT)
-
-
 @app.get('/api/token')
 def token_usage(req: Request, days: int = 7):
     authorized(req)
@@ -491,10 +487,19 @@ def status_overview(req: Request, days: int = 1):
     samples, state = status_stores()
     now = time.time()
     since = int(now - days * 86400)
+    config = status_config_mod.load_config(status_paths()[0])
     try:
         live = status_live.panel_snapshot()
     except Exception:
         live = {}
+    try:
+        temperature = status_grafana_mod.fetch_temp(
+            config.get('grafana') or {}, root=ROOT
+        )
+    except Exception:
+        temperature = None
+    if temperature and isinstance(live.get('cpu'), dict):
+        live['cpu']['temp'] = temperature
     points = [
         {'t': row['ts'], 'c': row['cpu'], 'm': row['mem']}
         for row in samples.list_resources(since)
@@ -521,8 +526,28 @@ def status_overview(req: Request, days: int = 1):
         'report': report,
         'stores': {key: value for key, value in samples.stats().items() if key != 'counts'},
         'counts': samples.stats().get('counts', {}),
-        'config': status_config_mod.public_view(status_config_mod.load_config(status_paths()[0])),
+        'config': status_config_mod.public_view(config),
+        'grafana': status_grafana_mod.panel_view(config.get('grafana') or {}, root=ROOT),
     }
+
+
+@app.post('/api/status/grafana/datasources')
+async def list_status_grafana_datasources(req: Request):
+    """用面板填写的地址和 Key 列出数据源，不保存。"""
+    mutate(req)
+    body = await req.json()
+    config = status_config_mod.load_config(status_paths()[0])
+    incoming = (body or {}).get('grafana') if isinstance(body, dict) else None
+    settings = dict(config.get('grafana') or {})
+    token = ''
+    if isinstance(incoming, dict):
+        settings.update({key: value for key, value in incoming.items() if key != 'token'})
+        token = str(incoming.get('token') or '').strip()
+    settings['enabled'] = True
+    items = status_grafana_mod.fetch_datasources(settings, token=token, root=ROOT)
+    if items is None:
+        return {'ok': False, 'error': status_grafana_mod.last_error() or '读取失败'}
+    return {'ok': True, 'items': items}
 
 
 @app.post('/api/status/config')
@@ -531,9 +556,47 @@ async def set_status_config(req: Request):
     body = await req.json()
     path = status_paths()[0]
     config = status_config_mod.load_config(path)
-    updated = status_config_mod.apply_patch(config, body if isinstance(body, dict) else {})
+    payload = body if isinstance(body, dict) else {}
+    grafana_patch = payload.get('grafana')
+    if isinstance(grafana_patch, dict):
+        token = grafana_patch.get('token')
+        if isinstance(token, str) and token.strip():
+            status_grafana_mod.save_secret(token.strip(), root=ROOT)
+        payload = {
+            **payload,
+            'grafana': {key: value for key, value in grafana_patch.items() if key != 'token'},
+        }
+    updated = status_config_mod.apply_patch(config, payload)
     status_config_mod.save_config(updated, path)
-    return {'ok': True, 'config': status_config_mod.public_view(updated)}
+    return {
+        'ok': True,
+        'config': status_config_mod.public_view(updated),
+        'grafana': status_grafana_mod.panel_view(updated.get('grafana') or {}, root=ROOT),
+    }
+
+
+@app.post('/api/status/grafana/test')
+async def test_status_grafana(req: Request):
+    """用面板当前填写的参数试查一次，不保存。"""
+    mutate(req)
+    body = await req.json()
+    config = status_config_mod.load_config(status_paths()[0])
+    incoming = (body or {}).get('grafana') if isinstance(body, dict) else None
+    patch = {}
+    token = ''
+    if isinstance(incoming, dict):
+        patch = {key: value for key, value in incoming.items() if key != 'token'}
+        token = str(incoming.get('token') or '').strip()
+    merged = status_config_mod.apply_patch(config, {'grafana': patch}) if patch else config
+    settings = dict(merged.get('grafana') or {})
+    settings['enabled'] = True
+    token = token or status_grafana_mod.load_secret(ROOT)
+    if not token:
+        return {'ok': False, 'error': '未配置 Grafana API Key'}
+    result = status_grafana_mod.fetch_temp(settings, token=token, root=ROOT, use_cache=False)
+    if not result:
+        return {'ok': False, 'error': status_grafana_mod.last_error() or '查询没有返回数据'}
+    return {'ok': True, **result}
 
 
 # ---------------------------------------------------------------- 超级管理员

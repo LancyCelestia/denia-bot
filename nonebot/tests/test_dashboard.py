@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 import tempfile
@@ -15,6 +16,21 @@ import parser_settings
 from unittest.mock import AsyncMock, Mock, patch
 
 class DashboardTest(unittest.TestCase):
+    def test_parser_arbitration_setting_is_authorized_and_persistent(self):
+        with tempfile.TemporaryDirectory() as tmp, patch.object(parser_settings, 'PATH', Path(tmp)/'parser.json'):
+            d.AUTH_FILE = Path(tmp)/'auth'
+            d.set_password('a-strong-test-password')
+            with TestClient(d.app) as client:
+                login = client.post('/api/login', json={'password':'a-strong-test-password'})
+                headers = {'Origin':'http://testserver','X-CSRF-Token':login.json()['csrf']}
+                data = client.get('/api/parser').json()
+                self.assertTrue(data['general']['arbiter'])
+                update = {'version':data['version'], 'general':{'arbiter':False}}
+                self.assertEqual(client.post('/api/parser', json=update).status_code, 403)
+                self.assertEqual(client.post('/api/parser', json=update, headers=headers).status_code, 200)
+                self.assertFalse(parser_settings.load()['arbiter'])
+                self.assertFalse(client.get('/api/parser').json()['general']['arbiter'])
+
     def test_failed_restart_unlocks_only_after_new_process_is_ready(self):
         with tempfile.TemporaryDirectory() as tmp:
             d.AUTH_FILE = Path(tmp)/'auth'
@@ -144,5 +160,28 @@ class DashboardTest(unittest.TestCase):
                 topics.record(topics.DEFAULT_PATH, '123', '1', '你好', user_id='42', display_name='群友', tokenizer=lambda _: [])
                 ranking = client.get('/api/group/123').json()['speakers']
                 self.assertEqual([(s['user_id'], s['display_name'], s['count']) for s in ranking], [('42', '群友', 1)])
+
+    def test_status_grafana_token_is_stored_separately(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            d.AUTH_FILE = root/'auth'
+            d.set_password('a-strong-test-password')
+            config_path = root/'statuscard.json'
+            with patch.object(d, 'status_paths', return_value=(config_path, root/'state.json', root/'status.db')), \
+                    patch.object(d, 'ROOT', root), TestClient(d.app) as client:
+                login = client.post('/api/login', json={'password':'a-strong-test-password'})
+                headers = {'Origin':'http://testserver','X-CSRF-Token':login.json()['csrf']}
+                response = client.post('/api/status/config', headers=headers, json={'grafana': {
+                    'enabled': True, 'url': 'http://grafana:3000', 'datasource_uid': 'prom-uid',
+                    'temp_query': 'max(node_hwmon_temp_celsius)', 'avg_window_minutes': 30,
+                    'token': 'glsa_secret',
+                }})
+                self.assertEqual(response.status_code, 200)
+                saved = json.loads(config_path.read_text(encoding='utf-8'))
+                self.assertEqual(saved['grafana']['datasource_uid'], 'prom-uid')
+                self.assertNotIn('token', saved['grafana'])
+                secret = json.loads((root/'data'/'status_grafana_secrets.json').read_text(encoding='utf-8'))
+                self.assertEqual(secret['token'], 'glsa_secret')
+                self.assertNotIn('glsa_secret', json.dumps(response.json()))
 
 if __name__ == '__main__': unittest.main()

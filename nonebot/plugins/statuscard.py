@@ -37,6 +37,7 @@ from muicebot.plugin import PluginMetadata
 import gate_logic as gl
 import status_collect as collect
 import status_config as config_mod
+import status_grafana as grafana
 import superuser_settings
 import status_image as image
 import status_logic as logic
@@ -462,6 +463,15 @@ async def build_snapshot(runtime: Runtime, *, now: float | None = None) -> dict[
     )
     if isinstance(cpu, BaseException):
         cpu = {'percent': 0.0, 'cores': 0, 'threads': 0, 'brand': 'CPU', 'freq_mhz': 0.0}
+    try:
+        temperature = await asyncio.to_thread(
+            grafana.fetch_temp, runtime.config.get('grafana') or {}
+        )
+    except Exception as exc:  # noqa: BLE001 - 温度只是附加信息，失败不影响状态卡
+        logger.warning(f'[status] Grafana 温度查询失败：{exc}')
+        temperature = None
+    if temperature:
+        cpu['temp'] = temperature
     if isinstance(memory, BaseException):
         memory = {'total': 0, 'used': 0, 'percent': 0.0}
     if isinstance(swap, BaseException):

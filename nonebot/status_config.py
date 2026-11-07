@@ -74,6 +74,15 @@ DEFAULT_CONFIG: dict[str, Any] = {
         'retention_days': 30,
         'event_retention_days': 90,
     },
+    'grafana': {
+        'enabled': False,
+        'url': '',
+        'datasource_uid': '',
+        'temp_query': 'max(node_hwmon_temp_celsius)',
+        'avg_window_minutes': 60,
+        'timeout_seconds': 3,
+        'cache_seconds': 60,
+    },
 }
 
 #: 面板允许修改的字段。白名单而不是黑名单：面板是给人用的，手滑改错一个没人
@@ -86,6 +95,7 @@ EDITABLE: dict[str, tuple[str, ...]] = {
                  'silence_enabled', 'silence_until'),
     'report': ('enabled', 'time', 'weekly_enabled', 'weekly_time', 'sections',
                'with_image', 'history_days', 'collect'),
+    'grafana': ('enabled', 'url', 'datasource_uid', 'temp_query', 'avg_window_minutes'),
 }
 
 REDACT_OPTIONS = ('hostname', 'process', 'network', 'qq_stats')
@@ -133,6 +143,7 @@ def public_view(config: dict[str, Any]) -> dict[str, Any]:
     alerts = config.get('alerts') or {}
     monitors = config.get('monitors') or {}
     report = config.get('report') or {}
+    grafana = config.get('grafana') or {}
     return {
         'display': {
             'width': display.get('width'),
@@ -171,6 +182,13 @@ def public_view(config: dict[str, Any]) -> dict[str, Any]:
             'with_image': report.get('with_image'),
             'history_days': report.get('history_days'),
             'collect': report.get('collect'),
+        },
+        'grafana': {
+            'enabled': grafana.get('enabled'),
+            'url': grafana.get('url'),
+            'datasource_uid': grafana.get('datasource_uid'),
+            'temp_query': grafana.get('temp_query'),
+            'avg_window_minutes': grafana.get('avg_window_minutes'),
         },
         'options': {
             'redact': list(REDACT_OPTIONS),

@@ -489,14 +489,17 @@ class Runtime:
         if alert.key in self.state['seen']:
             return False
         state_mod.mark_seen(self.state, alert.key)
-        tone, identity = tone_mod.tone_for('weather', alert, self.state['seen'])
-        if identity:
-            state_mod.mark_seen(self.state, identity)
+        tone = tone_mod.CHARACTER
         self._record_weather(alert, 'filtered', tone)
         if not china_logic.within_weather_filters(alert, config):
             return False
         if not self._targets(config):
             return False
+        identity = tone_mod.alert_identity('weather', alert)
+        if identity in self.state['seen']:
+            self._record_weather(alert, 'ignored', tone)
+            return False
+        state_mod.mark_seen(self.state, identity)
         text = china_logic.format_weather(alert, config, tone)
         image = await self._render_china('weather', alert, config, tone)
         sent = await self._push(text, config, image, event_key=alert.key)
@@ -511,14 +514,17 @@ class Runtime:
         if alert.key in self.state['seen']:
             return False
         state_mod.mark_seen(self.state, alert.key)
-        tone, identity = tone_mod.tone_for('tsunami', alert, self.state['seen'])
-        if identity:
-            state_mod.mark_seen(self.state, identity)
+        tone = tone_mod.CHARACTER
         self._record_tsunami(alert, 'filtered', tone)
         if not china_logic.within_tsunami_filters(alert, config):
             return False
         if not self._targets(config):
             return False
+        identity = tone_mod.alert_identity('tsunami', alert)
+        if identity in self.state['seen']:
+            self._record_tsunami(alert, 'ignored', tone)
+            return False
+        state_mod.mark_seen(self.state, identity)
         text = china_logic.format_tsunami(alert, config, tone)
         image = await self._render_china('tsunami', alert, config, tone)
         sent = await self._push(text, config, image, event_key=alert.key)
@@ -584,14 +590,17 @@ class Runtime:
         if typhoon.key in self.state['seen']:
             return False
         state_mod.mark_seen(self.state, typhoon.key)
-        tone, identity = tone_mod.tone_for('typhoon', typhoon, self.state['seen'])
-        if identity:
-            state_mod.mark_seen(self.state, identity)
+        tone = tone_mod.CHARACTER
         self._record_typhoon(typhoon, 'filtered', tone)
         if not china_logic.within_typhoon_filters(typhoon, config):
             return False
         if not self._targets(config):
             return False
+        identity = tone_mod.alert_identity('typhoon', typhoon)
+        if identity in self.state['seen']:
+            self._record_typhoon(typhoon, 'ignored', tone)
+            return False
+        state_mod.mark_seen(self.state, identity)
         text = china_logic.format_typhoon(typhoon, config, tone)
         image = await self._render_china('typhoon', typhoon, config, tone)
         sent = await self._push(text, config, image, event_key=typhoon.key)
@@ -606,12 +615,17 @@ class Runtime:
         if typhoon.stop_key in self.state['seen']:
             return False
         state_mod.mark_seen(self.state, typhoon.stop_key)
-        tone = tone_mod.subsequent_tone()
+        tone = tone_mod.CHARACTER
         self._record_typhoon_stop(typhoon, 'filtered', tone)
         if not china_logic.within_typhoon_filters(typhoon, config):
             return False
         if not self._targets(config):
             return False
+        identity = tone_mod.alert_identity('typhoon_stop', typhoon)
+        if identity in self.state['seen']:
+            self._record_typhoon_stop(typhoon, 'ignored', tone)
+            return False
+        state_mod.mark_seen(self.state, identity)
         text = china_logic.format_typhoon_stopped(typhoon, config, tone)
         image = await self._render_china('typhoon', typhoon, config, tone, stopped=True)
         sent = await self._push(text, config, image, event_key=typhoon.stop_key)
@@ -685,7 +699,7 @@ class Runtime:
             return False
         # 先记为已处理：过滤掉/没配目标/推送失败都不再回补，避免重启后补发旧事件。
         state_mod.mark_seen(self.state, key)
-        tone = tone_mod.earthquake_tone(event)
+        tone = tone_mod.CHARACTER
         self._record_quake(event, 'filtered', tone)
         if event.is_training or event.is_cancel:
             reason = '训练报' if event.is_training else '取消报'
@@ -693,12 +707,17 @@ class Runtime:
             return False
         if not logic.within_filters(event, config):
             return False
-        # JMA 一分钟内可能十几报；第一报与最终报推，中间报不刷屏。
+        # JMA 一分钟内可能十几报；只取第一报，后续报不再重复播报。
         if event.source == 'jma_eew' and event.report_num > 1 and not event.is_final:
             self._record_quake(event, 'ignored', tone, 'JMA 中间报')
             return False
         if not self._targets(config):
             return False
+        identity = tone_mod.alert_identity('earthquake', event)
+        if identity in self.state['seen']:
+            self._record_quake(event, 'ignored', tone, '同一地震已播报')
+            return False
+        state_mod.mark_seen(self.state, identity)
         text = logic.format_event(event, config, tone)
         image = await self._render_image(event, config, tone)
         sent = await self._push(text, config, image, event_key=key)

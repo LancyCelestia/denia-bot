@@ -60,9 +60,15 @@ def build_status_html(view):
         pct=percent(item.get('percent')); level=item.get('level') or ('bad' if pct>=90 else 'warn' if pct>=70 else 'good')
         accent={'cpu':'#308977','memory':'#a65a89','swap':'#9381c2'}.get(item.get('key'),'#308977')
         stroke=color(level,accent) if level in {'bad','warn'} else accent
+        # 没有温度附加行的卡片（内存/SWAP）保持原来的居中位置；只有 CPU 上移给温度让位。
+        has_notes=bool(item.get('note') or item.get('subnote'))
+        pct_y=74 if has_notes else 90
         rings.append(f'<section class="panel resource"><svg viewBox="0 0 160 160"><circle cx="80" cy="80" r="66" stroke="#ebe2f2" stroke-width="12" fill="none"/>'
             +f'<circle cx="80" cy="80" r="66" stroke="{stroke}" stroke-width="12" fill="none" pathLength="100" stroke-dasharray="{pct} 100" transform="rotate(-90 80 80)" stroke-linecap="round"/>'
-            +f'<text x="80" y="90" text-anchor="middle" fill="#352b49" font-size="32">{pct:.1f}%</text></svg><h2>{text(item.get("title"))}</h2><p class="detail ellipsis">{text(item.get("detail"))}</p></section>')
+            +f'<text x="80" y="{pct_y}" text-anchor="middle" fill="#352b49" font-size="32">{pct:.1f}%</text>'
+            +(f'<text x="80" y="100" text-anchor="middle" fill="#352b49" font-size="19">{text(item.get("note"))}</text>' if item.get('note') else '')
+            +(f'<text x="80" y="120" text-anchor="middle" fill="#6f5e82" font-size="12">{text(item.get("subnote"))}</text>' if item.get('subnote') else '')
+            +f'</svg><h2>{text(item.get("title"))}</h2><p class="detail ellipsis">{text(item.get("detail"))}</p></section>')
     if rings: blocks.append('<div class="resources">'+''.join(rings)+'</div>')
     for batch in chunks(view.get('disks') or [],12):
         rows=[]

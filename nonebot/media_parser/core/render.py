@@ -28,7 +28,7 @@ STYLE='''
 class Renderer:
     DEFAULT_CARD_WIDTH=800
     MAX_IMAGES_DISPLAY=9
-    AVATAR_WAIT_TIMEOUT=2.0
+    AVATAR_WAIT_TIMEOUT=8.0
     RESOURCES_DIR=Path(__file__).resolve().parent/'resources'
 
     def __init__(self,config): self.cfg=config

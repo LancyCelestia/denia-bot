@@ -46,7 +46,7 @@
 2. **数据源**：Wolfx 免鉴权地震（CENC/JMA）；Jian `lk_→rt_→at_` + WS（气象/中国海啸）；EQSC `ARh.→ATn.` + `/typhoonNMC.json`（台风）。凭证只落本机数据文件/环境变量，不进 git/issue。
 3. **出图**：上游 Playwright/Pillow/远程 T2I 模板 → 本仓库自建 HTTP Playwright 渲染服务 + 自写 B Bulletin 卡（900×1200，内联 CSS/SVG，无上游模板）。失败回退文字。
 4. **配置/面板**：上游 67 KB `_conf_schema.json` 与 WebUI → `data/disaster_warning.json` + FastAPI 面板；令牌不回显。
-5. **事件与文案**：首轮基线、事件 ID/报次去重、JMA 中间报抑制；用户定稿 B 结构 + 首报中性/后续达妮娅。
+5. **事件与文案**：首轮基线、事件 ID/报次去重、JMA 中间报抑制；用户定稿 B 结构 + 统一达妮娅口吻；后续按事件身份去重，同一预警只播报一次。
 6. **测试**：本仓库补充的 pytest（纯逻辑、MockTransport、Runtime 接线、B 卡、许可边界）。
 7. **裁剪**：不做上游 WebUI 七页、40 条查询命令、telemetry、通知中心、FAN Studio 长期依赖。
 
