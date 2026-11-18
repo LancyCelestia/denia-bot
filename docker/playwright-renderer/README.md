@@ -1,6 +1,6 @@
 # 同机图片渲染容器
 
-天气、群话题、帮助菜单、Epic、状态卡、报表、解析预览、灾害和终末地统一由此服务排版和截图。Pillow 只做已有素材的压缩、裁剪、转码与最终缩放。各业务的来源和许可证仍按文件头及 docs/third-party 保留；公共传输层和服务为原创 MIT 实现。
+天气、群话题、帮助菜单、Epic、状态卡、报表、解析预览和灾害统一由此服务排版和截图。Pillow 只做已有素材的压缩、裁剪、转码与最终缩放。各业务的来源和许可证仍按文件头及 docs/third-party 保留；公共传输层和服务为原创 MIT 实现。
 
 ## 启动与配置
 
@@ -13,7 +13,7 @@ curl --fail http://127.0.0.1:3100/health
 
 构建上下文是仓库根目录。Playwright 镜像与 npm 包均固定 1.60.0，npm ci 使用锁文件。镜像内含 HYSongYunLangHeiW、Noto CJK 与 Noto Color Emoji；字体和背景资源来源不变。容器名 qqbot-playwright，只绑定 127.0.0.1:3100，内存 768 MiB、共享内存 256 MiB、CPU 1、最大并发 2。
 
-统一地址默认 http://127.0.0.1:3100，面板「图片渲染服务」可保存到 nonebot/data/renderer.json，机器人与面板下次调用立即重读。仅允许本机回环 HTTP 地址。旧灾害 remote_url、Endfield render_url 字段保留读取兼容，但不再控制传输地址。进程环境 QQBOT_RENDER_URL 优先于共享文件；设置时面板地址只读。该变量指进程环境，单独写 NoneBot .env 不会配置面板进程。可选鉴权使用容器 RENDER_TOKEN 与调用进程 QQBOT_RENDER_TOKEN；值不要写入代码或面板响应。
+统一地址默认 http://127.0.0.1:3100，面板「图片渲染服务」可保存到 nonebot/data/renderer.json，机器人与面板下次调用立即重读。仅允许本机回环 HTTP 地址。旧灾害 remote_url 字段保留读取兼容，但不再控制传输地址。进程环境 QQBOT_RENDER_URL 优先于共享文件；设置时面板地址只读。该变量指进程环境，单独写 NoneBot .env 不会配置面板进程。可选鉴权使用容器 RENDER_TOKEN 与调用进程 QQBOT_RENDER_TOKEN；值不要写入代码或面板响应。
 
 候选验证使用独立项目、容器名与端口：
 

@@ -23,7 +23,7 @@ r"""
 已知坑（为什么不直接信 SnowLuma 的 probe）：
   ptlocal 的 /pt_get_uins 读的是 %APPDATA%\QQ 下**共用**的「本机记住的号」列表，
   不是「这个 PID 登录的号」。实测两个实例的端口（4301/4303）都回 10000001，
-  小号 3892894069 压根不在里面（扫码登录、没勾记住密码）。
+  小号 <BOT_QQ> 压根不在里面（扫码登录、没勾记住密码）。
   而 SnowLuma 的 tryPtloginMethod（index.mjs:1036）会连打两次、取**较短**的那个结果
   （`reduce((a,b)=> a.length<=b.length ? a : b)`），只在长度恰好为 1 时才认身份；
   小号那个实例的 pt 服务会间歇返回空列表（实测 4 次里 2 次为 []），
@@ -54,9 +54,30 @@ import urllib.request
 from pathlib import Path
 
 # ---------------- 配置 ----------------
-TARGET_UIN = "3892894069"                     # 只注入这个号
-BASE = "http://127.0.0.1:5099"                # SnowLuma WebUI
 ROOT = Path(__file__).resolve().parent.parent
+
+
+def _private_value(key: str) -> str:
+    """Read the ignored local runtime value without embedding it in this file."""
+    value = os.environ.get(key, "").strip()
+    if value:
+        return value
+    for path in (ROOT / "local" / "bot.env", ROOT / "nonebot" / ".env"):
+        try:
+            for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+                stripped = line.strip()
+                if not stripped or stripped.startswith("#") or "=" not in stripped:
+                    continue
+                name, raw = stripped.split("=", 1)
+                if name.strip() == key:
+                    return raw.strip().strip("\"'")
+        except OSError:
+            continue
+    return ""
+
+
+TARGET_UIN = _private_value("QQBOT_SELF_ID")   # ignored private env; never committed
+BASE = "http://127.0.0.1:5099"                # SnowLuma WebUI
 PASS_FILE = ROOT / "tools" / "snowluma-webui-pass.txt"
 QQ_PARTITIONS = Path(os.environ.get("APPDATA", str(Path.home() / "AppData" / "Roaming"))) / "QQ" / "Partitions"
 WATCH_INTERVAL = 15
@@ -304,6 +325,10 @@ def main() -> int:
     ap.add_argument("--check", action="store_true", help="只报告身份识别结果，不注入")
     ap.add_argument("--quiet", action="store_true", help="只在有变化时输出")
     args = ap.parse_args()
+
+    if not TARGET_UIN:
+        print("[!] 未配置 QQBOT_SELF_ID。请在 local/bot.env 或 nonebot/.env 填写机器人 QQ 号。")
+        return 2
 
     token = login()
     if not token:

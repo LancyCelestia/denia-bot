@@ -24,27 +24,27 @@ r"""
 用法：
     python 自检全链路.py                                  # 「达妮娅，今汐是谁」，应命中知识库
     python 自检全链路.py --text "你好呀"
-    python 自检全链路.py --group 1108838060 --at          # 群里 @ 机器人，应该回
-    python 自检全链路.py --group 1108838060               # 群里不 @，应该完全静默
+    python 自检全链路.py --group <GROUP_ID> --at          # 群里 @ 机器人，应该回
+    python 自检全链路.py --group <GROUP_ID>               # 群里不 @，应该完全静默
     python 自检全链路.py --user 10000001 --text "限流 默认 1"    # 私聊把上限设成 1
-    python 自检全链路.py --group 1108838060 --at --repeat 2 --timeout 25
+    python 自检全链路.py --group <GROUP_ID> --at --repeat 2 --timeout 25
                                                           # 连发两条：第 1 条回、第 2 条静默
     python 自检全链路.py --no-nickname                    # 不加昵称前缀，验证「不触发」
 
-    python 自检全链路.py --group 922192732 --at --hang-name
+    python 自检全链路.py --group <GROUP_ID> --at --hang-name
         # 假装不答「这人叫什么」那两个接口。**注意**：真 SnowLuma 连着的时候这一招咬不到 ——
         #   muice.py:174 空手调 get_username()，里面 nonebot.get_bot() 返回的是**第一个**连上的 Bot
         #   （= 真 SnowLuma），那一跳根本不走本脚本这条 socket。验超时保险请改
         #   NAME_GUARD_TIMEOUT=0.05 重启（判据见 交接文档.md §6.6 / §16 第 11 步）。
 
 QQ「回复（引用）」的三种情形（都带 --group，多 --quote / --quote-by）：
-    python 自检全链路.py --group 922192732 --quote-by -1 --quote "嗯……我在呢" --text "那你回来看看"
+    python 自检全链路.py --group <GROUP_ID> --quote-by -1 --quote "嗯……我在呢" --text "那你回来看看"
         回复**她自己说过的**那句。真机上 QQ 会在正文前自动 @ 被引用那条的作者，所以脚本
         跟着补 at 段 —— 但那个 @ 不算在叫她（`QUOTE_AT_COUNTS=0`，2026-09-27 主人定的），
         闸门该拦。判据看日志：`[gate] 这个 @ 是引用自动补的…` + `[gate] 拦下`。
-    python 自检全链路.py --group 922192732 --quote-by -1 --manual-at --quote "嗯……我在呢" --text "那你回来看看"
+    python 自检全链路.py --group <GROUP_ID> --quote-by -1 --manual-at --quote "嗯……我在呢" --text "那你回来看看"
         回复她 + **又自己手打了一个 @** —— 这才该放行，也是验 quote_fix（引用渲染）的群聊用法。
-    python 自检全链路.py --group 922192732 --quote-by 982272752 --quote "@达妮娅 在吗" --text "哈哈"
+    python 自检全链路.py --group <GROUP_ID> --quote-by <USER_ID> --quote "@达妮娅 在吗" --text "哈哈"
         @ 只活在**被引用的那段内容**里。当前事件里没有指向她的 at 段，闸门按没 @ 处理 —— 静默
         是设计如此（想改这条要动 gate，见交接文档里的 FIX 2）。
 """
@@ -74,8 +74,8 @@ FAKE_SELF_NICK = "达妮娅"
 
 # 假装发消息的人叫什么 —— MuiceBot 在群里会把消息拼成 `<这个人的名片> 正文`
 # （muice.py:174）再喂给模型，所以这两个值直接决定「模型看到的署名」。
-# 线上那次「答非所问」就是主人昵称叫「对乙酰氨基酚」被模型当成了话题：
-#     python 自检全链路.py --group 922192732 --at --nickname 对乙酰氨基酚 --text "娅娅"
+# 线上那次「答非所问」就是主人昵称叫「<OWNER_NICK>」被模型当成了话题：
+#     python 自检全链路.py --group <GROUP_ID> --at --nickname <OWNER_NICK> --text "娅娅"
 NICK = "自检"
 CARD = ""
 
