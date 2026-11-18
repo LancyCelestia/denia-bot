@@ -1,6 +1,6 @@
 # 上游 AstrBot 插件 astrbot_plugin_endfield 能力盘点
 
-调研日期：2026-10-31。范围：上游仓库 `Entropy-Increase-Team/astrbot_plugin_endfield`，本地浅克隆于 `C:\Users\16907\AppData\Local\Temp\astrbot_endfield`，commit `41482b7`（`git log -1`）、`metadata.yaml` 声明版本 3.0.3，许可证 AGPL-3.0（根 `LICENSE`）。
+调研日期：2026-10-31。范围：上游仓库 `Entropy-Increase-Team/astrbot_plugin_endfield`，本地浅克隆于 `<USER_HOME>\AppData\Local\Temp\astrbot_endfield`，commit `41482b7`（`git log -1`）、`metadata.yaml` 声明版本 3.0.3，许可证 AGPL-3.0（根 `LICENSE`）。
 
 本文只做事实盘点和含义说明，不代表已部署或实测；凡标「推断」的都是我根据代码结构给出的判断，不是上游明示。所有结论尽量给到 `文件:行号`。上游仓库未改动。
 

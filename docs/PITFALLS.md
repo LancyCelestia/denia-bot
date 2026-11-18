@@ -75,17 +75,7 @@
 | HuggingFace | 被墙 | 改用 ModelScope 下载模型 |
 | raw.githubusercontent.com | 时通时不通 | 用代理前缀，或改走 `api.github.com` |
 
-## 6. 终末地（endfield）
-
-| 现象 | 原因 | 修法 |
-|---|---|---|
-| 面板/健康检查 302 到 `/login` | 把 3000 当成了渲染器；开发服务器 3000 是 personal-wiki | renderer 用宿主机 `127.0.0.1:3100`，bot 的 `render_url` 指 3100 |
-| 外网访问 3100 不通 | renderer 只绑 `127.0.0.1` | 在服务器本机跑 live，或 `ssh -L 3100:127.0.0.1:3100` |
-| 429 返回 HTML、无 `Retry-After` | 网关限流 | 不解析 JSON；查询调度退避 10 分钟；自动签到仅对明确 429 延后 60s 重试一次，已成功或结果未确认的写请求不重发 |
-| 普通参数错误使绑定失效 | 曾把所有携带 token 的 400 当成认证错误 | 只有消息明确指向 framework token 时按凭据错误处理；其余 400 属于协议错误 |
-| 401/40301/400 都被当同一种错 | 缺 key / token 失效 / 缺 framework_token 语义不同 | 分别映射 config/auth；token 失效标 invalid，不自动删绑定 |
-| 绑定文件泄露 token | `framework_token` 明文 | `data/endfield/bindings.json` 0600、不提交 git、备份加密 |
-## 7. 服务器状态卡
+## 6. 服务器状态卡
 
 | 现象 | 原因 | 修法 |
 |---|---|---|
@@ -106,7 +96,7 @@
 `statuscard` 系移植自 **AGPL-3.0** 的上游插件。改这些文件时不要把它们当成 MIT 代码，
 也不要删除文件头的来源注释——再分发时需要保留署名与完整许可（见 `docs/third-party/`）。
 
-## 8. Epic 喜加一
+## 7. Epic 喜加一
 
 | 现象 | 原因 | 修法 |
 |---|---|---|

@@ -10,6 +10,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import disaster_china_logic as china
+import bot_identity
 
 
 JIAN_WEATHER = {
@@ -117,7 +118,7 @@ class WeatherTest(unittest.TestCase):
         self.assertIn('中国气象局', text)
         self.assertEqual(china.weather_type_name(alert), '强对流')
         character = china.format_weather(alert, tone='character')
-        self.assertIn('达妮娅', character)
+        self.assertIn(bot_identity.display_name(), character)
         self.assertIsNone(china.parse_jian_weather({'id': 'x'}))
 
     def test_multiple_provinces_are_or_and_city_remains_and(self):
@@ -159,7 +160,7 @@ class TsunamiTest(unittest.TestCase):
         self.assertFalse(china.within_tsunami_filters(alert, {
             'filters': {'tsunami_min_level': '橙色'},
         }))
-        self.assertIn('达妮娅', china.format_tsunami(alert, tone='character'))
+        self.assertIn(bot_identity.display_name(), china.format_tsunami(alert, tone='character'))
 
     def test_cancel_always_passes(self):
         alert = china.parse_jian_tsunami(dict(JIAN_TSUNAMI, level='解除', title='海啸解除通告'))
@@ -212,8 +213,8 @@ class TyphoonTest(unittest.TestCase):
         stopped = china.format_typhoon_stopped(typhoon)
         self.assertIn('停编', stopped)
         self.assertIn('桦加沙', stopped)
-        self.assertIn('达妮娅', china.format_typhoon(typhoon, tone='character'))
-        self.assertIn('达妮娅', china.format_typhoon_stopped(typhoon, tone='character'))
+        self.assertIn(bot_identity.display_name(), china.format_typhoon(typhoon, tone='character'))
+        self.assertIn(bot_identity.display_name(), china.format_typhoon_stopped(typhoon, tone='character'))
 
     def test_no_history_returns_none(self):
         self.assertIsNone(china.parse_eqsc_typhoon_item({'id': '9999', 'historyTrack': []}))

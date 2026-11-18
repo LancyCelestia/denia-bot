@@ -8,8 +8,8 @@
 
 开发服务器上的 `data/statuscard.json` 已配置：
 
-- Grafana：`http://192.0.2.241:3000`
-- Datasource：InfluxDB（Flux），UID `bfdl7jw89tjb4b`，bucket `proxmox`
+- Grafana：`http://<部署机IP>:3000`
+- Datasource：InfluxDB（Flux），UID `<datasource-uid>`，bucket `proxmox`
 - 现有「Grafana CPU 温度」使用同一个 token（保存在 `data/status_grafana_secrets.json`）
 
 实际查询到的 InfluxDB measurement：

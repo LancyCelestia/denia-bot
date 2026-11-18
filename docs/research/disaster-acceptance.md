@@ -18,7 +18,7 @@
 - 天气：事件库 69 条 `filtered`、2 条 `pushed`；4 条推送记录（群 + 主人）均为 `ok=1`。
 - 地震/海啸：事件库暂无记录；Wolfx 四端点连通正常。
 - 渲染：宿主机 Playwright 1.60 + Chromium 1223，`127.0.0.1:3100`，`/health ready`；无 Docker 容器状态。
-- 面板：`http://192.0.2.226:8092`，无登录 `/api/disaster` 401；CSRF/会话规则沿用现有面板。
+- 面板：`http://<部署机IP>:8092`，无登录 `/api/disaster` 401；CSRF/会话规则沿用现有面板。
 - 服务器：`/opt/qqbot`，`qqbot`/`qqbot-dashboard`/`qqbot-playwright-renderer` active；灾害文件未跟踪/未提交。
 - EQSC：`enabled=false`、token 已清空；`source_health` 仍有旧错误，验收前清理。
 

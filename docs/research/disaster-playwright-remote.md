@@ -96,7 +96,7 @@ curl http://127.0.0.1:3000/health
 
 ## 开发服务器实测（2026-10-31）
 
-- 主机：`192.0.2.226`（hostname `Development`），root；系统 Node v18.19.1。
+- 主机：`<部署机IP>`（hostname `Development`），root；系统 Node v18.19.1。
 - 已有 **Node Playwright 1.60.0**（在 `/root/.npm/_npx/e41f.../node_modules/playwright` 缓存；不是全局包，普通目录 `require.resolve` 找不到）；`playwright-core 1.60.0`；Chromium `chromium-1223`；**没有 Python Playwright**。
 - 中文字体：WenQuanYi Zen Hei / Unifont；没有 Noto CJK。
 - Docker 29.9.2 可用，容器有 SnowLuma/MCS；**未部署本项目 Docker**（用户选择宿主机复用）。

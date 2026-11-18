@@ -6,8 +6,8 @@ r"""署名规范化的接线断言 —— 拿真实的 `ModelRequest` 喂钩子�
 跟 `test_prompt_logic.py` 的分工：那边管「该怎么切、怎么排」，这边管
 「插件真的照那么做了吗、改动真的落到发给模型的那个对象上了吗」。
 
-复现的是 2026-09-27 15:20 那条真实消息（群 922192732，主人昵称「对乙酰氨基酚」）：
-MuiceBot 会把 `娅娅` 拼成 `<对乙酰氨基酚> 娅娅` 再喂给模型，于是她回了一段用药科普。
+复现的是 2026-09-27 15:20 那条真实消息（群 123456789，主人昵称「<OWNER_NICK>」）：
+MuiceBot 会把 `娅娅` 拼成 `<OWNER_NICK> 娅娅` 再喂给模型，于是她回了一段用药科普。
 不连 QQ、不打网络，也不去改 site-packages —— 钩子改的是同一个 `ModelRequest` 对象
 （`muice.py:255-262`），所以这里断言的就是真正出门的内容。
 """
@@ -44,11 +44,11 @@ from nonebot.adapters.onebot.v11 import (  # noqa: E402
     PrivateMessageEvent,
 )
 
-SELF = 3892894069
-OWNER = 10000001
-OTHER = 982272752
-GRP = 922192732
-OTHER_GRP = 1108838060
+SELF = 10000001
+OWNER = 10000002
+OTHER = 10000003
+GRP = 123456789
+OTHER_GRP = 123456788
 GKEY = f"qq_OneBot V11_{SELF}_{GRP}"
 OKEY = f"qq_OneBot V11_{SELF}_{OTHER_GRP}"
 NICKS = ("达妮娅", "小娅", "娅")
@@ -78,7 +78,7 @@ def group_event(text: str, user: int = OWNER, group: int = GRP) -> GroupMessageE
         sub_type="normal",
         user_id=user, group_id=group, message_id=1621731289, message=m,
         raw_message=str(m), font=0,
-        sender={"card": "", "nickname": "对乙酰氨基酚", "role": "member", "title": ""},
+        sender={"card": "", "nickname": "<OWNER_NICK>", "role": "member", "title": ""},
         to_me=True,
     )
 
@@ -90,7 +90,7 @@ def private_event(text: str, user: int = OWNER) -> PrivateMessageEvent:
     return PrivateMessageEvent(
         time=1790493646, self_id=SELF, post_type="message", message_type="private",
         sub_type="friend", user_id=user, message_id=1, message=m, raw_message=str(m), font=0,
-        sender={"card": "", "nickname": "对乙酰氨基酚", "role": "friend", "title": ""},
+        sender={"card": "", "nickname": "<OWNER_NICK>", "role": "friend", "title": ""},
         to_me=True,
     )
 
@@ -103,12 +103,12 @@ def muice_turn(t, user, gid, msg, resp) -> Chat:
 def accident_request() -> ModelRequest:
     """15:20 那一轮的真实形态：一份原文 + 一份带署名（同一条的两份）、旧群一条、私聊一条。"""
     raw = muice_turn("2026.09.27 15:20:46", OWNER, GKEY, "娅娅", "上一轮的回话")
-    twin = muice_turn("2026.09.27 15:20:46", OWNER, GKEY, "<对乙酰氨基酚> 娅娅", "上一轮的回话")
+    twin = muice_turn("2026.09.27 15:20:46", OWNER, GKEY, "<OWNER_NICK> 娅娅", "上一轮的回话")
     stale = muice_turn("2026.09.27 15:13:38", OWNER, OKEY, "娅娅今天西格莉卡找你了吗", "没有呢……")
     priv = muice_turn("2026.09.27 15:19:00", OWNER, "-1", "达妮娅 在干嘛呢", "在打盹。")
     mate = muice_turn("2026.09.27 15:21:42", OTHER, GKEY, "<穿梭机> 你搁哪里发财呢", "在星炬学院混日子。")
     req = ModelRequest(
-        prompt="<对乙酰氨基酚> 娅娅",
+        prompt="<OWNER_NICK> 娅娅",
         history=[stale, raw, twin, priv, mate],
         system="你现在是《鸣潮》中的「达妮娅」。",
     )
@@ -119,7 +119,7 @@ def t_prompt_loses_the_drug_name():
     req, _ = accident_request()
     asyncio.run(pg.guard(req, group_event("娅娅")))
     assert req.prompt == "〔发言人:漂泊者〕\n娅娅", f"实际 {req.prompt!r}"
-    assert "对乙酰氨基酚" not in req.prompt, "药名还留在模型看到的正文里"
+    assert "<OWNER_NICK>" not in req.prompt, "药名还留在模型看到的正文里"
     assert "<" not in req.prompt and "〔" in req.prompt
 
 
@@ -196,7 +196,7 @@ def t_kill_switch_leaves_everything_alone():
     try:
         req, _ = accident_request()
         asyncio.run(pg.guard(req, group_event("娅娅")))
-        assert req.prompt == "<对乙酰氨基酚> 娅娅", req.prompt
+        assert req.prompt == "<OWNER_NICK> 娅娅", req.prompt
         assert len(req.history) == 5
     finally:
         del nonebot.get_driver().config.prompt_guard
@@ -205,7 +205,7 @@ def t_kill_switch_leaves_everything_alone():
 def t_guard_output_is_what_kb_will_search():
     """两个钩子的先后次序（priority 1 → 5）落在这条断言上：kb 拿到的是干净问句。"""
     req, _ = accident_request()
-    req.prompt = "<对乙酰氨基酚> 达妮娅，在吗"
+    req.prompt = "<OWNER_NICK> 达妮娅，在吗"
     asyncio.run(pg.guard(req, group_event("达妮娅，在吗")))
     assert kl.plan_queries(req.prompt, NICKS) == ["在吗"], kl.plan_queries(req.prompt, NICKS)
 
@@ -213,9 +213,9 @@ def t_guard_output_is_what_kb_will_search():
 def t_unlabeled_prompt_is_left_alone():
     """`template_mode: user` 时正文前还压着一段指令，认不出署名就别动（当前配置走不到）。"""
     req, _ = accident_request()
-    req.prompt = "一些用户指令\n\n<对乙酰氨基酚> 娅娅"
+    req.prompt = "一些用户指令\n\n<OWNER_NICK> 娅娅"
     asyncio.run(pg.guard(req, group_event("娅娅")))
-    assert req.prompt == "一些用户指令\n\n<对乙酰氨基酚> 娅娅", req.prompt
+    assert req.prompt == "一些用户指令\n\n<OWNER_NICK> 娅娅", req.prompt
 
 
 def t_hooks_declare_every_param_they_take():

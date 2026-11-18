@@ -22,6 +22,7 @@ ensure_nonebot()
 
 import disaster_config as config_mod
 import plugins.disaster_warning as plugin
+import bot_identity
 from nonebot.exception import FinishedException
 from tests.test_disaster_china_logic import JIAN_TSUNAMI, JIAN_WEATHER, EQSC_TYPHOON
 from tests.test_disaster_weather_regions import LOCAL, weather
@@ -208,7 +209,7 @@ class ChinaWiringTest(unittest.TestCase):
             self.assertEqual(len(self.pushed), 1)
             self.assertIn('台风', self.pushed[0])
             self.assertIn('桦加沙', self.pushed[0])
-            self.assertIn('达妮娅', self.pushed[0], '台风首次推送应为达妮娅口吻')
+            self.assertIn(bot_identity.display_name(), self.pushed[0], '台风首次推送应使用配置的机器人名称')
 
             stopped = copy.deepcopy(changed)
             stopped['isActive'] = False
@@ -216,7 +217,7 @@ class ChinaWiringTest(unittest.TestCase):
             await self.runtime.poll_typhoons(source)
             self.assertEqual(len(self.pushed), 2)
             self.assertIn('停编', self.pushed[-1])
-            self.assertIn('达妮娅', self.pushed[-1], '后续停编通知应为达妮娅')
+            self.assertIn(bot_identity.display_name(), self.pushed[-1], '后续停编通知应使用配置的机器人名称')
 
         asyncio.run(scenario())
 
@@ -232,7 +233,7 @@ class ChinaWiringTest(unittest.TestCase):
             )
             await self.runtime.handle_jian_message(self.message('weather', first))
             self.assertEqual(len(self.pushed), 1)
-            self.assertIn('达妮娅', self.pushed[0], '首报应为达妮娅口吻')
+            self.assertIn(bot_identity.display_name(), self.pushed[0], '首报应使用配置的机器人名称')
             rows = self.runtime.store.recent(10)
             self.assertTrue(any(
                 row['kind'] == 'weather' and row['status'] == 'pushed' for row in rows

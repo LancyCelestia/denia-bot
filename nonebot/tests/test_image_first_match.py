@@ -46,24 +46,24 @@ TEXT = "这是啥"
 
 
 def _bot() -> Bot:
-    return Bot(Adapter(nonebot.get_driver()), "3892894069")
+    return Bot(Adapter(nonebot.get_driver()), "10000001")
 
 
 def _private(segments) -> PrivateMessageEvent:
     message = OBMessage(segments)
     return PrivateMessageEvent(
         time=0,
-        self_id=3892894069,
+        self_id=10000001,
         post_type="message",
         sub_type="friend",
-        user_id=1690711850,
+        user_id=10000001,
         message_type="private",
         message_id=1,
         message=message,
         original_message=message.copy(),
         raw_message=str(message),
         font=0,
-        sender=Sender(user_id=1690711850),
+        sender=Sender(user_id=10000001),
         to_me=True,
     )
 
@@ -112,7 +112,7 @@ def t_image_only_matches_after_placeholder():
 
 
 def t_at_prefix_still_matches():
-    at = MessageSegment.at("3892894069")
+    at = MessageSegment.at("10000001")
     event = _private([at, IMG, MessageSegment.text(TEXT)])
 
     if asyncio.run(_rule()(event)):

@@ -528,9 +528,9 @@ cd nonebot && python -m pytest tests -q -k epic_free
 
 ### 11.2 部署状态
 
-- 测试服务器 `root@192.0.2.226:/opt/qqbot` 已同步 Epic 相关文件，原文件备份 `*.bak-epic-20261031`；`qqbot` 已重启并连接（`Bot 3892894069 connected`）。
+- 测试服务器 `root@<部署机IP>:/opt/qqbot` 已同步 Epic 相关文件，原文件备份 `*.bak-epic-20261031`；`qqbot` 已重启并连接（`Bot <bot-qq> connected`）。
 - 远程历史记录：部署时 47 个 Epic 用例全绿；本轮在**本机**重跑为 55 个用例全绿（新增了配置/面板/权限用例），**远程未在本轮重跑**。
-- 面板 `http://192.0.2.226:8092/` 含 Epic 区块，`/api/epic` 未登录 401。
+- 面板 `http://<部署机IP>:8092/` 含 Epic 区块，`/api/epic` 未登录 401。
 
 ---
 

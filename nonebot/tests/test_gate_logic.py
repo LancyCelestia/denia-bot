@@ -45,7 +45,7 @@ from gate_logic import (  # noqa: E402
 )
 
 TODAY = "2026-09-27"
-G, U = "741096253", "123456"
+G, U = "123456789", "123456"
 OTHER_GROUP, OTHER_USER = "998877", "123456"
 
 FAILED: list[str] = []
@@ -380,8 +380,8 @@ def t_parse_command_bare_and_prefixed():
         assert parse_gate_command(text, {"限流"}) == ["限流", "查看"], f"{text} 没认出来"
     assert parse_gate_command("限流", {"限流"}) == ["限流"], "光一个词也要认"
     assert parse_gate_command(".限流 默认 5", {"限流"}) == ["限流", "默认", "5"]
-    assert parse_gate_command("限流 上限 741096253 123456 3", {"限流"}) == [
-        "限流", "上限", "741096253", "123456", "3"]
+    assert parse_gate_command("限流 上限 123456789 123456 3", {"限流"}) == [
+        "限流", "上限", "123456789", "123456", "3"]
 
 
 def t_parse_command_rejects_plain_chat():
@@ -421,7 +421,7 @@ def t_parse_command_without_spaces():
     assert parse_gate_command("限流查看", h) == ["限流", "查看"]
     assert parse_gate_command(".限流默认5", h) == ["限流", "默认", "5"]
     assert parse_gate_command("限流清零", h) == ["限流", "清零"]
-    assert parse_gate_command("限流群上限 741096253 3", h) == ["限流", "群上限", "741096253", "3"]
+    assert parse_gate_command("限流群上限 123456789 3", h) == ["限流", "群上限", "123456789", "3"]
     assert parse_gate_command("限流群内只@关", h) == ["限流", "群内只@", "关"]
     assert parse_gate_command("限流瞎写", h) is None, "子指令不认识就别当指令"
     assert parse_gate_command("限流量很大", h) is None

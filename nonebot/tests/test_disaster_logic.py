@@ -11,6 +11,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import disaster_logic as logic
+import bot_identity
 
 CENC_EEW = {
     'ID': 'b4zex3fm5wwyy',
@@ -202,7 +203,7 @@ class FormatTest(unittest.TestCase):
     def test_character_voice_for_later_report(self):
         event = replace(logic.sample_event(), report_num=3)
         text = logic.format_event(event, tone='character')
-        self.assertIn('达妮娅', text)
+        self.assertIn(bot_identity.display_name(), text)
         self.assertIn('M5.2', text)
         self.assertIn('最大烈度', text)
 

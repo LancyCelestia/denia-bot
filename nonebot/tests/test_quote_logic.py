@@ -46,15 +46,15 @@ def t_text_is_kept_verbatim():
 
 
 def t_at_uses_the_configured_name():
-    """@3892894069 模型看不出是在叫她；@达妮娅 才看得出。"""
-    got = ql.render_segments([Seg("at", qq="3892894069"), Seg("text", text="你还能回来吗？")],
-                             {"3892894069": "达妮娅"})
+    """@10000001 模型看不出是在叫她；@达妮娅 才看得出。"""
+    got = ql.render_segments([Seg("at", qq="10000001"), Seg("text", text="你还能回来吗？")],
+                             {"10000001": "达妮娅"})
     assert got == "@达妮娅 你还能回来吗？", got
 
 
 def t_at_falls_back_to_the_segment_name_then_the_qq():
-    assert ql.at_text("239166553", {"name": "不正经的小维生素"}, {}) == "@不正经的小维生素"
-    assert ql.at_text("706069795", {}, None) == "@706069795"
+    assert ql.at_text("10000003", {"name": "不正经的小维生素"}, {}) == "@不正经的小维生素"
+    assert ql.at_text("10000002", {}, None) == "@10000002"
     assert ql.at_text("all", {"name": "全体成员"}, {}) == "@全体成员"
 
 
@@ -72,9 +72,9 @@ def t_unknown_segment_is_marked_not_dropped():
 
 def t_nested_quote_pointer_is_skipped():
     """引用里套引用：只留最外层那条的正文，不把链条全灌进来。"""
-    got = ql.render_segments([Seg("reply", id="-1107119364"), Seg("at", qq="706069795"),
+    got = ql.render_segments([Seg("reply", id="-1107119364"), Seg("at", qq="10000002"),
                               Seg("text", text=" 我")])
-    assert got == "@706069795 我", got
+    assert got == "@10000002 我", got
 
 
 def t_blocks_are_labeled_the_way_prompt_guard_labels():
@@ -86,14 +86,14 @@ def t_blocks_are_labeled_the_way_prompt_guard_labels():
 def t_known_person_gets_the_configured_name_not_the_qq_nickname():
     """跟 prompt_guard 同一套优先级：熟人表 > 名片/昵称 > 群友<QQ号>。"""
     got = ql.quoted_block([Seg("text", text="娅娅")], {"10000001": "漂泊者"},
-                          sender_card="对乙酰氨基酚", sender_id="10000001")
+                          sender_card="示例昵称", sender_id="10000001")
     assert got == "〔发言人:漂泊者〕\n娅娅", repr(got)
 
 
 def t_digital_card_degrades_to_a_groupmate_tag():
-    got = ql.quoted_block([Seg("text", text="在吗")], {}, sender_card="706069795",
-                          sender_id="706069795")
-    assert got == "〔发言人:群友706069795〕\n在吗", repr(got)
+    got = ql.quoted_block([Seg("text", text="在吗")], {}, sender_card="10000002",
+                          sender_id="10000002")
+    assert got == "〔发言人:群友10000002〕\n在吗", repr(got)
 
 
 def t_no_sender_at_all_still_renders_the_body():

@@ -9,6 +9,8 @@ import json
 import sys
 import unittest
 from pathlib import Path
+from tempfile import TemporaryDirectory
+from unittest.mock import patch
 
 import httpx
 
@@ -16,6 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import disaster_china_logic as china
 import disaster_logic as logic
 import disaster_render as render
+import bot_identity
 from tests.test_disaster_china_logic import EQSC_TYPHOON, JIAN_TSUNAMI, JIAN_WEATHER
 
 
@@ -145,6 +148,20 @@ class BulletinTest(unittest.TestCase):
         self.assertIn('暂无行政边界', text)
         self.assertIn('2026-07-29 12:41:00', text)
 
+    def test_character_cards_use_the_configured_bot_name(self):
+        with TemporaryDirectory() as tmp:
+            target = Path(tmp) / 'bot-name.json'
+            bot_identity.save('泡泡机', target)
+            with patch.object(bot_identity, 'PATH', target):
+                alert = china.parse_jian_weather(JIAN_WEATHER)
+                weather = render.bulletin_html('weather', alert, {}, 'character')
+                typhoon = china.parse_eqsc_typhoon_item(EQSC_TYPHOON)
+                bulletin = render.bulletin_html('typhoon', typhoon, {}, 'character')
+                message = china.format_typhoon(typhoon, tone='character')
+        for text in (weather, bulletin, message):
+            self.assertIn('泡泡机', text)
+            self.assertNotIn('达妮娅', text)
+
     def test_weather_long_body_is_bounded_and_full_text_notice_shown(self):
         alert = china.parse_jian_weather(dict(JIAN_WEATHER, description='这是一条长预警内容。' * 300))
         text = render.bulletin_html('weather', alert)
@@ -153,30 +170,33 @@ class BulletinTest(unittest.TestCase):
 
     def test_weather_bulletin_neutral_and_character(self):
         alert = china.parse_jian_weather(JIAN_WEATHER)
+        name = bot_identity.display_name()
         neutral = render.bulletin_html('weather', alert, {}, 'neutral')
         character = render.bulletin_html('weather', alert, {}, 'character')
         self.assertIn('强对流', neutral)
-        self.assertNotIn('达妮娅', neutral)
-        self.assertIn('达妮娅', character)
+        self.assertNotIn(name, neutral)
+        self.assertIn(name, character)
         self.assertIn('公开数据', neutral)
         self.assertNotIn('http://', neutral)
 
     def test_tsunami_and_typhoon_bulletin(self):
         tsunami = china.parse_jian_tsunami(JIAN_TSUNAMI)
         typhoon = china.parse_eqsc_typhoon_item(EQSC_TYPHOON)
+        name = bot_identity.display_name()
         self.assertIn('海啸黄色警报', render.bulletin_html('tsunami', tsunami, {}, 'neutral'))
-        self.assertIn('达妮娅', render.bulletin_html('tsunami', tsunami, {}, 'character'))
+        self.assertIn(name, render.bulletin_html('tsunami', tsunami, {}, 'character'))
         self.assertIn('桦加沙', render.bulletin_html('typhoon', typhoon, {}, 'neutral'))
-        self.assertIn('达妮娅', render.bulletin_html('typhoon', typhoon, {}, 'character'))
+        self.assertIn(name, render.bulletin_html('typhoon', typhoon, {}, 'character'))
         self.assertIn('停编', render.bulletin_html('typhoon', typhoon, {}, 'character', stopped=True))
 
     def test_earthquake_bulletin_character(self):
         event = logic.sample_event()
+        name = bot_identity.display_name()
         neutral = render.card_html(event, {})
         character = render.card_html(event, {}, 'character')
         self.assertIn('M5.2', neutral)
-        self.assertNotIn('达妮娅', neutral)
-        self.assertIn('达妮娅', character)
+        self.assertNotIn(name, neutral)
+        self.assertIn(name, character)
         self.assertIn('最大烈度', neutral)
 
     def test_render_bulletin_success(self):

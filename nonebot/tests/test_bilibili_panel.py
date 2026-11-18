@@ -1,6 +1,7 @@
 import re
 import sqlite3
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -151,3 +152,71 @@ def test_sidebar_order_matches_section_order():
                 if name not in {'login', 'changePassword'}]
     assert 'bilibili' in links
     assert links == sections
+
+
+def test_target_route_requires_csrf_and_forwards_target(tmp_path, clean_env, monkeypatch):
+    auth_file = tmp_path / 'auth.json'
+    auth_file.write_text(
+        '{"salt":"00000000000000000000000000000000","hash":"x","must_change":false}',
+        encoding='utf-8')
+    token = 'panel-test-token'
+    monkeypatch.setattr(dashboard, 'AUTH_FILE', auth_file)
+    monkeypatch.setattr(dashboard, 'sessions', {token: time.time() + 600})
+    seen = {}
+
+    def fake_update(root, **kwargs):
+        seen.update(kwargs)
+        return ['10001:group:20001']
+
+    monkeypatch.setattr(bilibili_panel, 'update_targets', fake_update)
+    headers = {'origin': 'http://testserver', 'x-csrf-token': token}
+    payload = {'action': 'add', 'bot': '10001', 'kind': 'group', 'target': '20001'}
+    with TestClient(dashboard.app) as client:
+        assert client.post('/api/bilibili/targets', json=payload).status_code == 401
+        client.cookies.set('admin_session', token)
+        response = client.post('/api/bilibili/targets', json=payload, headers=headers)
+    assert response.status_code == 200
+    assert response.json() == {'targets': ['10001:group:20001'], 'restart_required': True}
+    assert seen == payload
+
+
+def test_target_update_preserves_env_and_exposes_targets(tmp_path, clean_env):
+    env_path = tmp_path / '.env'
+    env_path.write_text('KEEP=1\nexport BILI_TARGETS=["10001:group:20001"]\nOTHER=2\n',
+                        encoding='utf-8')
+    targets = bilibili_panel.update_targets(
+        tmp_path, action='add', bot='10001', kind='group', target='20002')
+    assert targets == ['10001:group:20001', '10001:group:20002']
+    text = env_path.read_text(encoding='utf-8')
+    assert text.startswith('KEEP=1\nexport BILI_TARGETS=')
+    assert 'OTHER=2\n' in text
+    assert not list(tmp_path.glob('.env-bili-*'))
+
+    view = bilibili_panel.view(tmp_path)
+    assert view['targets'] == ['10001:group:20001', '10001:group:20002']
+    assert view['targets_editable'] is True
+
+    targets = bilibili_panel.update_targets(
+        tmp_path, action='remove', bot='10001', kind='group', target='20001')
+    assert targets == ['10001:group:20002']
+
+
+def test_target_update_rejects_invalid_ids(tmp_path, clean_env):
+    with pytest.raises(ValueError):
+        bilibili_panel.update_targets(
+            tmp_path, action='add', bot='10001', kind='group', target='not-a-group')
+    with pytest.raises(ValueError):
+        bilibili_panel.update_targets(
+            tmp_path, action='add', bot='10001', kind='channel', target='20001')
+
+
+def test_target_update_refuses_process_env_override(tmp_path, clean_env):
+    clean_env.setenv('BILI_TARGETS', '["10001:group:20001"]')
+    view = bilibili_panel.view(tmp_path)
+    assert view['targets'] == ['10001:group:20001']
+    assert view['targets_editable'] is False
+    with pytest.raises(HTTPException) as error:
+        bilibili_panel.update_targets(
+            tmp_path, action='add', bot='10001', kind='group', target='20002')
+    assert error.value.status_code == 409
+    assert not (tmp_path / '.env').exists()

@@ -34,7 +34,7 @@
 | 项 | 值 |
 |---|---|
 | 主仓库 | `D:\Software\qqbot`，`main`，HEAD `f22a100` |
-| 目标工作区 | `C:\Users\16907\AppData\Local\Temp\denia-endfield-integration`，分支 `research/endfield-integration` |
+| 目标工作区 | `<USER_HOME>\AppData\Local\Temp\denia-endfield-integration`，分支 `research/endfield-integration` |
 | 运行时 | Python + `nonebot2==2.5.0` + `MuiceBot==1.1.5` + OneBot v11（SnowLuma） |
 | 进程模型 | 机器人（`bot.py`）与管理面板（`uvicorn dashboard:app`）是**两个进程**，只共享文件（`nonebot/dashboard.py:328-330`） |
 | 本轮动作 | 只读代码与配置；唯一写入是目标工作区的本文档 |
@@ -389,7 +389,7 @@ API 风格：读接口直接 `return {...}`；写接口 `await req.json()`、用
 ### 9.2 现状：服务与脚本
 
 - Linux 服务清单与启动顺序：`docs/OPERATIONS.md:8-13`、`:18-24`；机器人 `cd nonebot && ../.venv/bin/python bot.py`，面板 `systemctl start qqbot-dashboard`。
-- 面板 systemd 单元：`nonebot/qqbot-dashboard.service:1-13`（`WorkingDirectory=/opt/qqbot/nonebot`，`ExecStart=... uvicorn dashboard:app --host 192.0.2.226 --port 8092`，`UMask=0077`）。
+- 面板 systemd 单元：`nonebot/qqbot-dashboard.service:1-13`（`WorkingDirectory=/opt/qqbot/nonebot`，`ExecStart=... uvicorn dashboard:app --host <部署机IP> --port 8092`，`UMask=0077`）。
 - Windows 本机：`启动机器人.bat` / `停止机器人.bat`；测试命令 `cd nonebot && python -m pytest tests -q`（`README.md:115`）。
 - `deploy-linux/docker-compose.yml` 是**历史遗留的 AstrBot 部署**（`:1-19` 自述、`:21-45` 服务是 napcat + astrbot），与当前 NoneBot 架构不符，不要照它加服务。
 

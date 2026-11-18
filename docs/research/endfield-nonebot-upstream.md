@@ -2,7 +2,7 @@
 
 - 调研票：wayfinder #34（供「移植基线」决策票 #35 使用）
 - 调研日期：2026-10-31
-- 代码快照：`C:\Users\16907\AppData\Local\Temp\nonebot_endfield`，浅克隆 `master`，HEAD `526dc466`（2026-03-31），`pyproject.toml:7` 声明 `0.2.5`
+- 代码快照：`<USER_HOME>\AppData\Local\Temp\nonebot_endfield`，浅克隆 `master`，HEAD `526dc466`（2026-03-31），`pyproject.toml:7` 声明 `0.2.5`
 - 对照快照：AstrBot 版 `41482b7`（v3.0.3）；denia-bot `D:\Software\qqbot` HEAD `f22a100`
 - 交付位置：目标工作区 `denia-endfield-nonebot`（分支 `research/endfield-nonebot`）
 - 口径：未标注「推断」的陈述都是读代码、读发布产物或查官方 API 得到的事实；标注「**需运营方确认**」的是仅凭仓库无法闭合的问题
@@ -35,7 +35,7 @@
 |---|---|---|
 | Git 远端 | `https://github.com/Entropy-Increase-Team/nonebot-plugin-endfield.git` | `git remote -v` |
 | 声明的首页 | `https://github.com/TakesBot/nonebot-plugin-endfield` | `pyproject.toml:35-36` |
-| 作者字段 | `NekoTC <1719252259@qq.com>`；唯一提交作者为 `Tome Chen <xtwg17192522@outlook.com>` | `pyproject.toml:8-10`、`git log` |
+| 作者字段 | `NekoTC`；唯一提交作者为 `Tome Chen` | `pyproject.toml:8-10`、`git log` |
 | 提交历史 | 共 68 个提交；本地浅克隆只有 1 个（`526dc466`，2026-03-31） | GitHub Commits API 分页 `last=68` |
 | 创建 / 最后推送 | 2026-03-03 / 2026-05-07 | GitHub Repo API |
 | 热度 | 5 star / 1 fork / 0 open issue | GitHub Repo API |
@@ -296,7 +296,7 @@ NoneBot 2.5 的 `Matcher.new` 默认 `priority=1, block=False`（`nonebot/intern
 - `BASE_DATA_DIR` 默认取 `user_data_dir("nonebot2")`（平台用户目录）；只有配置了 `localstore_use_cwd` 或 `localstore_data_dir` 才改（`nonebot_plugin_localstore/__init__.py:54-61`）。
 - denia-bot 的 `.env` 里**没有任何 `LOCALSTORE_*` 配置**（`nonebot/.env` 全文核对），但其业务数据都写在仓库内 `nonebot/data/`（`nonebot/data/gate.json` 等）。
 
-结论（事实 + 推断）：直接装这个插件，数据会落到**平台用户目录**——本机实测 localstore 的根是 `C:\Users\16907\AppData\Local\nonebot2\`（已有 `muicebot`、`nonebot_plugin_orm` 子目录），故本插件会写到 `…\nonebot2\nonebot_plugin_endfield\`，而不是 denia 认的 `nonebot/data/`。要让它进 `data/`，只能设 `LOCALSTORE_DATA_DIR`——但这是 **localstore 全局配置**，会同时挪动 MuiceBot 等所有用 localstore 的插件的数据目录（`muicebot/onebot.py:87` 打印的就是这个目录，本机现为 `…\nonebot2\muicebot`），属于高风险改动。更稳的做法是移植时把存储层换成项目自己的 `data/` 相对路径。
+结论（事实 + 推断）：直接装这个插件，数据会落到**平台用户目录**——本机实测 localstore 的根是 `<USER_HOME>\AppData\Local\nonebot2\`（已有 `muicebot`、`nonebot_plugin_orm` 子目录），故本插件会写到 `…\nonebot2\nonebot_plugin_endfield\`，而不是 denia 认的 `nonebot/data/`。要让它进 `data/`，只能设 `LOCALSTORE_DATA_DIR`——但这是 **localstore 全局配置**，会同时挪动 MuiceBot 等所有用 localstore 的插件的数据目录（`muicebot/onebot.py:87` 打印的就是这个目录，本机现为 `…\nonebot2\muicebot`），属于高风险改动。更稳的做法是移植时把存储层换成项目自己的 `data/` 相对路径。
 
 ---
 

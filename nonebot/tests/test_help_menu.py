@@ -10,6 +10,7 @@ from PIL import Image
 from tests import test_help_coverage  # noqa: F401
 import gate_logic as gl
 import help_image
+import bot_identity
 
 
 def menu():
@@ -17,7 +18,7 @@ def menu():
 
 
 def options():
-    return dict(title='达妮娅 · 指令菜单', subtitle=gl.HELP_PREFIX_GUIDE,
+    return dict(title=f'{bot_identity.display_name()} · 指令菜单', subtitle=gl.HELP_PREFIX_GUIDE,
                 footer=gl.help_footer(gl.new_state(gl.today())))
 
 
@@ -41,6 +42,7 @@ def test_help_card_and_text_share_prefix_guide():
     with patch('help_image.render_help_images', return_value=[]) as render:
         gate.help_image()
     assert render.call_args.kwargs['subtitle'] == gl.HELP_PREFIX_GUIDE
+    assert render.call_args.kwargs['title'] == f'{bot_identity.display_name()} · 指令菜单'
     assert gl.HELP_PREFIX_GUIDE in gate.help_text()
 
 

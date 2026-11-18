@@ -45,9 +45,9 @@ from nonebot.adapters.onebot.v11 import (  # noqa: E402
 from muicebot.muice import Muice  # noqa: E402
 
 MASTER = "10000001"
-OTHER = "3865067623"
-GROUP = 741096253
-SELF = 3892894069
+OTHER = "10000002"
+GROUP = 123456789
+SELF = 10000003
 FAILED: list[str] = []
 
 
@@ -551,7 +551,7 @@ def event(text, *, user=MASTER, group=None):  # noqa: ANN001, ANN201 - 与 test_
     if group is None:
         return PrivateMessageEvent(
             message_type="private", sub_type="friend", to_me=True,
-            sender={"user_id": int(user), "nickname": "对乙酰氨基酚", "card": "",
+            sender={"user_id": int(user), "nickname": "示例昵称", "card": "",
                     "role": "friend", "title": ""},
             **common,
         )

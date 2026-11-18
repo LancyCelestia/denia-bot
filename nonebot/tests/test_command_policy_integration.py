@@ -14,34 +14,17 @@ from command_policy import has_command_prefix, denied_command_fallback
 from nonebot.matcher import matchers
 from muicebot.builtin_plugins import moe_chat
 from nonebot_plugin_alconna.uniseg import At, Text
-from plugins import endfield, gate, kb, media_parser, weather
-from tests.endfield.test_wiring import group_event, private_event
+from plugins import gate, kb, media_parser, weather
+from tests.event_helpers import private_event
 
 assert get_driver().config.command_start == {'.'}
 assert any(any(check.call is denied_command_fallback for check in matcher.rule.checkers)
            and matcher.block for matcher in matchers[98])
 async def check_rules():
-    assert await endfield.matcher.rule(None, private_event('.授权登陆', user='10000001'), {})
-    assert not await endfield.matcher.rule(None, private_event('授权登陆', user='10000001'), {})
-    endfield._pending_consent.add('10000001')
-    try:
-        assert await endfield.matcher.rule(None, private_event('.同意', user='10000001'), {})
-        assert await endfield.matcher.rule(None, private_event('.取消', user='10000001'), {})
-        assert not await endfield.matcher.rule(None, private_event('.同意', user='123456'), {})
-        assert not await endfield.matcher.rule(None, group_event('.同意', at_self=True, user='10000001'), {})
-    finally:
-        endfield._pending_consent.discard('10000001')
-    assert '「.同意」' in endfield.logic.consent_text()
-    assert '「.取消」' in endfield.logic.consent_text()
-    assert await endfield.matcher.rule(None, private_event('.便签'), {})
-    assert not await endfield.matcher.rule(None, private_event('便签'), {})
-    assert not await endfield.matcher.rule(None, private_event(' .便签'), {})
-    assert await endfield.matcher.rule(None, group_event('.便签', at_self=True), {})
-    assert not await endfield.matcher.rule(None, group_event('.便签'), {})
     assert await gate.help_cmd.rule(None, private_event('.help'), {})
     assert not await gate.help_cmd.rule(None, private_event(' /help'), {})
 asyncio.run(check_rules())
-for matcher in (endfield.matcher, gate.help_cmd, kb.kb, media_parser.control, weather.matcher,
+for matcher in (gate.help_cmd, kb.kb, media_parser.control, weather.matcher,
                 moe_chat.command_poke, moe_chat.command_hug, moe_chat.command_stick):
     assert any(check.call is has_command_prefix for check in matcher.rule.checkers)
 for matcher, name in ((moe_chat.command_poke, '敲'), (moe_chat.command_hug, '抱'),
@@ -70,10 +53,10 @@ from nonebot.message import _run_matcher, check_and_run_matcher
 from nonebot_plugin_alconna.uniseg import UniMessage
 from nonebot_plugin_alconna.uniseg.constraint import UNISEG_MESSAGE
 from muicebot.onebot import at_event, nickname_event
-from plugins import endfield, gate
-from tests.endfield.test_wiring import private_event
+from plugins import gate
+from tests.event_helpers import private_event
 
-robot = Bot(get_driver()._adapters['OneBot V11'], '3892894069')
+robot = Bot(get_driver()._adapters['OneBot V11'], '10000001')
 
 async def check():
     for matcher in (at_event, nickname_event):
@@ -94,11 +77,10 @@ async def check():
                 with suppress(StopPropagation):
                     await check_and_run_matcher(at_event, robot, private_event(text, user=user), {})
                 assert not run.await_count, (user, text)
-    for matcher, text in ((gate.help_cmd, '.help'), (endfield.matcher, '.授权登陆')):
-        with patch.object(matcher, 'run', new_callable=AsyncMock) as run:
-            with suppress(StopPropagation):
-                await check_and_run_matcher(matcher, robot, private_event(text, user='10000001'), {})
-            assert run.await_count == 1, (matcher, text)
+    with patch.object(gate.help_cmd, 'run', new_callable=AsyncMock) as run:
+        with suppress(StopPropagation):
+            await check_and_run_matcher(gate.help_cmd, robot, private_event('.help', user='10000001'), {})
+        assert run.await_count == 1, (gate.help_cmd, '.help')
 
 asyncio.run(check())
 '''

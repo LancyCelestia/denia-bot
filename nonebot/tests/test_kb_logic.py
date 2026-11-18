@@ -86,7 +86,7 @@ def t_predicate_test_is_narrow():
 
 def t_at_prefix_is_always_a_vocative():
     assert plan("@达妮娅 深塔怎么打") == ["深塔怎么打"]
-    assert plan("[at:qq=3892894069]今汐是谁") == ["今汐是谁"]
+    assert plan("[at:qq=10000001]今汐是谁") == ["今汐是谁"]
     assert plan("@达妮娅") == []
 
 
@@ -97,20 +97,20 @@ def t_strip_at_only_removes_the_leading_call():
 # ------------------------------------------------- 群里那句前面还有 `<昵称> `
 #
 # MuiceBot 在群里把发言人的昵称拼进 prompt（`muice.py:174`：`f"<{username}> {message}"`），
-# 所以钩子拿到的是「<对乙酰氨基酚> 达妮娅，今天中午吃什么」这种形状。
+# 所以钩子拿到的是「<示例昵称> 达妮娅，今天中午吃什么」这种形状。
 # 真实日志（nonebot/logs/2026-09-27.log 14:46）里就是这么漏的：
-#   [kb] 注入 2 块 / 1258 字，检索词「<对乙酰氨基酚> 达妮娅，在吗」命中词条「达妮娅」
+#   [kb] 注入 2 块 / 1258 字，检索词「<示例昵称> 达妮娅，在吗」命中词条「达妮娅」
 # 更糟的是昵称自己能当词条（15:25 那条 `<芝士小特，喜欢用表情包> 你是水蜜桃派吗` 命中了「表情包」），
 # 所以这层前缀既挡了剥离，自己还会开门。
 
 
 def t_speaker_tag_is_stripped():
-    assert plan("<对乙酰氨基酚> 达妮娅，今天中午吃什么") == ["今天中午吃什么"]
-    assert plan("<对乙酰氨基酚> 深塔怎么打") == ["深塔怎么打"]
+    assert plan("<示例昵称> 达妮娅，今天中午吃什么") == ["今天中午吃什么"]
+    assert plan("<示例昵称> 深塔怎么打") == ["深塔怎么打"]
 
 
 def t_speaker_tag_does_not_hide_the_subject():
-    assert plan("<对乙酰氨基酚> 达妮娅是谁") == ["达妮娅是谁"]
+    assert plan("<示例昵称> 达妮娅是谁") == ["达妮娅是谁"]
 
 
 def t_speaker_tag_never_becomes_the_query():
@@ -119,7 +119,7 @@ def t_speaker_tag_never_becomes_the_query():
 
 
 def t_at_and_speaker_tag_together():
-    assert plan("[at:qq=3892894069] <甲> 达妮娅，深塔怎么打") == ["深塔怎么打"]
+    assert plan("[at:qq=10000001] <甲> 达妮娅，深塔怎么打") == ["深塔怎么打"]
 
 
 def t_speaker_tag_is_only_stripped_at_the_front():

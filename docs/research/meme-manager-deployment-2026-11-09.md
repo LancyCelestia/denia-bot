@@ -1,6 +1,6 @@
 # 表情包核心功能部署记录
 
-日期：2026-11-09。目标：开发服务器 `192.0.2.226`，项目目录 `/opt/qqbot`。
+日期：2026-11-09。目标：开发服务器 `<部署机IP>`，项目目录 `/opt/qqbot`。
 
 服务器已有独立的面板修改；以服务器原版 `dashboard.py` 和 `dashboard.html` 为基础应用本次表情包补丁，未覆盖其余改动。安装前核对原文件 SHA-256，备份至 `/opt/qqbot/.deploy-backup-meme-20261109-132923`；未改动 `.env`、模型配置、人格配置或数据目录。新增 `nonebot/meme_logic.py` 和 `nonebot/plugins/meme.py`，安装后四个文件的 SHA-256 与暂存文件一致。
 

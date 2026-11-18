@@ -8,7 +8,7 @@ from bilibili.model import Page, Scope
 from bilibili.service import Service
 
 TARGET = ('1', 'private', '2')
-GROUP = Scope('1', 'group', '1108838060')
+GROUP = Scope('1', 'group', '123456789')
 
 
 class Store:
@@ -108,12 +108,12 @@ class SearchOutsideTargetsTest(unittest.IsolatedAsyncioTestCase):
 
 class DeliveryGateTest(unittest.IsolatedAsyncioTestCase):
     async def test_delivery_skips_scope_outside_targets(self):
-        runtime, store, _ = service({TARGET}, rows=[{'bot': '1', 'kind': 'group', 'target': '1108838060'}])
+        runtime, store, _ = service({TARGET}, rows=[{'bot': '1', 'kind': 'group', 'target': '123456789'}])
         await runtime._deliver_round(store.rows)
         self.assertEqual(store.claimed, [])
 
     async def test_tick_does_not_scan_scope_outside_targets(self):
-        runtime, store, client = service({TARGET}, rows=[{'bot': '1', 'kind': 'group', 'target': '1108838060'}])
+        runtime, store, client = service({TARGET}, rows=[{'bot': '1', 'kind': 'group', 'target': '123456789'}])
         await runtime.tick()
         self.assertEqual(client.fetched, [])
         self.assertEqual(store.claimed, [])

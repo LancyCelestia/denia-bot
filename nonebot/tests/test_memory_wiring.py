@@ -30,7 +30,7 @@ class EventStub:
     def get_plaintext(self):
         return '我喜欢喝咖啡'
 
-    self_id = 3892894069
+    self_id = 10000001
     message_id = 123456
 
 

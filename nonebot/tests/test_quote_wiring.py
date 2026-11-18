@@ -6,7 +6,7 @@ r"""引用修复的接线断言 —— 逐字复现 `muicebot/onebot.py:621-626`
 跟 `test_quote_logic.py` 的分工：那边管「该渲染成什么样」，这边管
 「MuiceBot 真跑的那几行还崩不崩、引用内容到不到得了模型」。
 
-复现的是 2026-09-27 15:52:54 那条真实消息（群 1108838060，1447458891）：
+复现的是 2026-09-27 15:52:54 那条真实消息（群 123456788，10000003）：
 QQ 的「回复」自动带了 @，闸门放行，然后 MuiceBot 死在拼「被引用的消息」那一行，
 整条消息一个字都没回。这里不连 QQ、不发请求，只把 alconna 交给它的那个对象如实造出来。
 """
@@ -38,8 +38,8 @@ from nonebot_plugin_alconna.builtins.extensions.reply import (  # noqa: E402
     ReplyRecordExtension,
 )
 
-SELF = 3892894069
-FRIEND = 1447458891
+SELF = 10000001
+FRIEND = 10000003
 FAILED: list[str] = []
 
 
@@ -66,7 +66,7 @@ def quoted_ob_message(text: str) -> OBMessage:
 def alconna_reply(msg, card: str = "", nickname: str = "达妮娅", user_id: int = SELF) -> Reply:
     """照 `uniseg/adapters/onebot11/builder.py:64-69` 的写法造缓存里那个对象。"""
     origin = OBReply(
-        time=1790495574, message_type="group", message_id=1917583215, real_id=1917583215,
+        time=1790495574, message_type="group", message_id=20000001, real_id=20000001,
         sender={"card": card, "nickname": nickname, "user_id": user_id},
         message=msg if msg is not None else quoted_ob_message(""),
     )
@@ -111,13 +111,13 @@ def t_patched_quote_reaches_the_model():
 
 
 def t_owner_quote_uses_the_configured_name():
-    """被引用的是主人说的话：称呼走 templates.yml（对乙酰氨基酚 → 漂泊者），跟 prompt_guard 同源。"""
+    """被引用的是主人说的话：称呼走 templates.yml（示例昵称 → 漂泊者），跟 prompt_guard 同源。"""
     reply = alconna_reply(
-        quoted_ob_message("娅娅"), nickname="对乙酰氨基酚", user_id=10000001
+        quoted_ob_message("娅娅"), nickname="示例昵称", user_id=10000001
     )
     qf.fix_reply(reply)
     assert reply.msg.startswith("〔发言人:"), repr(reply.msg)
-    assert "对乙酰氨基酚" not in reply.msg, reply.msg
+    assert "示例昵称" not in reply.msg, reply.msg
 
 
 def t_image_only_quote_still_goes_in_as_a_marker():
@@ -155,7 +155,7 @@ def t_already_rendered_forms_are_left_alone():
 
 def t_install_wraps_get_reply_and_is_idempotent():
     ext = ReplyRecordExtension()
-    key = "1917583215"
+    key = "20000001"
     ext.cache[key] = alconna_reply(quoted_ob_message("唔……霞月，你再转下去，泡泡都要被绕晕了。"))
 
     assert qf.install() is True

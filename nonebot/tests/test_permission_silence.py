@@ -11,8 +11,8 @@ ensure_nonebot()
 from command_policy import denied_command_fallback
 from game_event_store import Store
 from nonebot.adapters.onebot.v11 import MessageSegment
-from plugins import disaster_warning, endfield, game_events, media_parser, statuscard
-from tests.endfield.test_wiring import group_event, private_event
+from plugins import disaster_warning, game_events, media_parser, statuscard
+from tests.event_helpers import group_event, private_event
 from tests.test_game_event_plugin import bot, event
 
 
@@ -36,16 +36,6 @@ def test_status_and_parser_do_not_send_or_execute():
          patch.object(media_parser.control, 'finish', new_callable=AsyncMock) as finish:
         asyncio.run(media_parser.control_parser(None, group_event('.开启解析')))
     finish.assert_not_awaited()
-
-
-@pytest.mark.parametrize('command', ['.订阅公告', '.取消订阅公告'])
-def test_endfield_group_announcement_permission_denied_before_configuration(command):
-    with patch.object(endfield, '_superusers', return_value=set()), \
-         patch.object(endfield, '_send', new_callable=AsyncMock) as send, \
-         patch.object(endfield, '_config') as config:
-        asyncio.run(endfield._handle_endfield(group_event(command, at_self=True)))
-    send.assert_not_awaited()
-    config.assert_not_called()
 
 
 @pytest.mark.parametrize('command', ['活动状态', '活动刷新', '活动订阅 鸣潮', '活动私人提醒 移除'])

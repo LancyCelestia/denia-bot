@@ -11,12 +11,14 @@ from pathlib import Path
 
 import httpx
 
+from private_env import get_private
+
 ROOT = Path(__file__).resolve().parent.parent
 BOT_DIR = ROOT / 'nonebot'
 PASSWORD_FILE = ROOT / 'tools' / 'snowluma-webui-pass.txt'
-TARGET_UIN = '3892894069'
+TARGET_UIN = get_private('QQBOT_SELF_ID')
 HEALTH_URL = 'http://127.0.0.1:8080/dashboard-health'
-# SnowLuma WebUI 的地址。容器部署常把端口绑到内网 IP（如 192.0.2.226:5099）而不是
+# SnowLuma WebUI 的地址。容器部署常把端口绑到内网 IP（如 <部署机IP>:5099）而不是
 # 回环地址，写死 127.0.0.1 会探测失败、面板误报「未运行」。
 # 用 SNOWLUMA_URL 指定；不指定时依次试这几个候选地址。
 SNOWLUMA_URL = os.environ.get('SNOWLUMA_URL', '')
@@ -152,11 +154,13 @@ class Monitor:
                 processes = data.get('list') if isinstance(data, dict) else None
                 if not isinstance(processes, list):
                     return {'state':'online', 'injected':None, 'connected':None, 'base':base, 'reason':'unexpected'}
-                found = [p for p in processes if isinstance(p, dict) and p.get('injected') and str(p.get('uin') or '') == TARGET_UIN]
+                found = [p for p in processes if isinstance(p, dict) and p.get('injected') and str(p.get('uin') or '') == TARGET_UIN] if TARGET_UIN else [
+                    p for p in processes if isinstance(p, dict) and p.get('injected') and str(p.get('uin') or '') not in ('', '0')
+                ]
                 unknown = any(isinstance(p, dict) and p.get('injected') and str(p.get('uin') or '') in ('', '0') for p in processes)
                 return {'state':'online', 'injected':True if found else None if unknown else False,
                         'connected':any(p.get('connected') for p in found) if found else None,
-                        'base':base, 'reason':'ok'}
+                        'base':base, 'reason':'ok' if TARGET_UIN else 'inferred'}
         except httpx.HTTPStatusError:
             self.token = None
             self.retry_login_after = time.monotonic() + 60

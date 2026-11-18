@@ -13,6 +13,7 @@ import group_topics_logic as topics
 import weather_service as weather
 import master_settings
 import parser_settings
+import bot_identity
 from unittest.mock import AsyncMock, Mock, patch
 
 class DashboardTest(unittest.TestCase):
@@ -56,6 +57,30 @@ class DashboardTest(unittest.TestCase):
                 headers={'Origin':'http://testserver','X-CSRF-Token':login.json()['csrf']}
                 with patch.object(d.restart_controller,'start',new_callable=AsyncMock,return_value=False):
                     self.assertEqual(client.post('/api/bot-restart',headers=headers).status_code,409)
+    def test_bot_name_settings_require_login_csrf_and_persist(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            d.AUTH_FILE = Path(tmp) / 'auth'
+            d.set_password('a-strong-test-password')
+            target = Path(tmp) / 'bot-name.json'
+            with patch.object(bot_identity, 'PATH', target), \
+                    patch.object(bot_identity, 'get_private', lambda key: ''):
+                with TestClient(d.app) as client:
+                    self.assertEqual(client.get('/api/bot-name').status_code, 401)
+                    login = client.post('/api/login', json={'password': 'a-strong-test-password'})
+                    headers = {'Origin': 'http://testserver', 'X-CSRF-Token': login.json()['csrf']}
+                    self.assertEqual(client.get('/api/bot-name').json()['name'], '达妮娅')
+                    self.assertEqual(client.post('/api/bot-name', json={'name': '泡泡机'}).status_code, 403)
+                    saved = client.post('/api/bot-name', json={'name': '泡泡机'}, headers=headers)
+                    self.assertEqual(saved.status_code, 200)
+                    self.assertEqual(saved.json()['source'], 'file')
+                    self.assertEqual(client.get('/api/bot-name').json()['name'], '泡泡机')
+                    self.assertTrue(target.exists())
+                    self.assertEqual(client.post('/api/bot-name', json={'name': ''}, headers=headers).status_code, 400)
+                    reset = client.post('/api/bot-name', json={'reset': True}, headers=headers)
+                    self.assertEqual(reset.status_code, 200)
+                    self.assertEqual(reset.json()['source'], 'default')
+                    self.assertFalse(target.exists())
+
     def test_parser_settings_auth_validation_and_secret_preservation(self):
         with tempfile.TemporaryDirectory() as tmp, patch.object(parser_settings, 'PATH', Path(tmp)/'parser.json'):
             d.AUTH_FILE = Path(tmp)/'auth'

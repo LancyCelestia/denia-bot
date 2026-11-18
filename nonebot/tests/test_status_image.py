@@ -19,6 +19,7 @@ from PIL import Image
 
 import status_image as image
 import status_logic as logic
+import bot_identity
 
 
 def view(**overrides):
@@ -372,6 +373,23 @@ class BannerBackgroundTest(unittest.TestCase):
                 self.assertEqual(image.banner_files(), [])
                 self.assertEqual(image.banner_art(), '')
                 self.assertTrue(image.render_cluster_card(cluster_view()).startswith(b'\x89PNG'))
+
+    def test_cards_use_the_configured_bot_name(self):
+        with TemporaryDirectory() as tmp:
+            target = Path(tmp) / 'bot-name.json'
+            bot_identity.save('泡泡机', target)
+            with patch.object(bot_identity, 'PATH', target):
+                status = image.build_status_html(view())
+                report = image.build_report_html({
+                    'title': '服务器日报', 'subtitle': '', 'host': '', 'sections': [],
+                })
+                cluster = image.build_cluster_html({
+                    'summary': {}, 'nodes': [], 'guests': [], 'storages': [],
+                    'generated_at': '', 'source': '',
+                })
+        for html_text in (status, report, cluster):
+            self.assertIn('泡泡机', html_text)
+            self.assertNotIn('达妮娅', html_text)
 
     def test_status_hero_keeps_the_chosen_asset(self):
         with TemporaryDirectory(dir=Path(__file__).resolve().parent) as tmp:

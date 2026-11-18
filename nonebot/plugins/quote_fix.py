@@ -1,9 +1,9 @@
 """引用/回复修复 —— 别人用 QQ 的「回复」功能 @ 她时，那条消息原本必死在调模型之前。
 
-线上现场（2026-09-27，群 1108838060，两条都是这样没回的）：
+线上现场（2026-09-27，群 <GROUP_ID>，两条都是这样没回的）：
 
-    15:13:38  '[reply:id=1917583215][at:qq=3892894069] oiiaioiiiiai'   ← 闸门放行（真 @ 了）
-    15:52:54  '[reply:id=-163983909][at:qq=3892894069] 你还能回来吗？'  ← 闸门放行
+    15:13:38  '[reply:id=20000001][at:qq=10000001] oiiaioiiiiai'   ← 闸门放行（真 @ 了）
+    15:52:54  '[reply:id=-163983909][at:qq=10000001] 你还能回来吗？'  ← 闸门放行
     File "…/muicebot/onebot.py", line 624, in handle_supported_adapters
         bot_message += UniMessage("\\n被引用的消息: ") + UniMessage(reply_message)
     TypeError: Unsupported type <class 'nonebot.adapters.onebot.v11.message.MessageSegment'>
@@ -109,7 +109,7 @@ def _bot_nick() -> str:
 def _names() -> dict[str, str]:
     """{QQ号: 称呼}，用来把 @ 和被引用作者渲染成名字。跟 prompt_guard 同源。
 
-    机器人自己也在表里 —— 被引用的常常正是她上一条，写成 `@3892894069` 她认不出是在说谁。
+    机器人自己也在表里 —— 被引用的常常正是她上一条，写成 `@10000001` 她认不出是在说谁。
     """
     out: dict[str, str] = {}
     try:

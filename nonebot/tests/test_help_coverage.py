@@ -35,7 +35,6 @@ import plugins.weather  # noqa: F401
 import plugins.epic_free  # noqa: F401
 import plugins.disaster_warning  # noqa: F401
 import plugins.game_events  # noqa: F401
-import plugins.endfield  # noqa: F401
 import plugins.meme_learn  # noqa: F401
 from plugins import media_parser, statuscard
 

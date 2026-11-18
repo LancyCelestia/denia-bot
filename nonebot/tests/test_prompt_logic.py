@@ -5,7 +5,7 @@ r"""群聊署名规范化（`prompt_logic`）的断言测试 —— 不 import n
 
 要保住的是 2026-09-27 那次「答非所问」的三条根因（详见 `prompt_logic.py` 开头）：
 
-1. `<对乙酰氨基酚> 娅娅` —— 主人的 QQ 昵称正好是药名，模型把它当成了话题；
+1. `<示例昵称> 娅娅` —— 主人的 QQ 昵称正好是药名，模型把它当成了话题；
 2. 同一条历史出现两遍（一份原文、一份带 `<署名>`），`list(set(...))` 一条都没并不掉；
 3. 顺序被打乱 + 别的群/别的私聊的对话漏进本群。
 
@@ -25,8 +25,8 @@ import prompt_logic as pl  # noqa: E402
 
 FAILED: list[str] = []
 KNOWN = {"10000001": "漂泊者"}
-GRP = "qq_OneBot V11_3892894069_922192732"
-OLD = "qq_OneBot V11_3892894069_1108838060"
+GRP = "qq_OneBot V11_10000001_123456789"
+OLD = "qq_OneBot V11_10000001_123456788"
 
 
 def run(name, fn):
@@ -50,7 +50,7 @@ def turn(t, uid="1708420892", gid=GRP, msg="晚饭吃什么", resp="随便吃点
 
 
 def t_split_angle_bracket_label():
-    assert pl.split_speaker("<对乙酰氨基酚> 娅娅") == ("对乙酰氨基酚", "娅娅")
+    assert pl.split_speaker("<示例昵称> 娅娅") == ("示例昵称", "娅娅")
 
 
 def t_split_new_label_with_newline():
@@ -85,11 +85,11 @@ def t_label_turn_without_label():
 
 
 def t_known_name_beats_qq_nickname():
-    assert pl.resolve_speaker("10000001", "对乙酰氨基酚", KNOWN) == "漂泊者"
+    assert pl.resolve_speaker("10000001", "示例昵称", KNOWN) == "漂泊者"
 
 
 def t_unknown_person_keeps_their_card():
-    assert pl.resolve_speaker("982272752", "穿梭机", KNOWN) == "穿梭机"
+    assert pl.resolve_speaker("10000002", "穿梭机", KNOWN) == "穿梭机"
 
 
 def t_noise_labels_become_groupfriend_with_qq():
@@ -117,7 +117,7 @@ def t_speaker_map_takes_models_and_dicts():
 def t_twins_collapse_into_one():
     """同一轮的两份（一份原文、一份带 `<署名>`）必须并成一条 —— 事故里的 4 条变 3 条就是这么来的。"""
     a = turn("2026.09.27 15:20:46", msg="娅娅")
-    b = turn("2026.09.27 15:20:46", msg="<对乙酰氨基酚> 娅娅")
+    b = turn("2026.09.27 15:20:46", msg="<示例昵称> 娅娅")
     out = pl.normalize_turns([a, b])
     assert len(out) == 1 and out[0].body == "娅娅", out
 
@@ -144,7 +144,7 @@ def t_other_groups_and_privates_are_dropped_in_a_group():
         turn("2026.09.27 15:20:46", gid="-1", msg="达妮娅 在干嘛呢"),
         turn("2026.09.27 15:22:34", msg="晚饭吃什么"),
     ]
-    out = pl.normalize_turns(rows, current_group="922192732")
+    out = pl.normalize_turns(rows, current_group="123456789")
     assert [t.body for t in out] == ["晚饭吃什么"], out
 
 
@@ -173,10 +173,10 @@ def t_limit_zero_means_unlimited():
 
 def t_labels_resolved_for_every_row():
     rows = [
-        turn("2026.09.27 15:20:46", uid="10000001", msg="<对乙酰氨基酚> 娅娅"),
-        turn("2026.09.27 15:21:42", uid="982272752", msg="<穿梭机> 你搁哪里发财呢"),
+        turn("2026.09.27 15:20:46", uid="10000001", msg="<示例昵称> 娅娅"),
+        turn("2026.09.27 15:21:42", uid="10000002", msg="<穿梭机> 你搁哪里发财呢"),
     ]
-    out = pl.normalize_turns(rows, current_group="922192732", known=KNOWN)
+    out = pl.normalize_turns(rows, current_group="123456789", known=KNOWN)
     assert [t.label for t in out] == ["漂泊者", "穿梭机"], out
 
 
@@ -184,7 +184,7 @@ def t_labels_resolved_for_every_row():
 
 
 def t_group_token_extracts_the_group_number():
-    assert pl.group_token(GRP) == "922192732"
+    assert pl.group_token(GRP) == "123456789"
     assert pl.group_token("-1") == "-1"
     assert pl.group_token("") == ""
 
@@ -214,7 +214,7 @@ def t_kb_has_nothing_to_ask_for_a_bare_call():
 
 def t_kb_still_strips_the_legacy_angle_label():
     """上游哪天不经过 guard（比如开关关了）时，老格式也别再把闸门顶开。"""
-    assert kl.plan_queries("<对乙酰氨基酚> 达妮娅，在吗", ("达妮娅",)) == ["在吗"]
+    assert kl.plan_queries("<示例昵称> 达妮娅，在吗", ("达妮娅",)) == ["在吗"]
 
 
 if __name__ == "__main__":

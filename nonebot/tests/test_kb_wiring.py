@@ -33,7 +33,7 @@ import plugins.kb as kb  # noqa: E402
 from muicebot.llm import ModelRequest  # noqa: E402
 from nonebot.adapters.onebot.v11 import Message, MessageSegment, PrivateMessageEvent  # noqa: E402
 
-SELF = "3892894069"
+SELF = "10000001"
 NICKS = ("达妮娅", "小娅", "娅")
 FAILED: list[str] = []
 
@@ -141,19 +141,19 @@ def t_bare_calling_asks_nothing_at_all():
 def t_group_prompt_with_speaker_tag_does_not_leak():
     """真实群里 MuiceBot 把发言人昵称拼进 prompt（`muice.py:174`），唤醒词就不在句首了。
 
-    线上日志 14:46 那条就是证据：`检索词「<对乙酰氨基酚> 达妮娅，在吗」命中词条「达妮娅」`
+    线上日志 14:46 那条就是证据：`检索词「<示例昵称> 达妮娅，在吗」命中词条「达妮娅」`
     —— 有人问她在吗，却把她自己的设定塞了 1258 字进 prompt。
     """
-    assert asked("<对乙酰氨基酚> 达妮娅，在吗") == ["在吗"]
-    block, _ = ask("<对乙酰氨基酚> 达妮娅，在吗")
+    assert asked("<示例昵称> 达妮娅，在吗") == ["在吗"]
+    block, _ = ask("<示例昵称> 达妮娅，在吗")
     assert block is None, "称呼后面只剩「在吗」，一个字都不该塞"
     assert asked("<芝士小特，喜欢用表情包> 你是水蜜桃派吗") == ["你是水蜜桃派吗"], \
         "昵称自己就能命中词条，更不能当检索词"
 
 
 def t_group_prompt_about_her_still_hits():
-    assert asked("<对乙酰氨基酚> 达妮娅是谁") == ["达妮娅是谁"]
-    block, _ = ask("<对乙酰氨基酚> 达妮娅是谁")
+    assert asked("<示例昵称> 达妮娅是谁") == ["达妮娅是谁"]
+    block, _ = ask("<示例昵称> 达妮娅是谁")
     assert block and HIT["text"][:50] in block, "群里问她的事情照样该注入"
 
 

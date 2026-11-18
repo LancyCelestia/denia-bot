@@ -4,8 +4,8 @@
 
 ## 部署结果
 
-- 开发服务器：`192.0.2.226`；项目目录：`/opt/qqbot`。
-- 管理面板：`http://192.0.2.226:8092`，侧栏「游戏活动」。
+- 开发服务器：`<部署机IP>`；项目目录：`/opt/qqbot`。
+- 管理面板：`http://<部署机IP>:8092`，侧栏「游戏活动」。
 - 安装了 7 个游戏活动模块；在服务器当前版本的 `dashboard.py`、`dashboard.html`、`gate_logic.py` 合入入口、接口和帮助分组，共 10 个文件。
 - 服务器工作树含独立改动，没有用本地整个工作树覆盖服务器。部署前发现并保留了同期灾害功能更新；安装前再次校验文件 SHA-256。
 - `qqbot`、`qqbot-dashboard`、`qqbot-playwright-renderer` 均为 active；机器人健康接口返回 `ready=true, connected=true`。

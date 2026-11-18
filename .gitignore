@@ -48,6 +48,11 @@ plugins/store/
 astrbot.lock
 .astrbot
 
+# gsuid_core 外部服务（源码/依赖/账号数据）
+# 上游 GPL-3.0 代码在部署时按 pin 克隆，不随仓库分发；data 含账号绑定与 CK
+gsuid/core/
+gsuid/data/
+
 # ============================ 大体积产物 ============================
 # RAG 模型权重与索引：可由 knowledge/*.md 重建（见 README）
 rag/models/
@@ -85,6 +90,12 @@ parser_deps/
 *.zip
 
 # ============================ 临时 / 备份 ============================
+# 本机私有备份/调试脚本（历史上误入版本控制；已移到 local/private）
+.local-backup-*/
+.playwright-cli/
+.u.py
+.tw.py
+.tw2.py
 # 生产机上历史遗留的部署备份及快照不进仓库
 /.deploy-backup-*/
 *.bak

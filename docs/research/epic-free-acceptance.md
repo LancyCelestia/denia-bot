@@ -21,8 +21,8 @@
 | 工作区 | `D:\Software\qqbot` |
 | 分支 / HEAD | `codex/game-events` / `0a33293`（Epic 相关文件当时未提交） |
 | Python | `nonebot/.venv`，Python 3.12 |
-| 测试服务器 | `root@192.0.2.226:/opt/qqbot`，`qqbot` active，`Bot 3892894069 connected` |
-| 面板 | `http://192.0.2.226:8092/`，含 Epic 区块 |
+| 测试服务器 | `root@<部署机IP>:/opt/qqbot`，`qqbot` active，`Bot <bot-qq> connected` |
+| 面板 | `http://<部署机IP>:8092/`，含 Epic 区块 |
 | 数据源 | `https://store-site-backend-static-ipv4.ak.epicgames.com/freeGamesPromotions` |
 | 卡片样本 | [`epic-free-card-sample.png`](epic-free-card-sample.png)，SHA-256 `beafb3c62eb9688ec0f0ac507078b11908dc9c86c6b508d15830b9ad2f3d3fc5` |
 
@@ -118,7 +118,7 @@ trigger 200 True
 1. **真实 QQ 群投递未自动化**：本轮验证到「卡片/文本已生成、假 bot 收到两条消息」；测试服务器已部署并连接，但仍需人工在测试群发一次 `喜加一` 目检。该项不阻塞本次自动化验收，作为上线后观察项。
 2. **远程用例未在本轮重跑**：远程历史记录 47 绿，本轮本机 55 绿；两者差在新增的配置/面板/权限用例。
 3. **换期为模拟**：用同一批游戏把 `id` 与窗口后移 7 天模拟下一期，不是真实跨周等待。
-4. **面板用 TestClient**：未登录真实 `http://192.0.2.226:8092` 操作；鉴权、CSRF、路由与落盘逻辑相同。
+4. **面板用 TestClient**：未登录真实 `http://<部署机IP>:8092` 操作；鉴权、CSRF、路由与落盘逻辑相同。
 5. **推送至多一次**：发送前先占位，失败不重试；若真实发送失败，需要面板「立即推送」人工补一次。
 
 ## 6. 复现

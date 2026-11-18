@@ -1,8 +1,10 @@
 # denia-bot
 
-基于 NoneBot2、OneBot v11 和 MuiceBot 的 QQ 机器人。项目提供人格聊天、可选的知识库检索，以及游戏活动、天气、灾害预警、终末地账号查询等功能。QQ 协议端、模型服务和图片渲染服务需要分别部署。
+基于 NoneBot2、OneBot v11 和 MuiceBot 的 QQ 机器人。项目提供人格聊天、可选的知识库检索，以及游戏活动、天气、灾害预警等功能。QQ 协议端、模型服务和图片渲染服务需要分别部署。
 
 > 本文描述当前工作区的功能。部署前请核对目标检出的代码和配置；`nonebot/.env`、模型条目、账号数据与部署机地址等配置不在仓库内。
+
+> **敏感数据状态**：当前仓库内容已清理生产账号、QQ／群号、内网与部署地址、令牌、Cookie、密码、面板数据及运行日志；文档和测试统一使用 `<bot-qq>`、`<部署机IP>`、`<内网网段>`、`10000001` 等占位符。真实值只保存在被 Git 忽略的本地配置中。推荐配置方式与更新步骤见 [数据与安全](#数据与安全)。
 
 ## 功能
 
@@ -14,10 +16,11 @@
 | 链接解析 | 解析受支持平台的链接，发送预览卡片和原始媒体；平台和网络状态会影响结果。 |
 | 天气和灾害预警 | 天气查询及定时推送；灾害 V1 覆盖 Jian 气象、海啸和 Wolfx 地震，EQSC／台风不在当前验收范围。 |
 | 游戏活动 | 管理不同游戏和区服的活动订阅、查询与到期提醒；初始无订阅，支持按会话限制。 |
+| 游戏账号查询 | 可选：接入 gsuid_core 服务（127.0.0.1:8765），提供鸣潮、终末地的账号查询与签到，需按 `gsuid/README.md` 单独安装并启动。 |
 | Epic 喜加一 | 查询免费游戏及配置换期推送；主动查询限主人、群主或群管理员，未授权时静默。 |
-| 终末地 | 网页授权后查询便签、理智、签到、抽卡记录和干员信息，也支持订阅提醒。扫码绑定尚未开放；部分接口需真实账号验收。 |
 | 服务器状态 | 状态卡、Proxmox VE 集群状态卡、资源及服务告警、日报和周报。 |
-| B站动态订阅 | 主人按会话订阅 UP 主动态，机器人以卡片推送；管理面板只读展示各会话订阅与投递状态。 |
+| B站动态订阅 | 主人按会话订阅 UP 主动态，机器人以卡片推送；管理面板展示各会话订阅与投递状态，并可增删接收目标。 |
+| bot基本信息 | 在管理面板设置状态卡、日报、集群卡、灾害卡和指令菜单的显示名，保存后立即生效。 |
 | 管理面板 | 管理超级管理员、功能配置、推送目标、图片渲染服务和运行状态。 |
 
 默认命令前缀为 `.`，发送 `.help` 查看当前加载插件的命令。群聊查询通常需要 @ 机器人；各功能的权限、会话范围和配置以帮助菜单及对应文档为准。未知命令和无权限命令按静默策略处理。
@@ -28,6 +31,7 @@
 QQ 协议端 ── OneBot v11 反向 WebSocket ──> NoneBot2 + MuiceBot
                                                   ├── 模型服务 / 网关
                                                   ├── 可选 RAG 检索服务
+                                                  ├── gsuid_core（可选，8765）
                                                   ├── 游戏与公共数据接口
                                                   └── 图片渲染服务
 
@@ -56,15 +60,34 @@ QQ 协议端 ── OneBot v11 反向 WebSocket ──> NoneBot2 + MuiceBot
 | `time_context` | 提供北京时间和历史对话时间戳，并为可明确识别的相对时间问题提供计算结果 |
 | `weather` | 天气查询 + 显式配置的定时推送 |
 | `media_parser` | 多平台链接解析（在 AstrBot 原插件基础上适配到 NoneBot2） |
-| `endfield` | 终末地：绑定/便签/理智/签到、抽卡/干员/危机/日历/成就/建设查询、图卡、公告与订阅；详见 `docs/endfield.md` |
-| `bilibili` | B站动态订阅：按会话订阅 UP 主动态并推送卡片（仅主人增删）、关键词搜索；逻辑在 `nonebot/bilibili/`，面板只读展示订阅与投递状态。详见 `docs/OPERATIONS.md` §8.10 |
+| `bilibili` | B站动态订阅：按会话订阅 UP 主动态并推送卡片（仅主人增删）、关键词搜索；逻辑在 `nonebot/bilibili/`，面板展示订阅与投递状态并可增删接收目标。详见 `docs/OPERATIONS.md` §8.10 |
 
-管理面板：`nonebot/dashboard.py`（FastAPI + 单页 HTML），提供群话题、天气推送、主人设置等管理接口。
-另有 `bot_monitor.py` 做只读状态检查与串行重启。终末地已接入主面板侧栏；`/endfield` 跳转到 `/#endfield`。
+管理面板：`nonebot/dashboard.py`（FastAPI + 单页 HTML），提供群话题、天气推送、主人设置、B站动态接收目标等管理接口。
+另有 `bot_monitor.py` 做只读状态检查与串行重启。
 
 表情包在管理面板的「表情包」中添加分类、填写使用场景并上传图片。支持 PNG、JPEG、GIF、WebP，单张不超过 5 MB；空图库不会影响聊天。模型只在认为合适时选择分类；已有语义向量的图片可按对话匹配，其他情况随机选取。可关闭全部表情或按 `group:群号`、`private:QQ号` 禁用会话；设置与图片保存在 `nonebot/data/memes/library.sqlite3`，需随机器人数据一同备份。首次部署代码后需重启机器人及面板，之后图片与规则改动无需重启。
 
 主人可私聊发送「开启表情包学习」，之后发来的图片会加入后台队列，使用视觉模型识别内容和使用场景，再通过向量服务建立索引并分类入库；发送「关闭表情包学习」停止接收新图，已接收任务继续处理。发送「表情包学习状态」查看进度，失败后可用「表情包学习重试」；确认不再需要失败图片时可发送「表情包学习清理失败 确认」。学习模式仅接受配置中的主人私聊，开启状态跨重启保留。QQ 商城表情依赖协议端提供可获取的图片；无法读取、超过 5 MB 或队列满时会提示。动态图的识别使用第一帧，保存和发送保留原图。视觉模型默认 `deepseek-v4.1-flash`，可通过 `.env` 的 `MEME_VISION_MODEL` 修改；使用当前聊天模型的网关，调用视觉和向量服务可能产生费用。发送表情时优先按当前对话与已学习图片的描述匹配，向量服务不可用时回退原有随机选图。
+
+## 外部插件：gsuid_core
+
+`gsuid_core` 是可选的游戏账号查询服务：独立进程监听 `127.0.0.1:8765`，NoneBot 通过适配器 `nonebot-plugin-genshinuid==6.1.1`（模块 `GenshinUID`）连接。不启动它时其余功能不受影响；启用后按 `gsuid/README.md` 安装核心与插件，再在 `nonebot/.env` 设置 `GSUID_CORE_*` 连接参数。
+
+| 组件 | 作用 | 上游仓库 | 固定版本 | 许可证 |
+|---|---|---|---|---|
+| `gsuid_core` | 核心服务：账号绑定、数据存储与插件调度，监听 8765 | <https://github.com/Genshin-bots/gsuid_core> | 提交 `aaa8bd6a6a1061d624e72ffaa547a3f1baa33931` | GPL-3.0 |
+| `XutheringWavesUID` | 鸣潮账号绑定与查询：面板、评分与伤害计算 | <https://github.com/Loping151/XutheringWavesUID> | 提交 `a17e3154a89f63cb8ce2ef176b07880613d33582` | GPL-3.0 |
+| `EndUID` | 明日方舟：终末地账号绑定与查询 | <https://github.com/Loping151/EndUID> | 提交 `a6fff57a527400bd008a85fbf72e49ddac849a14` | GPL-3.0 |
+| `RoverSign` | 鸣潮、战双、库街区签到（依赖 `XutheringWavesUID`） | <https://github.com/Loping151/RoverSign> | 提交 `98be9d36144b46471c5094dd751f8f3b63d623bf` | GPL-3.0 |
+| `nonebot-plugin-genshinuid` | NoneBot2 与核心的 WebSocket 适配器（模块 `GenshinUID`） | <https://github.com/KimigaiiWuyi/GenshinUID/tree/v4-nonebot2> | PyPI `6.1.1`（分支 `v4-nonebot2`） | GPL-3.0 |
+
+安装与启动：
+
+1. 运行 `gsuid/install.sh`（Linux）或 `gsuid/install.ps1`（Windows），把核心与三个插件按上表提交克隆到 `gsuid/core`，插件位于 `gsuid/core/gsuid_core/plugins`。
+2. 启动核心（`cd gsuid/core && uv run core`，或用 compose 服务），首次启动后在控制台完成插件配置。
+3. 适配器已固定在 `requirements.lock`（`nonebot-plugin-genshinuid==6.1.1`），按快速开始安装依赖即可。在 `nonebot/.env` 设置 `GSUID_CORE_HOST`、`GSUID_CORE_PORT=8765` 和 `GSUID_CORE_WS_TOKEN`（与控制台里的一致），再重启机器人；核心未启动时适配器只报连接失败。
+
+上述来源均为 GPL-3.0，代码不随本仓库分发，安装脚本只在部署时拉取。配置与账号数据在 `gsuid/core/data`，需随机器人数据一起备份。生产环境应部署在 Linux bot 服务器（`/opt/qqbot`，systemd）；仓库里的 `tools\启动所有.ps1` / `tools\gsuid-局域网访问.ps1` 只用于 Windows 本机开发，具体见 [gsuid 安装说明](gsuid/README.md) 与 [第三方来源与许可](docs/third-party/gsuid-NOTICE.md)。
 
 ---
 
@@ -84,6 +107,7 @@ denia-bot/
 ├─ rag/                   本地检索服务（serve.py / core.py / build_index.py / eval_gate.py）
 ├─ tools/                 启停脚本、账号隔离、自检脚本
 ├─ docker/snowluma/       QQ 协议端 compose 模板
+├─ gsuid/                 可选游戏账号查询：gsuid_core 核心与插件的安装脚本
 ├─ docs/                  设计文档与研究笔记
 └─ requirements.lock      生产环境实测依赖锁
 ```
@@ -134,12 +158,6 @@ uvicorn dashboard:app --host 127.0.0.1 --port 8092
 
 `.喜加一` 查询当前和即将免费的游戏；`.Epic 测试` 仅限主人。面板可配置地区、轮询间隔与群聊／私聊推送目标。首装建立基线，之后根据免费游戏集合变化推送；通常先发送卡片或文本，再发送一条链接汇总。详见 [Epic 运维](docs/OPERATIONS.md#89-epic-喜加一)。
 
-### 终末地
-
-在私聊发送 `.授权登陆`，按提示同意并打开授权链接，完成后再次发送该命令。绑定后可使用 `.便签`、`.抽卡记录` 和 `.抽卡分析` 等命令；抽卡数据需先尝试 `.同步抽卡`。抽卡分析展示网关返回的总抽数、六星数量和六星率，统计口径由网关决定。
-
-当前工作区支持网关创建绑定失败时的本地绑定回退：授权凭据经只读便签查询验证后才保存；该路径不代表网关已新建绑定。授权、同步及其他查询能否使用仍取决于对应网关接口。扫码绑定、上游专用卡片等未完全移植。配置、权限、数据保存和已知限制见 [终末地文档](docs/endfield.md)。
-
 ### 灾害预警
 
 V1 的验收范围为 Jian 气象／海啸和 Wolfx 地震。验收、观察和回滚步骤见 [灾害验收 runbook](docs/research/disaster-acceptance.md)；实际进度以 GitHub Issue #39 的最新记录和用户签字为准，不应将合成样例视为真实灾害事件验证。
@@ -153,14 +171,14 @@ cd nonebot
 python -m pytest tests -q
 ```
 
-测试包含纯逻辑和 NoneBot 接线测试。真实 QQ、模型服务、终末地授权、外部数据源及渲染器的验收需分别执行；离线测试通过不能替代真实服务验证。
+测试包含纯逻辑和 NoneBot 接线测试。真实 QQ、模型服务、外部数据源及渲染器的验收需分别执行；离线测试通过不能替代真实服务验证。
 
 主要目录：
 
 | 路径 | 内容 |
 | --- | --- |
 | `nonebot/bot.py`、`nonebot/plugins/` | 机器人入口和插件接线 |
-| `nonebot/*_logic.py`、`nonebot/endfield/` | 功能逻辑、终末地客户端与状态管理 |
+| `nonebot/*_logic.py` | 功能逻辑 |
 | `nonebot/dashboard.py`、`nonebot/dashboard.html` | 管理面板 |
 | `nonebot/media_parser/` | 链接解析 |
 | `nonebot/tests/` | 自动化测试 |
@@ -170,18 +188,70 @@ python -m pytest tests -q
 
 ## 数据与安全
 
-- `.env`、`configs/models.yml`、协议端配置、令牌、数据库、日志及 `nonebot/data/` 中的用户数据不要提交。
-- 终末地绑定文件包含凭据；备份时限制权限，删除本地绑定不一定撤销第三方授权。
+### 敏感数据状态
+
+当前版本已清理仓库中的生产敏感数据：机器人 QQ／群号、私聊账号、内网与部署 IP、服务器地址、令牌、Cookie、API Key、面板密码、账号绑定、数据库、日志和本机备份均不进入版本控制。示例与测试使用合成值或占位符（如 `<bot-qq>`、`<部署机IP>`、`<内网网段>`、`10000001`）；不要把它们替换成真实值后提交。
+
+`.gitignore` 已覆盖以下本地文件：
+
+- `.env`、模型配置、人格模板和 `local/` 私有环境；
+- `nonebot/data/` 下的面板配置、状态库、密钥、图片和头像缓存；
+- `gsuid/core/`、`gsuid/data/` 下的上游源码、账号绑定和插件数据；
+- SnowLuma 密码、协议端配置、二维码、Cookie、日志与备份。
+
+### 推荐配置方式
+
+从示例复制配置，实际文件只保存在部署机：
+
+```bash
+cd nonebot
+cp .env.example .env
+cp configs/models.yml.example configs/models.yml
+cp configs/templates.yml.example configs/templates.yml
+```
+
+| 配置内容 | 模板 | 实际文件（Git 忽略） |
+|---|---|---|
+| 协议端连接、OneBot token、`SUPERUSERS`、机器人自身 QQ、显示名、gsuid 连接 | `nonebot/.env.example` | `nonebot/.env` |
+| 模型地址、模型名、API Key、首选／备用模型 | `nonebot/configs/models.yml.example` | `nonebot/configs/models.yml` |
+| 人格模板、称呼、主人别名 | `nonebot/configs/templates.yml.example` | `nonebot/configs/templates.yml` |
+| 本机私有覆盖值（优先级高于 `.env`） | — | `local/bot.env` |
+| 管理面板保存的功能配置、密钥、状态库和上传图片 | — | `nonebot/data/` |
+| gsuid_core 的 `WS_TOKEN`、账号绑定和插件配置 | `gsuid/core/.env.example`（安装后生成） | `gsuid/core/data/` |
+| SnowLuma WebUI 密码 | — | `tools/snowluma-webui-pass.txt` |
+
+机器人名称（`bot-name`）优先使用管理面板「bot基本信息」写入的 `nonebot/data/bot-name.json`；未设置时才读取 `BOT_NAME`／`QQBOT_NAME`，默认「达妮娅」。它只影响卡片显示，不改变唤醒词或人格。
+
+### 更新已有部署
+
+```bash
+git pull --ff-only
+# 保留现有 .env、models.yml、templates.yml、local/ 和 nonebot/data/
+# 仅在文件不存在时从对应 .example 复制
+cd nonebot
+python migrate_db.py upgrade
+python -m pytest tests -q
+```
+
+重启机器人及面板使代码生效；配置文件的修改方式见上一节。升级前先备份 `nonebot/data/`、`nonebot/.env`、`gsuid/core/data/`（如果启用游戏查询）；不要把备份复制回仓库。
+
+### 历史与轮换
+
+清理工作区只能防止新提交继续泄露。如果真实凭据曾进入 Git 历史，必须先在对应平台轮换该凭据，再使用 `git filter-repo` 等工具清理历史后推送；只删除当前文件不能消除历史记录。详细步骤见 [运维手册 §10](docs/OPERATIONS.md#10-部署本地文件与同步排除)。
+
+其他安全边界：
+
 - 默认将服务限制在本机或可信网络；不要直接将无保护的面板、OneBot 和渲染接口暴露到公网。
-- 使用非官方 QQ 协议端存在账号风险，协议端的安装和账号管理由部署者自行负责。
+- 使用非官方 QQ 协议端存在账号风险；协议端的安装和账号管理由部署者自行负责。
+- 机器人 QQ、群号等私有标识放在被 Git 忽略的 `nonebot/.env` 或 `local/bot.env`，代码通过 `private_env.py` 读取；完整交接文档和旧备份放在 `local/private/`，不进入仓库。
 
 ## 许可与来源
 
 仓库原创代码以 [MIT](LICENSE) 许可发布。第三方依赖保留各自许可；人格模板和语料的权利不因本仓库代码许可而改变。
 
-- 终末地 `nonebot/endfield/client.py`、`store.py`、`render.py` 为 AGPL-3.0-only 同源移植，见 [AGPL 许可](LICENSE-AGPL-3.0) 和 [来源说明](docs/third-party/endfield-NOTICE.md)。
 - `nonebot/status_*.py`、`nonebot/plugins/statuscard.py` 及其测试移植自 `SX0YYYY/astrbot_plugin_statuscard`，按 AGPL-3.0 分发，见 [许可](docs/third-party/statuscard-LICENSE) 和 [来源说明](docs/third-party/statuscard-NOTICE.md)。
 - `nonebot/disaster_*.py`、`nonebot/plugins/disaster_warning.py` 及相关测试移植或重写自 `Pancakes-Labs/astrbot_plugin_disaster_warning`，按 AGPL-3.0 分发，见 [许可](docs/third-party/disaster-warning-LICENSE) 和 [来源说明](docs/third-party/disaster-warning-NOTICE.md)。
 - Epic 相关文件参考 `CJSen/astrbot_plugin_epic_free_games_notice` 的行为和接口事实独立重写；上游 README 声明 AGPL-3.0，但未附 LICENSE 文件。本项目按 AGPL-3.0 保守分发，见 [许可](docs/third-party/epicfree-LICENSE)、[来源说明](docs/third-party/epicfree-NOTICE.md) 和 [署名](docs/third-party/epicfree-ATTRIBUTION.md)。
+- 可选的 `gsuid_core` 生态（核心服务、XutheringWavesUID、EndUID、RoverSign 与 NoneBot 适配器 `nonebot-plugin-genshinuid`）在部署时按固定提交／版本下载到 `gsuid/core`，不随本仓库分发，均按 GPL-3.0 授权。上游见 <https://github.com/Genshin-bots/gsuid_core>、<https://github.com/Loping151/XutheringWavesUID>、<https://github.com/Loping151/EndUID>、<https://github.com/Loping151/RoverSign>、<https://github.com/KimigaiiWuyi/GenshinUID/tree/v4-nonebot2>，详见 [来源与许可说明](docs/third-party/gsuid-NOTICE.md)。
 
 分发包含上述文件的组合时，请同时考虑其相应许可要求。

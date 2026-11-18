@@ -14,7 +14,7 @@ from nonebot_plugin_alconna.uniseg.params import _uni_msg
 from nonebot_plugin_alconna.extension import unimsg_cache, unimsg_origin_cache
 from plugins import gate, quote_fix
 
-SELF = '3892894069'
+SELF = '10000001'
 
 
 class Bot:
@@ -29,7 +29,7 @@ class Bot:
 def make_event(parts):
     message = Message(parts)
     return GroupMessageEvent(time=1, self_id=int(SELF), post_type='message', sub_type='normal',
-        user_id=10000001, group_id=1108838060, message_type='group', message_id=10,
+        user_id=10000002, group_id=123456788, message_type='group', message_id=10,
         message=message, raw_message=str(message), font=0,
         sender={'nickname': 'test', 'role': 'member'})
 

@@ -11,8 +11,9 @@
 | RAG 检索服务 | 8091 | `python rag/serve.py` | 环境变量 `KB_GATE_MODE` 等；见 `rag/core.py` |
 | 管理面板 | 8092 | `uvicorn dashboard:app` | `nonebot/data/dashboard-auth.json` |
 | 模型网关 AxonHub（可选） | 8090 | 独立二进制 | `axonhub/config.yml` |
+| gsuid_core（可选） | 8765 | `cd gsuid/core && uv run core`，或 compose 服务 | `gsuid/core/data/config.json` |
 
-四个业务服务**只监听回环地址**（面板按需绑内网 IP），外面访问一律走 SSH 隧道或反代 + HTTPS。
+所有业务服务**只监听回环地址**（面板按需绑内网 IP），外面访问一律走 SSH 隧道或反代 + HTTPS。
 
 ## 2. 启动顺序
 
@@ -20,8 +21,11 @@
 
 1. `docker compose up -d`（SnowLuma，需要先有登录态；否则去 6081 扫码）
 2. RAG：`.venv/bin/python rag/serve.py`
-3. NoneBot：`cd nonebot && ../.venv/bin/python bot.py`
-4. 面板：`systemctl start qqbot-dashboard`（见 `nonebot/qqbot-dashboard.service`）
+3. gsuid_core（启用游戏账号查询时）：先运行 `gsuid/install.sh` 完成安装；启动时 `cd gsuid/core && uv run core`（或 compose `docker compose up -d`）；**必须先于 NoneBot 启动**，否则适配器首连失败；core 启动后下一条消息会重试，必要时重启机器人
+4. NoneBot：`cd nonebot && ../.venv/bin/python bot.py`
+5. 面板：`systemctl start qqbot-dashboard`（见 `nonebot/qqbot-dashboard.service`）
+
+Linux 常驻 gsuid_core：`sudo cp gsuid/qqbot-gsuid-core.service /etc/systemd/system/ && sudo systemctl enable --now qqbot-gsuid-core`；NoneBot 单元用 drop-in 增加 `After=qqbot-gsuid-core.service`。局域网 WebConsole 需要 core `HOST=0.0.0.0` 且只对本子网放行 TCP 8765；Windows 用 `tools\gsuid-局域网访问.ps1`，详见 `gsuid/README.md` §6.1。
 
 SnowLuma 的反向 WS 必须指向 `ws://127.0.0.1:8080/onebot/v11/ws`，且 `accessToken` 与 `.env` 的
 `ONEBOT_ACCESS_TOKEN` 一致；握手还需要 `X-Self-ID` 头（NoneBot 靠它认 Bot，缺了会 403）。
@@ -79,12 +83,12 @@ SnowLuma 是**进程级注入**，同一 QQ 客户端里登录的所有号都会
 | 状态未知 | WebUI 通了但拿不到注入状态 | 见下方两种原因 |
 
 **原因一：端口绑在内网 IP 而不是回环地址。**
-compose 里 `ports: "192.0.2.226:5099:5099"` 只监听该 IP，探 `127.0.0.1:5099` 会直接失败。
+compose 里 `ports: "<部署机IP>:5099:5099"` 只监听该 IP，探 `127.0.0.1:5099` 会直接失败。
 探测会依次尝试 `SNOWLUMA_URL`（如设置）→ `127.0.0.1:5099` → `host.docker.internal:5099` →
 本机各内网 IP 的 `:5099`，命中后记住该地址。所以要固定用某个地址，就在面板的 service 里设：
 
 ```ini
-Environment=SNOWLUMA_URL=http://192.0.2.226:5099
+Environment=SNOWLUMA_URL=http://<部署机IP>:5099
 ```
 
 **原因二：没有 WebUI 密码，读不到注入状态。**
@@ -167,8 +171,14 @@ knowledge/*.md  ──build_index──▶  rag/index/{chunks,tokens,lexicon,vec
 
 ## 8. 管理面板
 
-`nonebot/dashboard.py` 提供只读状态与少量管理接口：群话题、天气推送、主人设置、解析器配置。
+`nonebot/dashboard.py` 提供运行状态与配置管理接口：群话题、天气推送、主人设置、解析器配置、B站动态接收目标。
 面板要求密码（`data/dashboard-auth.json`），所有写操作需要二次确认。
+
+## 8.1 机器人显示名称
+
+面板「bot基本信息」设置状态卡、日报 / 周报、Proxmox 集群卡、灾害卡和 `.help` 指令菜单统一显示的机器人名称（`bot-name`）。面板写入 `data/bot-name.json`，机器人每次出图时读取，因此保存后下一张卡立即生效，不需要重启。
+
+解析顺序：`data/bot-name.json` → 进程环境或 `local/bot.env` / `nonebot/.env` 的 `BOT_NAME` / `QQBOT_NAME` → 默认 `达妮娅`。名称仅影响显示，不改人格模板、唤醒词、账号或模型设置。面板可恢复默认；文件损坏时自动回退到环境变量或默认名称。
 
 ## 8.5 服务器状态卡
 
@@ -311,7 +321,7 @@ Playwright / Chromium 版本固定 1.60.0 对应版本，字体包含原 HYS 字
 # 本地定向测试（应全绿；全量见仓库测试说明）
 cd nonebot && python -m pytest tests -q -k epic_free
 
-# 远程重启与日志（测试服务器 root@192.0.2.226:/opt/qqbot）
+# 远程重启与日志（测试服务器 root@<部署机IP>:/opt/qqbot）
 systemctl restart qqbot
 systemctl is-active qqbot
 journalctl -u qqbot -n 80 --no-pager | grep -i epic
@@ -323,12 +333,12 @@ journalctl -u qqbot -n 80 --no-pager | grep -i epic
 
 ## 8.10 B站动态订阅
 
-面板「B站动态订阅」只读展示每个群聊 / 私聊订阅了哪些 UP 主、订阅时间、最近检查时间与投递计数；增删订阅仍然只在会话里做。数据来自机器人持有的 `nonebot/data/bilibili_dynamic/state.sqlite3`，面板以只读 URI（`mode=ro`）打开同一文件，不写库、不触发抓取或投递；机器人正在写入时最多等 2 秒，超时提示稍后刷新。
+面板「B站动态订阅」展示每个群聊 / 私聊订阅了哪些 UP 主、订阅时间、最近检查时间与投递计数，并可增删「接收目标」；接收目标写入 `.env` 的 `BILI_TARGETS`，重启机器人生效。增删订阅仍然只在会话里做。数据来自机器人持有的 `nonebot/data/bilibili_dynamic/state.sqlite3`，面板以只读 URI（`mode=ro`）打开同一文件，不写库、不触发抓取或投递；机器人正在写入时最多等 2 秒，超时提示稍后刷新。
 
 | 项 | 说明 |
 |---|---|
 | 命令 | `.b站订阅 <UID>` / `.b站退订 <UID>`（仅主人）、`.b站订阅列表`、`.b站搜索 <关键词>`、`.b站选 <序号>` |
-| 接收目标 | `.env` 的 `BILI_TARGETS`（`bot:group:id` / `bot:private:id` 的 JSON 数组）；只有目标里的会话能新建订阅并收到投递，目标外的历史订阅休眠（不检查也不投递，面板会标出）。`.b站搜索` / `.b站选` / `.b站订阅列表` 只是会话内即时回复、不产生投递，任何会话都能用 |
+| 接收目标 | `.env` 的 `BILI_TARGETS`（`bot:group:id` / `bot:private:id` 的 JSON 数组）；只有目标里的会话能新建订阅并收到投递，目标外的历史订阅休眠（不检查也不投递，面板会标出）。面板可增删并原子写回 `.env`，保存后重启机器人；若 `BILI_TARGETS` 来自进程环境则只读。`.b站搜索` / `.b站选` / `.b站订阅列表` 只是会话内即时回复、不产生投递，任何会话都能用 |
 | 面板读取的配置 | `BILI_ENABLED`、`BILI_INTERVAL`、`BILI_TARGETS`、`BILI_STATE_FILE`；先看进程环境，再看 `nonebot/.env` |
 | 状态库 | `state.sqlite3`（`user_version=31`）+ `state.sqlite3.lock`（机器人独占）；随机器人数据一起备份 |
 | 来源暂停 | 命中 B站 403/412/429 时机器人写入 `source_stop`，面板显示「来源已暂停」；确认后把 `BILI_RESUME_SOURCE=true` 重启一次即可恢复 |
@@ -352,33 +362,31 @@ curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8092/api/bilibili   # 
 - [ ] 数据卷 `qqbot-qq-config` / `qqbot-qq-data` **绝对不能删**，删了要重新扫码
 - [ ] `sysctl kernel.yama.ptrace_scope` ≤ 2（= 3 会直接拒绝注入）
 - [ ] 给容器加 `mem_limit` / `cpus`
-- [ ] 备份：数据库、`gate.json`、`model_pref.json`、`rag/index`、`data/statuscard*`
+- [ ] 备份：数据库、`gate.json`、`model_pref.json`、`rag/index`、`data/statuscard*`、`gsuid/core/data`（启用 gsuid_core 时含账号绑定与 `config.json`）
 - [ ] 状态卡默认已勾选「主机名」「进程信息」脱敏；公开群再加「网络数据」
 
-## 10. 终末地（endfield）
-
-- 远程渲染器是独立预置服务，本次合并不含其服务端；接口见 `docs/endfield.md`。
-  已有开发服采用宿主机模式 `HOST=127.0.0.1 PORT=3100`（3000 是 personal-wiki）；
-  机器人 `render_url=http://127.0.0.1:3100`，3100 不要对公网开。
-- Key：主面板「终末地」（`/endfield` 重定向）写入 `data/endfield_secrets.json`（0600），`ENDFIELD_API_KEY` 兜底；
-  绑定 token 在 `data/endfield/bindings.json`（0600，明文，备份注意）。
-- 调度器随 bot 启动，60s tick；心跳 `data/endfield/heartbeat.json`（>180s 视为离线）；
-  审计 `data/endfield/audit.jsonl`（1 MB 轮转），面板读尾部。
-- 测试：`cd nonebot && .venv/Scripts/python.exe -m pytest tests/endfield -q`（默认离线）。
-- 公告订阅仅 superusers 在目标群；个人订阅仅私聊；图卡失败自动回退文本。
-
-## 11. 部署本地文件与同步排除
+## 10. 部署本地文件与同步排除
 
 以下文件只存在于部署机，仓库里只保留 `*.example` 模板。**从仓库同步代码时必须排除它们**，否则真实配置会被占位值覆盖：
 
 | 文件 | 仓库对应物 | 说明 |
 |---|---|---|
-| `nonebot/.env` | `nonebot/.env.example` | OneBot token、`SUPERUSERS` 等 |
+| `nonebot/.env` | `nonebot/.env.example` | OneBot token、`SUPERUSERS`、`QQBOT_SELF_ID` 等 |
 | `nonebot/configs/models.yml` | `nonebot/configs/models.yml.example` | 模型地址与密钥 |
 | `nonebot/configs/templates.yml` | `nonebot/configs/templates.yml.example` | 人格配置；`userinfos` 含主人 QQ |
 | `nonebot/data/` | — | 运行时状态与凭据 |
+| `local/bot.env` | — | 被 Git 忽略的本机私有值；`QQBOT_SELF_ID` 优先从这里读取 |
+| `local/private/` | — | 私有交接文档、旧备份和调试快照；不进入版本控制 |
 | `/etc/systemd/system/qqbot-dashboard.service` 及 `.d/` | `nonebot/qqbot-dashboard.service` | 仓库 unit 默认绑 `127.0.0.1`，真实监听地址放 drop-in |
 | `snowluma/config/`、`compose.yml` | `docker/snowluma/` 模板 | 协议端配置 |
+
+敏感值持久化规则：
+
+- 真实 token、API Key、Cookie、密码只放在上述被忽略文件的对应位置；仓库只保留带占位符的 `*.example`。
+- 机器人自身 QQ 不在代码/工具里硬编码。`bot.py`、`bot_monitor.py` 和 `tools/只注入小号.py` 通过 `nonebot/private_env.py` 读取 `QQBOT_SELF_ID`，查找顺序为进程环境 → `local/bot.env` → `nonebot/.env`。
+- 私有交接文档和旧备份放在 `local/private/`；根目录只保留不含账号信息的占位说明。
+- 这些文件随部署机数据一起备份；迁移时复制对应目录并保持 `600`/目录权限，不要复制进 Git。
+- 如果敏感值曾经进入 Git 历史，先轮换凭据，再用 `git filter-repo` 等工具清理历史；只改当前文件不能消除历史泄露。
 
 同步建议：
 
