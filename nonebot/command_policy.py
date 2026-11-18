@@ -80,6 +80,7 @@ def install_command_rules() -> None:
         'media_parser': ('control',),
         'kb': ('kb',),
         'weather': ('matcher',),
+        'bilibili': ('matcher',),
         'game_events': ('matcher',),
         'epic_free': ('matcher',),
         'endfield': ('matcher',),
