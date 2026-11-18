@@ -74,12 +74,25 @@ def keep_images_only(resources: List[object], limit: int = DEFAULT_MAX_COUNT) ->
     return len(kept)
 
 
+def strip_placeholder(text: Optional[str]) -> str:
+    """去掉为 Alconna 匹配补进去的 `[图片]`，其余一个字不动。
+
+    占位符只是为了让 MuiceBot 的 `re.compile(".+")` 匹配上，不是对方说的话；
+    进提示词前必须清掉，否则模型会读到一句原文里没有的 `[图片]`。
+    只去开头那一个：正文里本来就写着 `[图片]` 的情况不该被改动。
+    """
+    value = text or ""
+    if value.startswith(PLACEHOLDER):
+        return value[len(PLACEHOLDER):]
+    return value
+
+
 def needs_empty_hint(text: Optional[str]) -> bool:
     """正文为空/只有空白时补占位说明；有字就别替对方加戏。
 
     零宽占位符（`PLACEHOLDER`）也算空：它是给 Alconna 匹配用的，不该进提示词。
     """
-    return not (text or "").replace(PLACEHOLDER, "").strip()
+    return not strip_placeholder(text).strip()
 
 
 def strip_history_media(history: Iterable[object]) -> int:
@@ -113,7 +126,7 @@ def normalize_image(
         return None
 
     # 已经是本函数产出的文件（重试/降级时同一对象会再过一遍），直接复用。
-    if source.stem.endswith("-vision") and source.suffix.lower() in (".jpg", ".jpeg"):
+    if source.stem.endswith("-vision") and source.suffix.lower() == ".jpeg":
         return str(source)
 
     try:
@@ -141,7 +154,7 @@ def normalize_image(
                 )
 
             stem = source.stem[: -len("-vision")] if source.stem.endswith("-vision") else source.stem
-            target = source.with_name(f"{stem}-vision.jpg")
+            target = source.with_name(f"{stem}-vision.jpeg")
             image.save(target, format="JPEG", quality=quality, optimize=True)
 
         if target.is_file() and target.stat().st_size > 0:

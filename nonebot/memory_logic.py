@@ -256,7 +256,6 @@ def enqueue(path, user_id, text, source, event_id, context, expected_revision=No
         if pref is not None and not pref['enabled']:
             return None
         con.execute("DELETE FROM memory_jobs WHERE status='done' AND created_at < datetime('now','-7 days')")
-        con.execute("DELETE FROM memory_jobs WHERE status='failed' AND created_at < datetime('now','-7 days')")
         rev = con.execute('SELECT revision FROM memory_users WHERE user_id=?', (uid,)).fetchone()
         current_revision = rev['revision'] if rev else 0
         if expected_revision is not None and expected_revision != current_revision:
@@ -271,9 +270,38 @@ def pending_jobs(path):
         return [dict(r) for r in con.execute("SELECT * FROM memory_jobs WHERE status='pending' ORDER BY id LIMIT 32")]
 
 
-def fail_job(path, job_id, error):
+def mark_output(path, job_id):
+    """Prevent automatic replay after a model request begins."""
     with _connect(path) as con:
-        con.execute("UPDATE memory_jobs SET attempts=attempts+1,last_error=?,status=CASE WHEN attempts+1>=3 THEN 'failed' ELSE 'pending' END WHERE id=? AND status='pending'", (str(error)[:80],job_id))
+        return con.execute("UPDATE memory_jobs SET status='inflight',last_error='ModelRequestInFlight' WHERE id=? AND status='pending'", (job_id,)).rowcount == 1
+
+
+def recover_inflight(path):
+    """Require manual retry after interruption of a possibly sent request."""
+    with _connect(path) as con:
+        return con.execute("UPDATE memory_jobs SET status='review',last_error='InterruptedRequest' WHERE status='inflight'").rowcount
+
+
+def defer_job(path, job_id, error):
+    """Keep a job pending when no model request was sent."""
+    with _connect(path) as con:
+        con.execute("UPDATE memory_jobs SET last_error=? WHERE id=? AND status='pending'", (str(error)[:80], job_id))
+
+
+def fail_job(path, job_id, error):
+    """记一次失败。
+
+    发送前后分开记：可能已经把内容发出去过的（inflight / review）只进 `review`，
+    等用户明确判断；发送前就失败的仍走原来的三次上限，落到 `failed`。
+    两者都不会被按创建时间的清理删掉（见 `enqueue`）。
+    """
+    with _connect(path) as con:
+        con.execute(
+            "UPDATE memory_jobs SET attempts=attempts+1,last_error=?,status=CASE "
+            "WHEN status='inflight' THEN 'review' "
+            "WHEN attempts+1>=3 THEN 'failed' ELSE 'pending' END "
+            "WHERE id=? AND status IN ('pending','inflight')",
+            (str(error)[:80], job_id))
 
 
 def complete_job(path, job_id):
@@ -299,10 +327,17 @@ def set_enabled(path, user_id, enabled):
 
 def job_status(path, user_id):
     with _connect(path) as con:
-        return {r['status']: r['n'] for r in con.execute("SELECT status,COUNT(*) n FROM memory_jobs WHERE user_id=? AND status!='done' GROUP BY status", (str(user_id),))}
+        counts = {r['status']: r['n'] for r in con.execute("SELECT status,COUNT(*) n FROM memory_jobs WHERE user_id=? AND status!='done' GROUP BY status", (str(user_id),))}
+        if counts.get('inflight'):
+            counts['pending'] = counts.get('pending', 0) + counts.pop('inflight')
+        # review = 可能已经发出去、只能人来定的任务，和失败一起报出来
+        if counts.get('review'):
+            counts['failed'] = counts.get('failed', 0) + counts.pop('review')
+        return counts
 
 
 def retry_failed(path, user_id):
+    """用户明确要求重试：failed 与 review 都重新排队（唯一的重放入口）。"""
     with _connect(path) as con:
-        cur = con.execute("UPDATE memory_jobs SET status='pending',attempts=0,last_error=NULL WHERE user_id=? AND status='failed'", (str(user_id),))
+        cur = con.execute("UPDATE memory_jobs SET status='pending',attempts=0,last_error=NULL WHERE user_id=? AND status IN ('failed','review')", (str(user_id),))
         return cur.rowcount

@@ -4,11 +4,14 @@ from __future__ import annotations
 import asyncio
 import json
 import re
+import secrets
+import sqlite3
 import sys
 from pathlib import Path
 
 import httpx
 import gate_logic as gl
+import model_dispatch
 from nonebot import get_driver, logger, on_message
 from nonebot.adapters import Event
 from muicebot.llm import ModelRequest
@@ -42,11 +45,16 @@ def _private(event: Event) -> bool:
     return getattr(event, 'message_type', None) == 'private'
 
 
+_IMAGE_PLACEHOLDER = '[图片]'
+
+
 def _text(event: Event) -> str:
     try:
-        return event.get_plaintext().strip()
+        text = event.get_plaintext().strip()
     except Exception:
         return ''
+    # image_guard 为让 MuiceBot 的 `.+` 匹配上会在开头补 `[图片]`，那不是用户说的话。
+    return text[len(_IMAGE_PLACEHOLDER):] if text.startswith(_IMAGE_PLACEHOLDER) else text
 
 
 def _identity(event: Event):
@@ -164,13 +172,14 @@ async def inject(request: ModelRequest, event: Event) -> None:
         logger.warning(f'[memory] 读取记忆失败：{type(e).__name__}')
 
 
-async def _extract(uid: str, text: str, source: str, version: int, client, model: str, context=None):
+async def _extract(uid: str, text: str, source: str, version: int, context=None, before_request=None):
     await _backfill(uid)
     user_text = json.dumps({'近期用户发言': (context or [])[-3:], '本次用户发言': text[:2000]}, ensure_ascii=False)
-    result = await asyncio.wait_for(client.chat.completions.create(
-        model=model, messages=[{'role':'system','content':_prompt}, {'role':'user','content':user_text}],
-        temperature=0, max_tokens=600,
-    ), timeout=45)
+    result = await model_dispatch.complete(
+        messages=[{'role':'system','content':_prompt}, {'role':'user','content':user_text}],
+        temperature=0, max_tokens=600, timeout=45, before_send=before_request,
+        extra_headers={'x-opencode-session': 'memory-' + secrets.token_hex(12)},
+    )
     content = result.choices[0].message.content or ''
     content = re.sub(r'^\s*```(?:json)?\s*|\s*```\s*$', '', content.strip())
     # An invalid response is a failed task; a valid empty list means no facts.
@@ -188,16 +197,22 @@ async def _extract(uid: str, text: str, source: str, version: int, client, model
 
 
 async def _process_job(job):
+    sent = False
+
+    def before_send():
+        nonlocal sent
+        sent = memory.mark_output(memory.DEFAULT_PATH, job['id'])
+        return sent
+
     try:
-        from muicebot.muice import Muice
-        provider = Muice.get_instance().model
-        client, model = getattr(provider, 'client', None), getattr(provider, 'model', None)
-        if client is None or not model:
-            raise RuntimeError('model unavailable')
-        await _extract(job['user_id'], job['text'], job['source'], job['revision'], client, model, json.loads(job['context']))
+        await _extract(job['user_id'], job['text'], job['source'], job['revision'], json.loads(job['context']),
+                       before_request=before_send)
         memory.complete_job(memory.DEFAULT_PATH, job['id'])
     except Exception as e:
-        memory.fail_job(memory.DEFAULT_PATH, job['id'], type(e).__name__)
+        if not sent and isinstance(e, (model_dispatch.PreSendUnavailable, TimeoutError, OSError, httpx.HTTPError, sqlite3.OperationalError)):
+            memory.defer_job(memory.DEFAULT_PATH, job['id'], type(e).__name__)
+        else:
+            memory.fail_job(memory.DEFAULT_PATH, job['id'], type(e).__name__)
         logger.warning(f'[memory] 提取任务失败：{type(e).__name__}')
 
 
@@ -225,6 +240,7 @@ async def _worker():
 async def start_memory_worker():
     global _worker_task, _wake
     _wake = asyncio.Event()
+    await asyncio.to_thread(memory.recover_inflight, memory.DEFAULT_PATH)
     _worker_task = asyncio.create_task(_worker())
 
 

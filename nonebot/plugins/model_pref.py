@@ -93,6 +93,14 @@ ORIGINAL_ASK = None
 #: 否则新到的消息会把模型又切回首选，正好打断别人。
 _IN_RESCUE: list[object] = []
 
+#: 第一趟救场之前那一份全局状态。两趟救场重叠时，只有最后一趟退出才照它恢复，
+#: 否则先退的那趟会把次选的模型（别人正在用的）留成全局状态。
+_RESCUE_BASE: dict | None = None
+
+#: 救场开始前聊天真正在用的条目。救场期间全局会被临时换成次选，
+#: 后台要读「主人的选择」就到这里取，不能读那个临时值。
+_NATIVE_SEEN: str | None = None
+
 #: 上一次从网关 `/v1/models` 拉到的真模型名。拉不到时（网关黑了）指令回执要能报出这些名字，
 #: 但**不拿它当「上游现在还记得这个名字」的证据** —— 认不出的一律不写盘。
 _UPSTREAM_CACHE: list[str] = []
@@ -187,6 +195,30 @@ def current_name() -> str | None:
         return str(getattr(_muice(), "model_config_name", "") or "") or None
     except Exception:  # noqa: BLE001 - Muice 还没起来时这行没有就是了
         return None
+
+
+def native_name() -> str | None:
+    """聊天现在真正在用的条目 —— MuiceBot 原生命令（`.model load <条目>`）选中的那个。
+
+    没有持久首选时后台就跟着它走，跟聊天用同一个 provider/Key。两条纪律：
+
+    * **救援中途的全局值是次选**：`_swap_in` 会把 `model_config_name` 临时改成次选，
+      这时读全局等于把临时救援次选当成主人的选择，所以救援期间一律用救场开始前记下的那个值；
+    * **不落盘**：MuiceBot 的 `change_model_config` 只改内存（`muice.py:145`），重启和
+      `models.yml` 重载都会回到默认条目；把原生命令的选择存起来反而会让后台和聊天越走越远。
+    """
+    global _NATIVE_SEEN
+    if _IN_RESCUE:
+        return _NATIVE_SEEN
+    # 只读已经存在的 Muice 单例：`get_instance()` 会在还没有实例时把它造出来并加载模型，
+    # 后台任务不该有这种副作用。
+    muice = getattr(Muice, "_instance", None)
+    if muice is None:
+        return None
+    name = str(getattr(muice, "model_config_name", "") or "")
+    if name:
+        _NATIVE_SEEN = name
+    return name or None
 
 
 # ---------------------------------------------------------------- 上游允许的真模型名
@@ -303,40 +335,60 @@ def _apply(muice, cfg, model):  # noqa: ANN001, ANN201 - Muice 没有公开类�
 def _restore(muice, holder: dict) -> None:  # noqa: ANN001 - 见 _apply
     """回到首选那一趟之前的样子，并把「正在降级」的标记清掉。跑完/炸了都要走到这里。
 
-    容忍直接传快照：`_apply` 给的是快照，`_restore` 要的是 holder，两者形状不同，
-    调用方（尤其是临时验证脚本）传错时不该一声不响地留在半换状态。
+    两趟救场可能重叠（两个聊天同时降级）：只有**最后一趟**退出时才照最早那份快照恢复，
+    先退的那趟只撤自己的标记。否则先退的把次选模型留成全局状态，后一趟还在用它。
+    容忍直接传快照：`_apply` 给的是快照，`_restore` 要的是 holder，两者形状不同。
     """
+    global _RESCUE_BASE
     if "snap" not in holder and "model" in holder:
         holder = {"snap": holder}
     snap = holder.pop("snap", None)
-    if snap is not None:
-        for k, v in snap.items():
-            setattr(muice, k, v)
     ticket = holder.pop("ticket", None)
+    outer = None
     if ticket is not None:
         try:
             _IN_RESCUE.remove(ticket)
         except ValueError:  # 已经被清过（不该发生，但清标记不该再抛一次）
             pass
+        if not _IN_RESCUE:
+            outer, _RESCUE_BASE = _RESCUE_BASE, None
+    elif snap is not None:
+        outer = snap  # 不是通过 _swap_in 进来的（旧调用/脚本），照旧恢复自己那份
+    if outer is not None:
+        for k, v in outer.items():
+            setattr(muice, k, v)
     name = holder.pop("name", None)
     if name:
         used = mp.bump(state(), name)
         _persist()
         logger.info(f"[model] 这一回合交给次选 {name} 顶过 {used} 次，已换回首选 "
-                    f"{state().get('primary') or '（未设置，由 models.yml 的 default 说了算）'}"
+                    f"{state().get('primary') or '（未设置，跟随 MuiceBot 原生命令选中的条目）'}"
                     f"｜当前生效 {current_name() or '?'}")
 
 
 def _swap_in(muice, secondary: str, holder: dict) -> bool:  # noqa: ANN001
     """换人次选。成了返回 True；条目被删了/加载不出来只报一行日志，返回 False。"""
+    global _RESCUE_BASE, _NATIVE_SEEN
     holder["ticket"] = object()
+    outermost = not _IN_RESCUE
+    if outermost:
+        # 先记下聊天正在用的条目，再动全局：后台任务随时可能来读，窗口里不能读到次选。
+        _NATIVE_SEEN = str(getattr(muice, "model_config_name", "") or "") or _NATIVE_SEEN
     _IN_RESCUE.append(holder["ticket"])
     try:
         cfg, model = build_pair(secondary)
-        holder["snap"] = _apply(muice, cfg, model)
+        snap = _apply(muice, cfg, model)
+        if outermost:
+            _RESCUE_BASE = snap  # 只有最外层那份才是「救场之前的原状」
+        holder["snap"] = snap
     except Exception as e:  # noqa: BLE001 - 次选坏了不能连累这一回合，更不能把机器人留在半换状态
         logger.warning(f"[model] 次选 {secondary} 没换上去，这一回合维持原样："
                        f"{type(e).__name__}: {e}")
+        try:
+            _IN_RESCUE.remove(holder["ticket"])
+        except ValueError:
+            pass
+        holder.pop("ticket", None)
         return False
     holder["name"] = secondary
     muice.model_config_name = secondary

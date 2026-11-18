@@ -110,18 +110,127 @@ def t_image_only_rule_matches_and_placeholder_is_added():
     assert event.message.extract_plain_text() == il.PLACEHOLDER, "占位符要能被 .+ 匹配到"
 
 
+def image_first_message():
+    """图在前、字在后 —— 2026-11-11 21:52 / 21:55 两条静默丢失的消息就是这个形状。"""
+    return OBMessage(
+        [
+            MessageSegment("image", {"file": "test.png"}),
+            MessageSegment.text("这是啥"),
+        ]
+    )
+
+
+def t_image_first_with_text_gets_placeholder():
+    """原始触发：图在前 + 文字在后，MuiceBot 的 `.+` 匹配不到，必须补占位符。"""
+    event = FakeEvent(image_first_message(), message_type="private", tome=False)
+    assert asyncio.run(guard._image_only_to_me(event)), "图在前 + 文字应补占位符"
+    asyncio.run(guard.add_placeholder(event))
+    text = event.message.extract_plain_text()
+    assert text == il.PLACEHOLDER + "这是啥", text
+    assert text.startswith("["), "补完要能被 .+ 匹配"
+
+
+def t_image_first_group_requires_to_me():
+    assert not asyncio.run(
+        guard._image_only_to_me(FakeEvent(image_first_message(), tome=False))
+    ), "群里没 @ 就不该抢消息"
+    assert asyncio.run(guard._image_only_to_me(FakeEvent(image_first_message(), tome=True)))
+
+
+def t_image_first_skips_when_already_placeholder():
+    message = OBMessage(
+        [
+            MessageSegment.text(il.PLACEHOLDER),
+            MessageSegment("image", {"file": "test.png"}),
+            MessageSegment.text("这是啥"),
+        ]
+    )
+    assert not asyncio.run(guard._image_only_to_me(FakeEvent(message, message_type="private"))), "别叠第二层"
+
+
+def t_text_first_is_left_alone():
+    """文字在前时 Alconna 本来就能匹配，不要多插一个字。"""
+    message = OBMessage(
+        [
+            MessageSegment("at", {"qq": "10001"}),
+            MessageSegment.text("这上面讲了啥"),
+            MessageSegment("image", {"file": "test.png"}),
+        ]
+    )
+    assert not asyncio.run(guard._image_only_to_me(FakeEvent(message)))
+
+
+def t_reply_prefix_does_not_block_image_first():
+    message = OBMessage(
+        [
+            MessageSegment("reply", {"id": "123"}),
+            MessageSegment("image", {"file": "test.png"}),
+            MessageSegment.text("这是啥"),
+        ]
+    )
+    assert asyncio.run(guard._image_only_to_me(FakeEvent(message, message_type="private")))
+
+
+def t_face_prefix_does_not_block_image_first():
+    """表情/抖动窗口这类不带正文的片段在图片前面，同样会卡住 `.+`。"""
+    for kind, data in (("face", {"id": "1"}), ("mface", {"summary": "[动画表情]"}), ("shake", {})):
+        message = OBMessage(
+            [
+                MessageSegment(kind, data),
+                MessageSegment("image", {"file": "test.png"}),
+                MessageSegment.text("这是啥"),
+            ]
+        )
+        assert asyncio.run(
+            guard._image_only_to_me(FakeEvent(message, message_type="private"))
+        ), f"{kind} 在前时也要补占位符"
+
+
+def t_placeholder_never_reaches_prompt():
+    """占位符只给 Alconna 用；进提示词前必须剥掉，正文原样保留。"""
+    assert il.strip_placeholder(il.PLACEHOLDER + "这是啥") == "这是啥"
+    assert il.strip_placeholder("这是啥") == "这是啥"
+    assert il.strip_placeholder("") == ""
+    assert il.strip_placeholder(None) == ""
+    assert il.strip_placeholder("[图片]就是字面意思") == "就是字面意思"
+
+    with tempfile.TemporaryDirectory() as tmp:
+        source = Path(tmp) / "qq.png"
+        make_image(source, size=(600, 400))
+        message = Message(
+            message=il.PLACEHOLDER + "这是啥",
+            userid="1",
+            groupid="2",
+            resources=[Resource("image", path=str(source))],
+        )
+
+        asyncio.run(guard.prepare(message))
+
+        assert message.message == "这是啥", message.message
+
+
+def t_placeholder_only_still_gets_empty_hint():
+    with tempfile.TemporaryDirectory() as tmp:
+        source = Path(tmp) / "qq.png"
+        make_image(source, size=(600, 400))
+        message = Message(
+            message=il.PLACEHOLDER,
+            userid="1",
+            groupid="2",
+            resources=[Resource("image", path=str(source))],
+        )
+
+        asyncio.run(guard.prepare(message))
+
+        assert message.message == il.EMPTY_IMAGE_HINT, message.message
+
+
 def t_image_only_rule_disabled_when_vision_off():
     root = config_set("image_vision", 0)
     try:
         assert not asyncio.run(guard._image_only_to_me(FakeEvent(image_only_message())))
     finally:
         config_restore("image_vision", root)
-
-
-def t_image_only_rule_skips_when_text_present():
-    message = image_only_message()
-    message.append(MessageSegment.text("看看这张"))
-    assert not asyncio.run(guard._image_only_to_me(FakeEvent(message)))
 
 
 def t_image_only_rule_skips_without_image():
@@ -147,8 +256,8 @@ def t_prepare_normalizes_and_hints_empty_text():
 
         assert len(message.resources) == 1, message.resources
         out = Path(message.resources[0].path)
-        assert out.suffix == ".jpg", out
-        assert out.name.endswith("-vision.jpg"), out
+        assert out.suffix == ".jpeg", out
+        assert out.name.endswith("-vision.jpeg"), out
         assert out != source
         assert message.message == il.EMPTY_IMAGE_HINT, message.message
 

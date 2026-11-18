@@ -118,7 +118,7 @@ def t_normalize_png_to_jpeg_and_downscale():
 
         assert out is not None, "压缩失败"
         target = Path(out)
-        assert target.suffix == ".jpg", target
+        assert target.suffix == ".jpeg", target
         assert target.is_file() and target.stat().st_size > 0
         with Image.open(target) as image:
             assert image.format == "JPEG", image.format
@@ -154,11 +154,18 @@ def t_normalize_reuses_existing_vision_file():
     from PIL import Image
 
     with tempfile.TemporaryDirectory() as tmp:
-        source = Path(tmp) / "a-vision.jpg"
+        source = Path(tmp) / "a-vision.jpeg"
         make_image(source, size=(400, 400))
         assert il.normalize_image(source) == str(source)
         with Image.open(source) as image:
             assert image.size == (400, 400)
+
+
+def t_normalize_legacy_vision_jpg_uses_standard_mime_suffix():
+    with tempfile.TemporaryDirectory() as tmp:
+        source = Path(tmp) / "a-vision.jpg"
+        make_image(source, size=(400, 400))
+        assert Path(il.normalize_image(source)).suffix == ".jpeg"
 
 
 # ---------------------------------------------------------------- 缓存清理

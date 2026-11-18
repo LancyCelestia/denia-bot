@@ -9,12 +9,12 @@ MuiceBot 1.1.5 本身已经会下载 QQ 图片（`onebot.py:510` `_extract_multi
    这里在 `BEFORE_MODEL_COMPLETION` 把历史媒体全部剥掉，只让当前这条进模型。
 2. **下载后缀是错的**：OneBot11 的 `uniseg.Image.name` 默认 `image.png`，
    JPEG 也存成 `.png`，provider 按后缀拼 `data:image/png`。这里统一转 JPEG、改后缀。
-3. **纯图片消息根本进不了 handler**：MuiceBot 的 `at_event` 命令是 `re.compile(".+")`
-   （`onebot.py:248`），只发图、不打字时 `extract_plain_text()` 为空，`.+` 匹配不上。
+3. **图片在前的消息根本进不了 handler**：MuiceBot 的 `at_event` 命令是
+   `re.compile(".+")`（`onebot.py:248`），它解析的是 uniseg 消息对象。首个内容片段是
+   图片时（「图 + 文字」、或纯图片）都匹配不上，整条消息静默丢弃。
    这里在它前面（priority 1、`block=False`）补一个 `[图片]` 占位符，让 `.+` 匹配；
-   随后 `prepare` 再把它换成正式的占位说明。占位符必须插在图片**前面** ——
-   图片在前、文字在后时 Alconna 仍可能匹配不到。
-4. **只发图不打字时正文为空**：补一句「对方发来一张图片，没有配文字」，
+   `prepare` 再把占位符剥掉，保证它不进提示词。
+4. **完全没有正文时**：补一句「对方发来一张图片，没有配文字」，
    模型才知道该看图，而不是收到一个空句子。
 
 另外把原图压到最长边 `IMAGE_MAX_SIDE`，并在回复结束、存库前删掉缓存图：
@@ -95,8 +95,32 @@ def _muice_files_root() -> Optional[Path]:
         return None
 
 
-async def _image_only_to_me(event: MessageEvent) -> bool:
-    """纯图片、没文字、而且是在叫她 / 私聊 —— 这种消息 MuiceBot 的 `.+` 匹配不上。"""
+def _first_content_is_image(message) -> bool:
+    """第一条真正带字的内容片段之前，是不是图片。
+
+    `@`、引用、表情、抖动窗口这些片段都不带正文，Alconna 拿到的 uniseg 文本里它们
+    只是一串标记，同样会把 `.+` 卡住；所以一律跳过，只看第一个「可读」的片段。
+    实测：`[image]这是啥`、`[at][image]这是啥`、`[emoji][image]这是啥` 全部匹配失败，
+    而 `这是啥[image]` 正常。
+    """
+    for segment in message:
+        kind = getattr(segment, "type", "")
+        if kind == "text":
+            if str(segment.data.get("text") or "").strip():
+                return False  # 文字在前：Alconna 本来就匹配得上
+            continue  # 空文本段，跳过
+        if kind == "image":
+            return True
+        # 其它不带正文的片段（at / reply / face / mface / shake …）继续往后看
+    return False
+
+
+async def _image_needs_placeholder(event: MessageEvent) -> bool:
+    """图片排在最前面、或者根本没有文字 —— 这两种 MuiceBot 的 `.+` 都匹配不上。
+
+    修的是「图在前、字在后」：以前只看正文是否为空，这条形状永远补不上占位符，
+    于是消息连模型都进不去。纯图片（正文为空）仍然照旧处理。
+    """
     try:
         if not _flag("image_vision"):
             return False  # 回滚状态：保持 MuiceBot 原样，纯图片消息照旧不触发
@@ -105,8 +129,10 @@ async def _image_only_to_me(event: MessageEvent) -> bool:
         message = event.get_message()
         if not any(segment.type == "image" for segment in message):
             return False
-        if message.extract_plain_text().strip():
-            return False
+        if (message.extract_plain_text() or "").startswith(il.PLACEHOLDER):
+            return False  # 已经补过，别叠第二层
+        if not _first_content_is_image(message):
+            return False  # 文字在前时 Alconna 本来就能匹配，不用动
         if getattr(event, "message_type", "") == "private":
             return True
         is_tome = getattr(event, "is_tome", None)
@@ -115,7 +141,8 @@ async def _image_only_to_me(event: MessageEvent) -> bool:
         return False
 
 
-_placeholder = on_message(rule=_image_only_to_me, priority=1, block=False)
+_image_only_to_me = _image_needs_placeholder  # 旧名字，测试与日志沿用
+_placeholder = on_message(rule=_image_needs_placeholder, priority=1, block=False)
 
 
 @_placeholder.handle()
@@ -123,9 +150,8 @@ async def add_placeholder(event: MessageEvent) -> None:
     """在最前面补一个 `[图片]`，让 MuiceBot 的 `Alconna(re.compile(".+"))` 能匹配上。
 
     为什么不用空格：Alconna 匹配前会把空白 normalize 掉，空格等于没补。
-    为什么必须插在图片前面：实测「图片在前、文字在后」时 Alconna 仍可能匹配不到，
-    `[图片] + 图片` 的顺序才稳。真正进提示词前，`prepare` 会把它换成
-    `EMPTY_IMAGE_HINT`。
+    为什么必须插在图片前面：实测「图片在前、文字在后」时 Alconna 匹配不到，
+    `[图片] + 图片` 的顺序才稳。真正进提示词前，`prepare` 会把占位符去掉。
     """
     event.message.insert(0, MessageSegment.text(il.PLACEHOLDER))
     original = getattr(event, "original_message", None)
@@ -134,14 +160,23 @@ async def add_placeholder(event: MessageEvent) -> None:
         at = 1 if original and original[0].type == "at" else 0
         original.insert(at, MessageSegment.text(il.PLACEHOLDER))
     logger.info(
-        f"[image] 纯图片消息补占位符：segments={[segment.type for segment in event.message]} "
-        f"text={event.get_message().extract_plain_text()!r} to_me={event.is_tome()}"
+        f"[image] 图片在前/无正文，已补占位符：segments={[segment.type for segment in event.message]} "
+        f"text={event.get_message().extract_plain_text()!r}"
     )
 
 
 @on_before_pretreatment(priority=5)
 async def prepare(message: ChatMessage) -> None:
     """在 MuiceBot 拼提示词之前：只留图片、压小、纠正格式、纯图片补说明。"""
+    # 占位符只为过 Alconna 匹配，绝不能进提示词：先剥掉。
+    # 放在最前面，因为下面几处会提前 return（没开看图、图下载失败、张数为 0），
+    # 那些路径上占位符同样不能漏进提示词。
+    cleaned = il.strip_placeholder(message.message)
+    if cleaned != (message.message or ""):
+        message.message = cleaned
+        if not cleaned.strip():
+            message.message = il.EMPTY_IMAGE_HINT
+
     if not message.resources:
         return
 
@@ -170,7 +205,8 @@ async def prepare(message: ChatMessage) -> None:
         if files_root and old_path and Path(old_path).resolve() != Path(new_path).resolve():
             il.safe_unlink(old_path, files_root)
 
-    hinted = il.needs_empty_hint(message.message)
+    # 占位符已在函数开头剥掉；这里只判断正文是否真的为空。
+    hinted = not (message.message or "").strip()
     if hinted:
         message.message = il.EMPTY_IMAGE_HINT
 
