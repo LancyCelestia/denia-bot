@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
     为 gsuid_core 开放局域网访问（仅本子网，入站 TCP 8765）。
