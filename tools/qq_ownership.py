@@ -16,7 +16,7 @@ QQNT 多开时这条渠道会给出错的答案：两个实例都报同一个号
 用法：
     python qq_ownership.py            # 人读
     python qq_ownership.py --json     # 机器读
-    python qq_ownership.py --uin 3892894069   # 只问：哪个 PID 登录了这个号
+    python qq_ownership.py --uin <BOT_QQ>   # 只问：哪个 PID 登录了这个号
 """
 
 from __future__ import annotations
