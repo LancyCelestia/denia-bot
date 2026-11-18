@@ -46,7 +46,7 @@ def _boot() -> tuple[Index, Embedder]:
         # 查询向量和库内向量必须出自同一个模型，后端跟着索引元数据走，不给手配错的机会
         backend = os.environ.get("KB_EMBED_BACKEND") or idx.meta.get("embed_backend", "cpu")
         try:
-            _state["emb"] = Embedder(threads=2, backend=backend)
+            _state["emb"] = Embedder(threads=6, backend=backend)
         except Exception as e:  # noqa: BLE001 - GPU 环境坏了也别把检索打死
             print(f"[rag] 后端 {backend} 起不来（{e}），降级 CPU fp32；精度略降，尽快修回来", flush=True)
             _state["emb"] = Embedder(backend="cpu")

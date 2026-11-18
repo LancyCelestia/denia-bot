@@ -181,6 +181,27 @@ class BilibiliLogin:
             res[name] = value
         return res
 
+    def subscription_cookies(self) -> dict[str, str]:
+        """Snapshot for subscriptions: no validation, refresh, QR or writeback.
+
+        Reuse this parser's current account, falling back to its existing
+        configured/saved credential only. The caller handles missing/expired
+        login; it must never silently switch to anonymous requests.
+        """
+        credential = self._credential
+        if credential is None or not credential.has_sessdata():
+            if self.raw_cookies:
+                credential = Credential.from_cookies(self._cookies_to_dict(self.raw_cookies))
+            else:
+                if self.credential_file.exists() and self.credential_file.stat().st_size > 65536:
+                    raise ValueError('Bilibili credential file too large')
+                self._load_credential()
+                credential = self._credential
+        if credential is None or not credential.has_sessdata():
+            return {}
+        cookies = credential.get_cookies()
+        return {name: cookies[name] for name in CREDENTIAL_KEYS if cookies.get(name)}
+
     async def _init_credential(self):
         """初始化哔哩哔哩登录凭证"""
         if not self.raw_cookies:
