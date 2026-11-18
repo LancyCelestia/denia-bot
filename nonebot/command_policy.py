@@ -83,7 +83,6 @@ def install_command_rules() -> None:
         'bilibili': ('matcher',),
         'game_events': ('matcher',),
         'epic_free': ('matcher',),
-        'endfield': ('matcher',),
         'disaster_warning': ('matcher',),
         'statuscard': ('matcher',),
     }
