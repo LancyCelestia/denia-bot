@@ -5,11 +5,27 @@
 
 $ErrorActionPreference = 'Continue'
 
-$ROOT      = 'D:\Software\qqbot'
+$ROOT      = Split-Path -Parent $PSScriptRoot
 $ASTRBOT   = "$env:USERPROFILE\.local\bin\astrbot.exe"
 $NAPCAT    = "$ROOT\napcat\node.exe"
 $LOG       = "$ROOT\logs"
-$BOT_UIN   = '3892894069'      # 机器人 QQ 号
+
+function Get-PrivateValue($Key) {
+    foreach ($file in @("$ROOT\local\bot.env", "$ROOT\nonebot\.env")) {
+        if (-not (Test-Path -LiteralPath $file)) { continue }
+        foreach ($line in Get-Content -LiteralPath $file -Encoding UTF8) {
+            if ($line -match "^\s*$([regex]::Escape($Key))\s*=\s*(.*?)\s*$") {
+                return $Matches[1].Trim().Trim('"').Trim("'")
+            }
+        }
+    }
+    return [Environment]::GetEnvironmentVariable($Key)
+}
+$BOT_UIN = Get-PrivateValue 'QQBOT_SELF_ID'
+if (-not $BOT_UIN) {
+    Write-Host '未配置 QQBOT_SELF_ID（local/bot.env 或 nonebot/.env）' -ForegroundColor Red
+    exit 1
+}
 
 New-Item -ItemType Directory -Force -Path $LOG | Out-Null
 
