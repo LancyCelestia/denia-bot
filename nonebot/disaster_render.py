@@ -17,6 +17,7 @@ from urllib.parse import urlsplit
 
 import httpx
 
+import bot_identity
 import disaster_china_logic as china
 import disaster_weather_card as weather_card
 import disaster_weather_map as weather_map_mod
@@ -270,7 +271,7 @@ def _visual(kind: str, item: Any) -> str:
 def _lead(kind: str, item: Any, tone: str, stopped: bool = False) -> str:
     if stopped:
         if tone == 'character':
-            return f'达妮娅看了下：{item.typhoon_id} {item.display_name} 已停编。'
+            return f'{bot_identity.display_name()}看了下：{item.typhoon_id} {item.display_name} 已停编。'
         return f'{item.typhoon_id} {item.display_name} 已停编。'
     if kind == 'weather':
         return china.weather_lead(item, tone)
@@ -302,7 +303,7 @@ def bulletin_html(kind: str, item: Any, config: Mapping[str, Any] | None = None,
     if kind == 'weather':
         return weather_card.weather_html(item, tone, weather_map)
     accent = _accent(kind, item)
-    voice = '<div class="voice">达妮娅 · 后续解读</div>' if tone == 'character' else ''
+    voice = f'<div class="voice">{_e(bot_identity.display_name())} · 后续解读</div>' if tone == 'character' else ''
     return f"""<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8">
 <style>{BULLETIN_STYLE}</style></head>

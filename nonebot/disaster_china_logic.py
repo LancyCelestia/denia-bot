@@ -18,6 +18,7 @@ from datetime import datetime, timedelta, timezone
 from itertools import product
 from typing import Any, Iterable, Mapping
 
+import bot_identity
 from disaster_logic import distance_km, parse_float
 
 CST = timezone(timedelta(hours=8))
@@ -325,7 +326,7 @@ def weather_lead(alert: WeatherAlert, tone: str = 'neutral') -> str:
     where = region or '你所在的地区'
     detail = _short(alert.description, 96)
     return (
-        f'达妮娅提醒：{where}挂起了{level}。{detail} '
+        f'{bot_identity.display_name()}提醒：{where}挂起了{level}。{detail} '
         '出门记得带伞，远离临时搭建物和广告牌。'
     )
 
@@ -334,7 +335,7 @@ def format_weather(alert: WeatherAlert, config: Mapping[str, Any] | None = None,
                    tone: str = 'neutral') -> str:
     region = ''.join(part for part in (alert.province, alert.city, alert.district) if part)
     if tone == 'character':
-        lines = [f'【气象预警】达妮娅提醒', f'{alert.title or alert.headline}']
+        lines = [f'【气象预警】{bot_identity.display_name()}提醒', f'{alert.title or alert.headline}']
         meta = ' · '.join(part for part in (
             f'{alert.color}预警' if alert.color != '未知' else '',
             region,
@@ -486,7 +487,7 @@ def tsunami_lead(alert: TsunamiAlert, tone: str = 'neutral') -> str:
     magnitude = f'M{alert.magnitude:.1f}' if alert.magnitude is not None else '地震'
     level = f'{alert.level}海啸预警' if alert.level else '海啸预警'
     return (
-        f'达妮娅提醒沿海的朋友：{place}附近发生 {magnitude}，{level}。'
+        f'{bot_identity.display_name()}提醒沿海的朋友：{place}附近发生 {magnitude}，{level}。'
         '先别去海边和港口，留意应急部门的疏散通知。'
     )
 
@@ -494,7 +495,7 @@ def tsunami_lead(alert: TsunamiAlert, tone: str = 'neutral') -> str:
 def format_tsunami(alert: TsunamiAlert, config: Mapping[str, Any] | None = None,
                    tone: str = 'neutral') -> str:
     if tone == 'character':
-        lines = [f'【海啸预警】达妮娅提醒', f'{alert.title}（{alert.level}）']
+        lines = [f'【海啸预警】{bot_identity.display_name()}提醒', f'{alert.title}（{alert.level}）']
         meta = ' · '.join(part for part in (
             f'第 {alert.number} 报',
             alert.place,
@@ -711,7 +712,7 @@ def typhoon_lead(typhoon: Typhoon, tone: str = 'neutral') -> str:
     if tone != 'character':
         return '，'.join(bits) + '。'
     return (
-        '达妮娅看了下台风路径：' + '，'.join(bits) +
+        f'{bot_identity.display_name()}看了下台风路径：' + '，'.join(bits) +
         '。路径还可能调整，沿海朋友先别急着安排海上活动。'
     )
 
@@ -720,7 +721,7 @@ def format_typhoon(typhoon: Typhoon, config: Mapping[str, Any] | None = None,
                    tone: str = 'neutral') -> str:
     config = config or {}
     if tone == 'character':
-        lines = [f'【台风】达妮娅提醒', f'{typhoon.typhoon_id} {typhoon.display_name}']
+        lines = [f'【台风】{bot_identity.display_name()}提醒', f'{typhoon.typhoon_id} {typhoon.display_name}']
         lines.append(typhoon_lead(typhoon, 'character'))
         if typhoon.updated_at:
             lines.append(f'更新：{_time_text(typhoon.updated_at)}')
@@ -771,7 +772,7 @@ def format_typhoon(typhoon: Typhoon, config: Mapping[str, Any] | None = None,
 def format_typhoon_stopped(typhoon: Typhoon, config: Mapping[str, Any] | None = None,
                            tone: str = 'neutral') -> str:
     if tone == 'character':
-        lines = ['【台风停编】达妮娅提醒', f'{typhoon.typhoon_id} {typhoon.display_name} 已停编。']
+        lines = [f'【台风停编】{bot_identity.display_name()}提醒', f'{typhoon.typhoon_id} {typhoon.display_name} 已停编。']
         if typhoon.updated_at:
             lines.append(f'最后更新：{_time_text(typhoon.updated_at)}')
         lines.append('来源：中国气象局 / EQSC')

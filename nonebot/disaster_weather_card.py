@@ -6,6 +6,7 @@ import math
 import re
 
 import disaster_china_logic as china
+import bot_identity
 from disaster_weather_map import WeatherMap
 
 
@@ -83,7 +84,7 @@ def weather_html(alert: china.WeatherAlert, tone: str = 'neutral', weather_map: 
     body, shortened = _body(alert, tone)
     published = alert.issue_at or alert.effective_at
     date_text = f'发布于 {_e(published)}（北京时间）' if published else '发布时间未提供'
-    heading = '达妮娅 · 后续解读' if tone == 'character' else '气象预警'
+    heading = f'{_e(bot_identity.display_name())} · 后续解读' if tone == 'character' else '气象预警'
     body_label = '预警内容' if alert.description else '预警标题'
     more = '<p class="note">完整内容见随附文字。</p>' if shortened else ''
     attribution = '行政边界：阿里云 DataV · 局部示意' if weather_map else '类型图标为示意 · 颜色表示预警等级'

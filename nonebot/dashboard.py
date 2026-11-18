@@ -11,13 +11,13 @@ from urllib.parse import urlsplit
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 import bilibili_panel
+import bot_identity
 import meme_logic
 import memory_logic as memory
 import group_topics_logic as topics
 import weather_service as weather
 import epic_free_config as epic_config
 import game_event_panel
-import endfield_panel
 import embedding_panel
 import disaster_config as disaster_config_mod
 import disaster_render as disaster_render_mod
@@ -331,6 +331,25 @@ async def change_master_aware(req: Request):
     body = await req.json()
     try: return master_settings.save(body)
     except ValueError as e: raise HTTPException(400,str(e))
+
+@app.get('/api/bot-name')
+def bot_name_settings(req: Request):
+    authorized(req)
+    return bot_identity.public()
+
+@app.post('/api/bot-name')
+async def change_bot_name(req: Request):
+    mutate(req)
+    body = await req.json()
+    if not isinstance(body, dict): raise HTTPException(400, '请求体必须是对象')
+    try:
+        if body.get('reset'):
+            return bot_identity.reset()
+        return bot_identity.save(body.get('name'))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except OSError:
+        raise HTTPException(503, '机器人名称无法保存')
 
 @app.get('/api/parser')
 def parser_config(req: Request):
@@ -787,6 +806,5 @@ async def set_superusers(req: Request):
 
 app.include_router(game_event_panel.router(authorized, mutate))
 
-bilibili_panel.register(app, authorized=authorized, root=ROOT)
-endfield_panel.register(app, authorized=authorized, mutate=mutate, root=ROOT)
+bilibili_panel.register(app, authorized=authorized, mutate=mutate, root=ROOT)
 embedding_panel.register(app, authorized=authorized, mutate=mutate, root=ROOT)

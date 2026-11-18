@@ -14,6 +14,8 @@ from dataclasses import dataclass
 from math import asin, cos, radians, sin, sqrt
 from typing import Any, Mapping
 
+import bot_identity
+
 TIMEZONE_LABELS = {
     'cenc_eew': '北京时间',
     'cenc': '北京时间',
@@ -261,7 +263,7 @@ def event_lead(event: EarthquakeEvent, tone: str = 'neutral') -> str:
         label = '最大震度' if event.source.startswith('jma') else '最大烈度'
         parts.append(f'{label} {event.intensity}')
     return (
-        '达妮娅感觉到了一下？' + '，'.join(parts) +
+        f'{bot_identity.display_name()}感觉到了一下？' + '，'.join(parts) +
         '。先就近避险，远离玻璃和吊灯，关注余震和官方通报。'
     )
 

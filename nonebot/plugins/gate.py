@@ -275,11 +275,12 @@ def help_text() -> str:
 
 def help_image():
     """`.help` 的图片菜单；失败返回 None 由调用方回退文本。"""
+    import bot_identity
     import help_image as hi
 
     return hi.render_help_images(
         gl.grouped_help_rows(gl.all_help_rows()),
-        title='达妮娅 · 指令菜单',
+        title=f'{bot_identity.display_name()} · 指令菜单',
         subtitle=gl.HELP_PREFIX_GUIDE,
         footer=gl.help_footer(state()),
     )

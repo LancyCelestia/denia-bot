@@ -1,7 +1,8 @@
-"""管理面板的 B站动态订阅只读视图。
+"""管理面板的 B站动态订阅视图与接收目标管理。
 
 机器人进程独占 `data/bilibili_dynamic/state.sqlite3` 的写锁；面板只以只读 URI
-打开同一份文件做一次快照查询，不写库、不抓取、不投递。增删订阅仍然只在
+打开同一份文件做一次快照查询，不写库、不抓取、不投递。接收目标可在面板
+增删，写回 `.env` 的 `BILI_TARGETS`，重启机器人后生效；订阅本身仍然只在
 群聊 / 私聊里用 `.b站订阅` / `.b站退订`。
 """
 from __future__ import annotations
@@ -11,6 +12,7 @@ import logging
 import os
 import re
 import sqlite3
+import tempfile
 import unicodedata
 from pathlib import Path
 
@@ -111,6 +113,95 @@ def _targets(raw):
     return parsed
 
 
+def _configured_targets(root):
+    """返回 (目标集合或 None, 是否被进程环境覆盖)；环境变量优先于 `.env`。"""
+    override = (os.environ.get('BILI_TARGETS') or '').strip()
+    file_values = _env_file(Path(root) / '.env')
+    raw = override or file_values.get('BILI_TARGETS', '')
+    return _targets(raw), bool(override)
+
+
+def _target_key(bot, kind, target):
+    bot, target = str(bot or '').strip(), str(target or '').strip()
+    if kind not in {'group', 'private'}:
+        raise ValueError('目标类型只能是 group 或 private')
+    if not _ID.fullmatch(bot) or not _ID.fullmatch(target):
+        raise ValueError('机器人 QQ 和群号/QQ号必须是 1 到 20 位数字')
+    return f'{bot}:{kind}:{target}'
+
+
+def _write_env_targets(root, targets):
+    """只改 `.env` 的 BILI_TARGETS 行；保留其余内容，临时文件原子替换。"""
+    path = Path(root) / '.env'
+    try:
+        text = path.read_text(encoding='utf-8')
+    except FileNotFoundError:
+        text = ''
+    except (OSError, UnicodeError) as exc:
+        raise HTTPException(503, '无法读取机器人 .env，未保存接收目标。') from exc
+    lines = text.splitlines()
+    encoded = 'BILI_TARGETS=' + json.dumps(targets, ensure_ascii=False, separators=(',', ':'))
+    line_pattern = re.compile(r'^(\s*(?:export\s+)?)BILI_TARGETS\s*=')
+    for index, line in enumerate(lines):
+        match = line_pattern.match(line)
+        if match:
+            lines[index] = match.group(1) + encoded
+            break
+    else:
+        lines.append(encoded)
+    payload = '\n'.join(lines) + '\n'
+    if payload == text:
+        return
+    descriptor = None
+    temporary = None
+    try:
+        descriptor, temporary = tempfile.mkstemp(prefix='.env-bili-', dir=str(path.parent))
+        with os.fdopen(descriptor, 'w', encoding='utf-8', newline='\n') as handle:
+            descriptor = None
+            handle.write(payload)
+        os.chmod(temporary, 0o600)
+        os.replace(temporary, path)
+        temporary = None
+    except OSError as exc:
+        raise HTTPException(503, '写入机器人 .env 失败，接收目标未保存。') from exc
+    finally:
+        if descriptor is not None:
+            os.close(descriptor)
+        if temporary is not None:
+            Path(temporary).unlink(missing_ok=True)
+
+
+def update_targets(root, *, action, bot, kind, target):
+    """增删一个接收目标并写回 `.env`；返回当前完整目标列表。"""
+    if (os.environ.get('BILI_TARGETS') or '').strip():
+        raise HTTPException(409, 'BILI_TARGETS 由进程环境管理，无法在面板修改。')
+    if action not in {'add', 'remove'}:
+        raise ValueError('action 只能是 add 或 remove')
+    key = _target_key(bot, kind, target)
+    raw = _env_file(Path(root) / '.env').get('BILI_TARGETS', '')
+    try:
+        values = json.loads(raw) if raw else []
+    except ValueError:
+        values = []
+    if not isinstance(values, list):
+        values = []
+    current = []
+    for value in values:
+        parts = value.split(':') if isinstance(value, str) else ()
+        if (len(parts) == 3 and parts[1] in {'group', 'private'}
+                and _ID.fullmatch(parts[0]) and _ID.fullmatch(parts[2])):
+            canonical = ':'.join(parts)
+            if canonical not in current:
+                current.append(canonical)
+    if action == 'add':
+        if key not in current:
+            current.append(key)
+    elif key in current:
+        current.remove(key)
+    _write_env_targets(root, current)
+    return current
+
+
 def state_path(root):
     """与插件配置同源：BILI_STATE_FILE 优先，否则用插件默认路径。"""
     file_values = _env_file(Path(root) / '.env')
@@ -182,17 +273,36 @@ def view(root):
     file_values = _env_file(root / '.env')
     get = _setting(file_values)
     enabled = _bool(get('BILI_ENABLED'))
-    targets = _targets(get('BILI_TARGETS'))
+    targets, override = _configured_targets(root)
     data = _read(state_path(root))
     data['config'] = {'enabled': enabled, 'interval': _interval(get('BILI_INTERVAL'))}
+    data['targets'] = sorted(':'.join(value) for value in targets) if targets is not None else []
+    data['targets_editable'] = not override
     for session in data.get('sessions', ()):
         key = (session['bot'], session['kind'], session['target'])
         session['target_allowed'] = None if targets is None else key in targets
     return data
 
 
-def register(app, *, authorized, root):
+def register(app, *, authorized, mutate, root):
     @app.get('/api/bilibili')
     def bilibili_state(req: Request):
         authorized(req)
         return view(root)
+
+    @app.post('/api/bilibili/targets')
+    async def bilibili_update_targets(req: Request):
+        mutate(req)
+        try:
+            body = await req.json()
+        except ValueError as exc:
+            raise HTTPException(400, '请求体不是合法 JSON') from exc
+        if not isinstance(body, dict):
+            raise HTTPException(400, '请求体必须是对象')
+        try:
+            targets = update_targets(
+                root, action=body.get('action'), bot=body.get('bot'),
+                kind=body.get('kind'), target=body.get('target'))
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from exc
+        return {'targets': targets, 'restart_required': True}

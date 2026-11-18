@@ -4,6 +4,7 @@
 from pathlib import Path
 import math
 import random
+import bot_identity
 from card_document import document, text, image_uri, chunks, scale_pages
 from render_client import RenderError, render_document, single_page
 
@@ -17,7 +18,7 @@ STYLE='''
 .sheet>div,.sheet>section,.sheet>header{margin-bottom:22px}.panel{background:#fffcff;border-color:#e5d9ed;border-radius:20px;padding:20px}
 .muted,footer{color:#6f5e82}.accent{color:#a65a89}h2{font-size:22px;font-weight:400}.hero{position:relative;height:483px}
 .hero .art,.banner .art{position:absolute;left:-50px;top:-50px;width:1170px;height:840px;max-width:none;background-size:1430px auto;background-repeat:no-repeat;background-position:-140px 100px;mask-image:linear-gradient(to right,#0000000a 280px,#000 660px),linear-gradient(transparent 100px,#000 250px,#000 600px,transparent 820px);mask-composite:intersect;pointer-events:none}
-.hero .identity,.banner>:not(.art){position:relative;z-index:1}.brand{display:flex;justify-content:space-between;font-size:18px}.avatar{width:64px;height:64px;border-radius:50%;object-fit:cover;background:#f0e3f0;display:flex;align-items:center;justify-content:center;color:#a65a89;font-size:28px}.identity>.row{margin-top:54px;gap:18px}.nick{font-size:58px;margin:16px 0 0;max-width:440px}.subtitle{font-size:24px}.online{display:inline-block;border:1px solid;border-radius:24px;padding:8px 22px;background:#fffcff;font-size:20px;margin:24px 0 12px}.meta{font-size:19px;margin:8px 0;max-width:440px}
+.hero .identity,.banner>:not(.art){position:relative;z-index:1}.brand{display:flex;justify-content:space-between;font-size:18px;gap:12px}.brand>span{min-width:0}.brand>span:first-child{max-width:72%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.avatar{width:64px;height:64px;border-radius:50%;object-fit:cover;background:#f0e3f0;display:flex;align-items:center;justify-content:center;color:#a65a89;font-size:28px}.identity>.row{margin-top:54px;gap:18px}.nick{font-size:58px;margin:16px 0 0;max-width:440px}.subtitle{font-size:24px}.online{display:inline-block;border:1px solid;border-radius:24px;padding:8px 22px;background:#fffcff;font-size:20px;margin:24px 0 12px}.meta{font-size:19px;margin:8px 0;max-width:440px}
 .resources{position:relative;display:flex;gap:16px}.resource{flex:1;text-align:center;padding:12px 18px 18px}.resource svg{width:156px;height:156px;display:block;margin:auto}.detail{font-size:17px;color:#6f5e82}.resource h2{margin:4px 0}.disk{display:grid;grid-template-columns:175px 1fr 205px 75px;gap:15px;align-items:center;margin-top:12px}.track{height:16px;background:#ebe2f2;border-radius:10px;overflow:hidden}.fill{height:100%;border-radius:10px}.speeds{display:flex;gap:30px;font-size:34px;margin:6px 0 18px}.speeds>div{flex:1}.netmeta{font-size:17px;line-height:1.8}.columns{display:flex;gap:22px}.columns>section{flex:1;min-width:0}td,th{padding:6px 0;font-size:17px}.process td:first-child,.process th:first-child{width:58%}.process td:not(:first-child),.process th:not(:first-child){width:21%}.system-row{display:flex;gap:18px;justify-content:space-between;margin:15px 0;font-size:17px}.system-row span:first-child{color:#7e6c90;flex-shrink:0}.stats{display:flex;gap:12px}.stat{flex:1;padding:14px;text-align:center}.stat strong{display:block;font-size:25px;font-weight:400}.stat span{font-size:16px;color:#6f5e82}.foot{display:flex;justify-content:space-between;font-size:16px}.sites td{padding:8px 0}.sites td:first-child{width:55%}.sites td:last-child{text-align:right}.chart{width:100%;height:124px;display:block}.report-title{font-size:44px}.report-row{display:flex;gap:28px;margin:10px 0}.report-row span:first-child{width:260px;color:#6f5e82;flex-shrink:0}.report-row span:last-child{overflow-wrap:anywhere}.report-table td,.report-table th{padding:8px;font-size:17px}
 '''
 # 日报 / 周报 / 集群卡共用同一张达妮娅背景：顶部出现，向下渐隐。裁切与蒙版跟着各自头部高度走。
@@ -96,13 +97,14 @@ def banner_art():
 
 def build_status_html(view):
     bot=view.get('bot') or {}; network=view.get('network') or {}; compact=bool(view.get('compact'))
+    name=bot_identity.display_name()
     avatar=image_uri(bot.get('avatar'),width=96,height=96)
-    portrait=f'<img class="avatar" src="{avatar}">' if avatar else f'<div class="avatar">{text(str(bot.get("nick") or "B")[:1])}</div>'
+    portrait=f'<img class="avatar" src="{avatar}">' if avatar else f'<div class="avatar">{text(name[:1] or "B")}</div>'
     online=bot.get('online'); online_text='在线' if online is True else '离线' if online is False else '状态未知'
     online_color=COLORS['good'] if online is True else COLORS['bad'] if online is False else '#7e6c90'
     blocks=[f'<header class="hero">{hero_art()}<div class="identity">'
-        +f'<div class="brand"><span class="accent">DENIA / SERVER STATUS</span><span class="muted">{text(view.get("generated_at"))}</span></div>'
-        +f'<div class="row">{portrait}<span class="accent">星穹观测</span></div><h1 class="nick ellipsis">{text(bot.get("nick") or "Bot")}</h1>'
+        +f'<div class="brand"><span class="accent">{text(name)} / SERVER STATUS</span><span class="muted">{text(view.get("generated_at"))}</span></div>'
+        +f'<div class="row">{portrait}<span class="accent">星穹观测</span></div><h1 class="nick ellipsis">{text(name)}</h1>'
         +f'<p class="subtitle muted">服务器状态</p><span class="online" style="color:{online_color}">● {online_text}</span>'
         +f'<p class="meta muted">已运行 {shown(view.get("uptime"))}</p>'
         +(f'<p class="meta muted ellipsis">QQ {text(bot["self_id"])}</p>' if bot.get('self_id') else '')
@@ -151,11 +153,12 @@ def build_status_html(view):
     blocks.append('<div class="columns">'+proc+(systems[0] if systems else '')+'</div>')
     blocks.extend(systems[1:])
     blocks.append('<div class="stats">'+''.join(f'<section class="panel stat"><strong>{shown(bot.get(key))}</strong><span>{label}</span></section>' for key,label in [('friends','好友'),('groups','群聊'),('members','群员'),('recv','收到'),('sent','回复')])+'</div>')
-    blocks.append(f'<footer class="foot"><span>{text(view.get("footer") or "本机容器渲染 · 数据不出本机")}</span><span class="accent">达妮娅 · 浅色泡泡</span></footer>')
+    blocks.append(f'<footer class="foot"><span>{text(view.get("footer") or "本机容器渲染 · 数据不出本机")}</span><span class="accent">{text(bot_identity.display_name())} · 浅色泡泡</span></footer>')
     return document(blocks,width=1170,css=STYLE)
 
 def build_report_html(report):
-    blocks=[f'<header class="banner report-head">{banner_art()}<p class="accent">DENIA · REPORT</p><h1 class="report-title">{text(report.get("title") or "日报")}</h1><p class="muted">{text(report.get("subtitle"))} {text(report.get("host"))}</p></header>']
+    name=bot_identity.display_name()
+    blocks=[f'<header class="banner report-head">{banner_art()}<p class="accent">{text(name)} · REPORT</p><h1 class="report-title">{text(report.get("title") or "日报")}</h1><p class="muted">{text(report.get("subtitle"))} {text(report.get("host"))}</p></header>']
     for section in report.get('sections') or []:
         pieces=[]
         for batch in chunks(section.get('rows') or [],18):
@@ -248,7 +251,7 @@ def _cluster_storage_sections(storages):
 def build_cluster_html(view):
     view=view or {}; summary=view.get('summary') or {}
     chips=''.join(_cluster_chip(label,summary.get(key)) for key,label in [('nodes','节点'),('guests','访客'),('running','运行中'),('vms','VM'),('lxcs','LXC'),('storages','存储')])
-    blocks=[f'<header class="panel cluster-head banner">{banner_art()}<div class="brand"><span class="accent">PROXMOX VE / CLUSTER STATUS</span><span class="muted">{shown(view.get("generated_at"))}</span></div>'
+    blocks=[f'<header class="panel cluster-head banner">{banner_art()}<div class="brand"><span class="accent">{text(bot_identity.display_name())} / PROXMOX VE</span><span class="muted">{shown(view.get("generated_at"))}</span></div>'
         +f'<h1 class="ellipsis">{text(view.get("title") or "Proxmox VE")}</h1>'
         +f'<p class="cluster-status">{text(_cluster_status(summary))}</p><div class="chips">{chips}</div></header>']
     nodes=view.get('nodes') or []
