@@ -36,6 +36,7 @@ import plugins.epic_free  # noqa: F401
 import plugins.disaster_warning  # noqa: F401
 import plugins.game_events  # noqa: F401
 import plugins.endfield  # noqa: F401
+import plugins.meme_learn  # noqa: F401
 from plugins import media_parser, statuscard
 
 
@@ -108,10 +109,22 @@ class HelpCoverageTest(unittest.TestCase):
         missing = [cmd for cmd in disaster_warning.COMMANDS if not self.covered(cmd)]
         self.assertEqual(missing, [], f'灾害预警指令没进 .help：{missing}')
 
+    def test_meme_learn_commands_are_all_listed(self):
+        from plugins import meme_learn
+        missing = [cmd for cmd in sorted(meme_learn._commands) if not self.covered(cmd)]
+        self.assertEqual(missing, [], f'表情包学习指令没进 .help：{missing}')
+
+    def test_kb_alias_is_listed(self):
+        shown = [gl.display_help_command(cmd) for cmd in self.commands]
+        self.assertTrue(any('.知识库' in item for item in shown),
+                        '.知识库 是 .kb 的别名，要能在 .help 里看到')
+
     def test_admin_commands_are_marked(self):
         """只有主人能用的指令，说明里要写清楚，否则普通群友会反复试。"""
         admin_only = ('限流 查看', '模型 查看', '开启解析', '关闭解析', 'blogin',
-                      '查看状态', '查看集群状态', '预览日报')
+                      '查看状态', '查看集群状态', '预览日报',
+                      '开启表情包学习', '关闭表情包学习', '表情包学习状态',
+                      '表情包学习重试', '表情包学习清理失败 确认')
         for command in admin_only:
             self.assertIn('主人', self.describe(command), f'{command} 应标注仅主人可用')
 

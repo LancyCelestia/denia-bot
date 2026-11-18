@@ -18,6 +18,8 @@ from nonebot import get_driver, logger, on_message
 from nonebot.adapters import Bot, Event
 from muicebot.plugin import PluginMetadata
 
+import gate_logic as gl
+
 try:
     import model_dispatch
     import master_settings
@@ -35,6 +37,14 @@ store = meme_learning.Store(meme_logic.Library())
 _wake = None
 _worker_task = None
 _commands = {'开启表情包学习', '关闭表情包学习', '表情包学习状态', '表情包学习重试', '表情包学习清理失败 确认'}
+
+gl.register_help_rows([
+    ('开启表情包学习', '仅主人私聊；之后私聊发图即交给后台学习'),
+    ('关闭表情包学习', '仅主人私聊；停止接收新图，已入队的继续'),
+    ('表情包学习状态', '仅主人私聊；待处理/已完成/失败与失败原因'),
+    ('表情包学习重试', '仅主人私聊；把失败的图片重新排队'),
+    ('表情包学习清理失败 确认', '仅主人私聊；清空失败任务，已学习的不受影响'),
+])
 
 
 def owners():
