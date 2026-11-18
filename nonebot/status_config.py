@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import copy
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -83,6 +84,16 @@ DEFAULT_CONFIG: dict[str, Any] = {
         'timeout_seconds': 3,
         'cache_seconds': 60,
     },
+    'cluster': {
+        'enabled': False,
+        'title': 'Proxmox VE',
+        'bucket': 'proxmox',
+        'datasource_uid': '',
+        'window_minutes': 10,
+        'node_filter': [],
+        'show_temperature': True,
+        'cache_seconds': 15,
+    },
 }
 
 #: 面板允许修改的字段。白名单而不是黑名单：面板是给人用的，手滑改错一个没人
@@ -96,6 +107,8 @@ EDITABLE: dict[str, tuple[str, ...]] = {
     'report': ('enabled', 'time', 'weekly_enabled', 'weekly_time', 'sections',
                'with_image', 'history_days', 'collect'),
     'grafana': ('enabled', 'url', 'datasource_uid', 'temp_query', 'avg_window_minutes'),
+    'cluster': ('enabled', 'title', 'bucket', 'datasource_uid', 'window_minutes',
+                'node_filter', 'show_temperature'),
 }
 
 REDACT_OPTIONS = ('hostname', 'process', 'network', 'qq_stats')
@@ -137,6 +150,15 @@ def save_config(config: dict[str, Any], path: Path | str | None = None) -> None:
     temp.replace(target)
 
 
+def _node_filter(value: Any) -> list[str]:
+    """面板提交的是逗号分隔文本，配置文件里可能是列表；统一成列表。"""
+    if isinstance(value, (list, tuple)):
+        items = [str(item) for item in value]
+    else:
+        items = re.split(r'[,\s]+', str(value or ''))
+    return [item.strip() for item in items if item.strip()]
+
+
 def public_view(config: dict[str, Any]) -> dict[str, Any]:
     """面板要显示的配置子集 + 可选项，避免前端硬编码字段名。"""
     display = config.get('display') or {}
@@ -144,6 +166,7 @@ def public_view(config: dict[str, Any]) -> dict[str, Any]:
     monitors = config.get('monitors') or {}
     report = config.get('report') or {}
     grafana = config.get('grafana') or {}
+    cluster = config.get('cluster') or {}
     return {
         'display': {
             'width': display.get('width'),
@@ -189,6 +212,16 @@ def public_view(config: dict[str, Any]) -> dict[str, Any]:
             'datasource_uid': grafana.get('datasource_uid'),
             'temp_query': grafana.get('temp_query'),
             'avg_window_minutes': grafana.get('avg_window_minutes'),
+        },
+        'cluster': {
+            'enabled': cluster.get('enabled'),
+            'title': cluster.get('title'),
+            'bucket': cluster.get('bucket'),
+            'datasource_uid': cluster.get('datasource_uid'),
+            'window_minutes': cluster.get('window_minutes'),
+            'node_filter': _node_filter(cluster.get('node_filter')),
+            'show_temperature': cluster.get('show_temperature'),
+            'cache_seconds': cluster.get('cache_seconds'),
         },
         'options': {
             'redact': list(REDACT_OPTIONS),

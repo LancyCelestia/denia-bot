@@ -3,18 +3,43 @@
 # 修改：D 浅色泡泡 HTML/CSS/SVG 模板，同机 Playwright 排版，Pillow 仅处理素材及输出缩放。
 from pathlib import Path
 import math
+import random
 from card_document import document, text, image_uri, chunks, scale_pages
 from render_client import RenderError, render_document, single_page
 
 _BACKGROUND_FILE=Path(__file__).resolve().parent/'resources/statuscard/denia-bubbles.jpg'
+# 集群卡与日报 / 周报的顶部横幅从这里随机取；状态卡主视觉固定用上面那张。
+_BANNER_DIR=Path(__file__).resolve().parent/'resources/statuscard/banners'
+_BANNER_SUFFIXES={'.jpg','.jpeg','.png','.webp'}
 COLORS={'good':'#308977','warn':'#a77135','bad':'#bb4162'}
 STYLE='''
 .sheet{padding:50px;background:linear-gradient(#f4eef8,#f2ebf7);color:#352b49;font-size:18px}
 .sheet>div,.sheet>section,.sheet>header{margin-bottom:22px}.panel{background:#fffcff;border-color:#e5d9ed;border-radius:20px;padding:20px}
 .muted,footer{color:#6f5e82}.accent{color:#a65a89}h2{font-size:22px;font-weight:400}.hero{position:relative;height:483px}
-.hero .art{position:absolute;left:-50px;top:-50px;width:1170px;height:840px;max-width:none;background-size:1430px auto;background-repeat:no-repeat;background-position:-140px 100px;mask-image:linear-gradient(to right,#0000000a 280px,#000 660px),linear-gradient(transparent 100px,#000 250px,#000 600px,transparent 820px);mask-composite:intersect;pointer-events:none}
-.hero .identity{position:relative;z-index:1}.brand{display:flex;justify-content:space-between;font-size:18px}.avatar{width:64px;height:64px;border-radius:50%;object-fit:cover;background:#f0e3f0;display:flex;align-items:center;justify-content:center;color:#a65a89;font-size:28px}.identity>.row{margin-top:54px;gap:18px}.nick{font-size:58px;margin:16px 0 0;max-width:440px}.subtitle{font-size:24px}.online{display:inline-block;border:1px solid;border-radius:24px;padding:8px 22px;background:#fffcff;font-size:20px;margin:24px 0 12px}.meta{font-size:19px;margin:8px 0;max-width:440px}
+.hero .art,.banner .art{position:absolute;left:-50px;top:-50px;width:1170px;height:840px;max-width:none;background-size:1430px auto;background-repeat:no-repeat;background-position:-140px 100px;mask-image:linear-gradient(to right,#0000000a 280px,#000 660px),linear-gradient(transparent 100px,#000 250px,#000 600px,transparent 820px);mask-composite:intersect;pointer-events:none}
+.hero .identity,.banner>:not(.art){position:relative;z-index:1}.brand{display:flex;justify-content:space-between;font-size:18px}.avatar{width:64px;height:64px;border-radius:50%;object-fit:cover;background:#f0e3f0;display:flex;align-items:center;justify-content:center;color:#a65a89;font-size:28px}.identity>.row{margin-top:54px;gap:18px}.nick{font-size:58px;margin:16px 0 0;max-width:440px}.subtitle{font-size:24px}.online{display:inline-block;border:1px solid;border-radius:24px;padding:8px 22px;background:#fffcff;font-size:20px;margin:24px 0 12px}.meta{font-size:19px;margin:8px 0;max-width:440px}
 .resources{position:relative;display:flex;gap:16px}.resource{flex:1;text-align:center;padding:12px 18px 18px}.resource svg{width:156px;height:156px;display:block;margin:auto}.detail{font-size:17px;color:#6f5e82}.resource h2{margin:4px 0}.disk{display:grid;grid-template-columns:175px 1fr 205px 75px;gap:15px;align-items:center;margin-top:12px}.track{height:16px;background:#ebe2f2;border-radius:10px;overflow:hidden}.fill{height:100%;border-radius:10px}.speeds{display:flex;gap:30px;font-size:34px;margin:6px 0 18px}.speeds>div{flex:1}.netmeta{font-size:17px;line-height:1.8}.columns{display:flex;gap:22px}.columns>section{flex:1;min-width:0}td,th{padding:6px 0;font-size:17px}.process td:first-child,.process th:first-child{width:58%}.process td:not(:first-child),.process th:not(:first-child){width:21%}.system-row{display:flex;gap:18px;justify-content:space-between;margin:15px 0;font-size:17px}.system-row span:first-child{color:#7e6c90;flex-shrink:0}.stats{display:flex;gap:12px}.stat{flex:1;padding:14px;text-align:center}.stat strong{display:block;font-size:25px;font-weight:400}.stat span{font-size:16px;color:#6f5e82}.foot{display:flex;justify-content:space-between;font-size:16px}.sites td{padding:8px 0}.sites td:first-child{width:55%}.sites td:last-child{text-align:right}.chart{width:100%;height:124px;display:block}.report-title{font-size:44px}.report-row{display:flex;gap:28px;margin:10px 0}.report-row span:first-child{width:260px;color:#6f5e82;flex-shrink:0}.report-row span:last-child{overflow-wrap:anywhere}.report-table td,.report-table th{padding:8px;font-size:17px}
+'''
+# 日报 / 周报 / 集群卡共用同一张达妮娅背景：顶部出现，向下渐隐。裁切与蒙版跟着各自头部高度走。
+BANNER_STYLE='''
+.banner{position:relative;overflow:hidden}
+.report-head,.cluster-head.banner{display:flex;flex-direction:column;justify-content:flex-end;min-height:340px}
+.report-head{padding:0 4px 6px}
+.report-head .art,.cluster-head.banner .art{height:460px;background-position:-140px -20px;mask-image:linear-gradient(to right,#0000000a 240px,#000 620px,#000 980px,transparent 1115px),linear-gradient(transparent 40px,#000 110px,#000 240px,transparent 330px)}
+'''
+# 集群卡专用：紧凑头部、摘要 chips、访客表列宽、存储行。沿用 STYLE 的浅色面板与资源环。
+CLUSTER_STYLE='''
+.cluster-head{padding:18px 22px}.cluster-head h1{font-size:34px;margin:6px 0 8px}
+.cluster-status{font-size:18px;color:#6f5e82;margin:2px 0 10px}.cluster-status b{font-weight:400;color:#a65a89}
+.chips{display:flex;flex-wrap:wrap;gap:10px}.chip{border:1px solid #e5d9ed;border-radius:16px;padding:6px 14px;font-size:16px;color:#6f5e82;background:#faf5fd}
+.chip strong{font-weight:400;font-size:19px;color:#352b49;margin-left:6px}
+.cluster-node .resources{margin-top:4px}.cluster-node .detail{margin-top:6px}
+.cluster-guests td,.cluster-guests th{padding:6px 4px;font-size:16px}
+.cluster-guests td:first-child,.cluster-guests th:first-child{width:27%}.cluster-guests td:nth-child(2),.cluster-guests th:nth-child(2){width:9%}
+.cluster-guests td:nth-child(3),.cluster-guests th:nth-child(3){width:14%}.cluster-guests td:nth-child(4),.cluster-guests th:nth-child(4){width:12%}
+.cluster-guests td:nth-child(5),.cluster-guests th:nth-child(5){width:25%}.cluster-guests td:nth-child(6),.cluster-guests th:nth-child(6){width:13%;text-align:right}
+.cluster-storages .disk{grid-template-columns:175px 250px 1fr 195px 70px;margin-top:10px;font-size:16px}
+.cluster-storages .track{height:14px}
 '''
 def number(value):
     try:
@@ -41,14 +66,41 @@ def human_speed(value):
             return f'{value:.1f} {unit}'
         value/=1024
 
+def _art(background):
+    return f'<div class="art" style="background-image:url(\'{background}\')"></div>' if background else ''
+
+def hero_art():
+    """状态卡主视觉：固定用户选定的 D 浅色泡泡。"""
+    return _art(image_uri(_BACKGROUND_FILE,width=1600,height=900,quality=84))
+
+def banner_files():
+    """横幅候选：`resources/statuscard/banners/` 里的图片，外加状态卡那张作兜底。"""
+    try:
+        files=sorted(path for path in _BANNER_DIR.iterdir()
+                     if path.is_file() and path.suffix.lower() in _BANNER_SUFFIXES)
+    except OSError:
+        files=[]
+    if _BACKGROUND_FILE.is_file():
+        files.append(_BACKGROUND_FILE)
+    return files
+
+def banner_art():
+    """顶部横幅：随机取一张；文件损坏就换下一张，全都不行时退回纯色。"""
+    files=banner_files()
+    random.shuffle(files)
+    for path in files:
+        background=image_uri(path,width=1600,height=900,quality=84)
+        if background:
+            return _art(background)
+    return ''
+
 def build_status_html(view):
     bot=view.get('bot') or {}; network=view.get('network') or {}; compact=bool(view.get('compact'))
-    background=image_uri(_BACKGROUND_FILE,width=1600,height=900,quality=84)
     avatar=image_uri(bot.get('avatar'),width=96,height=96)
     portrait=f'<img class="avatar" src="{avatar}">' if avatar else f'<div class="avatar">{text(str(bot.get("nick") or "B")[:1])}</div>'
     online=bot.get('online'); online_text='在线' if online is True else '离线' if online is False else '状态未知'
     online_color=COLORS['good'] if online is True else COLORS['bad'] if online is False else '#7e6c90'
-    blocks=[f'<header class="hero"><div class="art" style="background-image:url(\'{background}\')"></div><div class="identity">'
+    blocks=[f'<header class="hero">{hero_art()}<div class="identity">'
         +f'<div class="brand"><span class="accent">DENIA / SERVER STATUS</span><span class="muted">{text(view.get("generated_at"))}</span></div>'
         +f'<div class="row">{portrait}<span class="accent">星穹观测</span></div><h1 class="nick ellipsis">{text(bot.get("nick") or "Bot")}</h1>'
         +f'<p class="subtitle muted">服务器状态</p><span class="online" style="color:{online_color}">● {online_text}</span>'
@@ -103,7 +155,7 @@ def build_status_html(view):
     return document(blocks,width=1170,css=STYLE)
 
 def build_report_html(report):
-    blocks=[f'<header><p class="accent">DENIA · REPORT</p><h1 class="report-title">{text(report.get("title") or "日报")}</h1><p class="muted">{text(report.get("subtitle"))} {text(report.get("host"))}</p></header>']
+    blocks=[f'<header class="banner report-head">{banner_art()}<p class="accent">DENIA · REPORT</p><h1 class="report-title">{text(report.get("title") or "日报")}</h1><p class="muted">{text(report.get("subtitle"))} {text(report.get("host"))}</p></header>']
     for section in report.get('sections') or []:
         pieces=[]
         for batch in chunks(section.get('rows') or [],18):
@@ -119,7 +171,7 @@ def build_report_html(report):
         for i,piece in enumerate(pieces or ['']):
             blocks.append(f'<section class="panel"><h2 class="accent">{text(section.get("title"))}{" · 续" if i else ""}</h2>{piece}</section>')
     blocks.append(f'<footer>{text(report.get("footer"))}</footer>')
-    return document(blocks,width=1170,css=STYLE)
+    return document(blocks,width=1170,css=STYLE+BANNER_STYLE)
 
 def render_status_card_pages(view, *, width=1170):
     return scale_pages(render_document(build_status_html(view),width=1170,source='statuscard'),max(760,min(2880,int(width))))
@@ -129,3 +181,84 @@ def render_status_card(view, *, width=1170):
     return single_page(render_status_card_pages(view,width=width))
 def render_report(report, *, width=1170):
     return single_page(render_report_pages(report,width=width))
+def _cluster_status(summary):
+    nodes=int(number(summary.get('nodes')))
+    if not nodes: return '未获取到节点数据'
+    return f'节点 {nodes} · 访客 {int(number(summary.get("running")))}/{int(number(summary.get("guests")))} 运行 · 存储 {int(number(summary.get("storages")))}'
+def _cluster_chip(label, value):
+    return f'<span class="chip">{text(label)}<strong>{shown(value)}</strong></span>'
+def _cluster_ring(title, value, level='', accent='#308977', note='', detail=''):
+    has_value=value is not None
+    pct=percent(value) if has_value else 0
+    stroke=color(level,accent) if str(level) in {'bad','warn'} else accent
+    # 环心固定显示百分比（无数据为 --），长文本放到环下方，避免撑破 SVG 被裁切。
+    center=f'{pct:.1f}%' if has_value else '--'
+    pct_y=74 if note else 90
+    return (f'<section class="panel resource"><svg viewBox="0 0 160 160"><circle cx="80" cy="80" r="66" stroke="#ebe2f2" stroke-width="12" fill="none"/>'
+        +f'<circle cx="80" cy="80" r="66" stroke="{stroke}" stroke-width="12" fill="none" pathLength="100" stroke-dasharray="{pct} 100" transform="rotate(-90 80 80)" stroke-linecap="round"/>'
+        +f'<text x="80" y="{pct_y}" text-anchor="middle" fill="#352b49" font-size="32">{center}</text>'
+        +(f'<text x="80" y="100" text-anchor="middle" fill="#352b49" font-size="19">{text(note)}</text>' if note else '')
+        +f'</svg><h2>{text(title)}</h2>'
+        +(f'<p class="detail">{text(detail)}</p>' if detail else '')
+        +'</section>')
+def _cluster_node(node):
+    node=node or {}
+    # cpu_note 与 temperature_text 在真实数据里常是同一温度，只显示一行。
+    rings=[_cluster_ring('CPU',node.get('cpu_percent'),node.get('cpu_level'),'#308977',node.get('cpu_note') or node.get('temperature_text')),
+        _cluster_ring('内存',node.get('memory_percent'),node.get('memory_level'),'#a65a89',detail=node.get('memory_text')),
+        _cluster_ring('SWAP',node.get('swap_percent'),node.get('swap_level'),'#9381c2',detail=node.get('swap_text'))]
+    detail=[]
+    if node.get('cores') not in (None,''): detail.append(f'{shown(node.get("cores"))} 核')
+    if node.get('load') not in (None,''): detail.append('负载 '+text(node.get('load')))
+    if node.get('uptime') not in (None,''): detail.append('运行 '+text(node.get('uptime')))
+    status=f'<span style="color:{color(node.get("status_level"))}">● {text(node.get("status"))}</span>' if node.get('status') not in (None,'') else ''
+    detail_html='<p class="detail">'+' · '.join(detail)+('　'+status if status else '')+'</p>' if detail or status else ''
+    return f'<section class="panel cluster-node"><h2>{text(node.get("name") or "未命名节点")}</h2><div class="resources">'+''.join(rings)+'</div>'+detail_html+'</section>'
+def _cluster_guest_row(guest):
+    guest=guest or {}; vmid=guest.get('vmid')
+    identity=text(guest.get('name') or '未命名')+(f'<span class="muted"> #{text(vmid)}</span>' if vmid not in (None,'') else '')
+    kind=guest.get('type_label') or guest.get('type'); status=guest.get('status_label') or guest.get('status')
+    status_html=f'<span style="color:{color(guest.get("status_level"))}">{text(status)}</span>' if status not in (None,'') else '<span class="muted">--</span>'
+    return ('<tr><td class="ellipsis">'+identity+'</td>'+f'<td>{shown(kind)}</td><td>{status_html}</td>'
+        +f'<td>{shown(guest.get("cpu_text"))}</td><td class="ellipsis">{shown(guest.get("mem_text"))}</td><td>{shown(guest.get("uptime"))}</td></tr>')
+def _cluster_guest_sections(guests):
+    if not guests: return ['<section class="panel"><h2>访客</h2><p class="muted">没有访客数据</p></section>']
+    groups={}
+    for guest in guests: groups.setdefault((guest or {}).get('node') or '未指定节点',[]).append(guest)
+    sections=[]
+    for node,items in groups.items():
+        for index,batch in enumerate(chunks(items,12)):
+            rows=''.join(_cluster_guest_row(guest) for guest in batch)
+            sections.append('<section class="panel"><h2>访客 · '+text(node)+(' · 续' if index else '')+'</h2><table class="cluster-guests">'
+                +'<tr><th>访客</th><th>类型</th><th>状态</th><th>CPU</th><th>内存</th><th>运行</th></tr>'+rows+'</table></section>')
+    return sections
+def _cluster_storage_row(storage):
+    storage=storage or {}; c=color(storage.get('level'))
+    pct=percent(storage.get('percent')) if storage.get('percent') is not None else 0
+    meta=' · '.join(text(part) for part in (storage.get('type'),storage.get('content')) if part not in (None,''))
+    if storage.get('active') is False: meta=meta+' · 未激活' if meta else '未激活'
+    return ('<div class="disk cluster-storage"><span class="ellipsis">'+shown(storage.get('name') or '未命名存储')+'</span>'
+        +f'<span class="muted ellipsis">{meta}</span><div class="track"><div class="fill" style="width:{pct}%;background:{c}"></div></div>'
+        +f'<span class="muted ellipsis">{shown(storage.get("used_text"))} / {shown(storage.get("total_text"))}</span>'
+        +f'<span style="color:{c}">{shown(storage.get("percent_text"))}</span></div>')
+def _cluster_storage_sections(storages):
+    if not storages: return ['<section class="panel cluster-storages"><h2>存储</h2><p class="muted">没有存储数据</p></section>']
+    return ['<section class="panel cluster-storages"><h2>存储'+(' · 续' if index else '')+'</h2>'+''.join(_cluster_storage_row(storage) for storage in batch)+'</section>'
+            for index,batch in enumerate(chunks(storages,12))]
+def build_cluster_html(view):
+    view=view or {}; summary=view.get('summary') or {}
+    chips=''.join(_cluster_chip(label,summary.get(key)) for key,label in [('nodes','节点'),('guests','访客'),('running','运行中'),('vms','VM'),('lxcs','LXC'),('storages','存储')])
+    blocks=[f'<header class="panel cluster-head banner">{banner_art()}<div class="brand"><span class="accent">PROXMOX VE / CLUSTER STATUS</span><span class="muted">{shown(view.get("generated_at"))}</span></div>'
+        +f'<h1 class="ellipsis">{text(view.get("title") or "Proxmox VE")}</h1>'
+        +f'<p class="cluster-status">{text(_cluster_status(summary))}</p><div class="chips">{chips}</div></header>']
+    nodes=view.get('nodes') or []
+    if nodes: blocks.extend(_cluster_node(node) for node in nodes)
+    else: blocks.append('<section class="panel"><h2>节点</h2><p class="muted">没有节点数据</p></section>')
+    blocks.extend(_cluster_guest_sections(view.get('guests') or []))
+    blocks.extend(_cluster_storage_sections(view.get('storages') or []))
+    blocks.append(f'<footer class="foot"><span>数据 {shown(view.get("source"))} · 本地渲染</span></footer>')
+    return document(blocks,width=1170,css=STYLE+BANNER_STYLE+CLUSTER_STYLE)
+def render_cluster_card_pages(view, *, width=1170):
+    return scale_pages(render_document(build_cluster_html(view),width=1170,source='cluster'),max(760,min(2880,int(width))))
+def render_cluster_card(view, *, width=1170):
+    return single_page(render_cluster_card_pages(view,width=width))

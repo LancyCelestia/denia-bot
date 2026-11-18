@@ -107,6 +107,102 @@ class PanelTest(unittest.TestCase):
         self.assertEqual(saved['report']['time'], '20:30')
         self.assertNotIn('nonsense', saved)
 
+    def test_overview_includes_cluster_settings(self):
+        data = dashboard.status_overview(None, days=1)
+        cluster = data['config']['cluster']
+        self.assertFalse(cluster['enabled'])
+        self.assertEqual(cluster['title'], 'Proxmox VE')
+        self.assertEqual(cluster['bucket'], 'proxmox')
+        self.assertEqual(cluster['datasource_uid'], '')
+        self.assertEqual(cluster['window_minutes'], 10)
+        self.assertEqual(cluster['node_filter'], [])
+        self.assertTrue(cluster['show_temperature'])
+        self.assertNotIn('token', cluster)
+
+    def test_save_config_accepts_cluster_whitelist(self):
+        async def run():
+            return await dashboard.set_status_config(FakeRequest({'cluster': {
+                'enabled': True,
+                'title': '测试集群',
+                'bucket': 'pve_test',
+                'datasource_uid': 'uid-cluster',
+                'window_minutes': 30,
+                'node_filter': ['pve'],
+                'show_temperature': False,
+                'cache_seconds': 999,
+                'nonsense': 'ignore-me',
+            }}))
+
+        result = asyncio.run(run())
+        self.assertTrue(result['ok'])
+        saved = status_config.load_config(self.base / 'statuscard.json')
+        cluster = saved['cluster']
+        self.assertTrue(cluster['enabled'])
+        self.assertEqual(cluster['title'], '测试集群')
+        self.assertEqual(cluster['bucket'], 'pve_test')
+        self.assertEqual(cluster['datasource_uid'], 'uid-cluster')
+        self.assertEqual(cluster['window_minutes'], 30)
+        self.assertEqual(cluster['node_filter'], ['pve'])
+        self.assertFalse(cluster['show_temperature'])
+        self.assertEqual(cluster['cache_seconds'],
+                         status_config.DEFAULT_CONFIG['cluster']['cache_seconds'],
+                         '非白名单字段不该被面板改掉')
+        self.assertNotIn('nonsense', cluster)
+
+    def test_status_cluster_test_endpoint_returns_samples(self):
+        view = {
+            'title': 'Proxmox VE',
+            'summary': {'nodes': 1, 'guests': 2, 'storages': 3},
+            'nodes': [{'name': 'pve', 'cpu_text': '12.5%', 'memory_text': '40.0%'}],
+            'guests': [{'vmid': 100, 'name': 'web', 'status_label': '运行中'}],
+            'storages': [{'name': 'local', 'percent_text': '55.0%'}],
+        }
+        seen = {}
+
+        def fake_fetch(cluster_config, grafana_config, **kwargs):
+            seen['cluster'] = dict(cluster_config)
+            seen['grafana'] = dict(grafana_config)
+            seen['kwargs'] = dict(kwargs)
+            return view
+
+        async def run():
+            with patch.object(dashboard.status_cluster_mod, 'fetch', fake_fetch):
+                return await dashboard.test_status_cluster(FakeRequest({
+                    'cluster': {'enabled': False, 'bucket': 'pve', 'window_minutes': 5},
+                    'grafana': {'url': 'http://grafana:3000', 'token': 'secret'},
+                }))
+
+        result = asyncio.run(run())
+        self.assertTrue(result['ok'])
+        self.assertEqual(result['title'], 'Proxmox VE')
+        self.assertEqual(result['summary'], {'nodes': 1, 'guests': 2, 'storages': 3})
+        self.assertEqual(result['nodes'], [{'name': 'pve', 'cpu_text': '12.5%', 'memory_text': '40.0%'}])
+        self.assertEqual(result['guests'], [{'vmid': 100, 'name': 'web', 'status_label': '运行中'}])
+        self.assertEqual(result['storages'], [{'name': 'local', 'percent_text': '55.0%'}])
+        self.assertEqual(seen['cluster']['bucket'], 'pve', '未保存的集群参数要生效')
+        self.assertEqual(seen['cluster']['window_minutes'], 5)
+        self.assertTrue(seen['cluster']['enabled'], '测试查询不受启用开关限制')
+        self.assertTrue(seen['grafana']['enabled'])
+        self.assertNotIn('token', seen['grafana'], 'token 不写进配置')
+        self.assertEqual(seen['kwargs'].get('token'), 'secret')
+        self.assertEqual(seen['kwargs'].get('root'), dashboard.ROOT)
+        self.assertIs(seen['kwargs'].get('use_cache'), False)
+
+    def test_status_cluster_test_endpoint_reports_failure(self):
+        def fake_fetch(cluster_config, grafana_config, **kwargs):
+            raise ValueError('bucket 名称不合法')
+
+        async def run():
+            with patch.object(dashboard.status_cluster_mod, 'fetch', fake_fetch):
+                return await dashboard.test_status_cluster(FakeRequest({
+                    'cluster': {'bucket': 'bad bucket'},
+                    'grafana': {'token': 'secret'},
+                }))
+
+        result = asyncio.run(run())
+        self.assertFalse(result['ok'])
+        self.assertEqual(result['error'], 'bucket 名称不合法')
+
 
 class FakeRequest:
     def __init__(self, payload):

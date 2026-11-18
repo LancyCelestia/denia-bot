@@ -66,6 +66,61 @@ def open_png(payload: bytes) -> Image.Image:
     return Image.open(BytesIO(payload))
 
 
+def cluster_view(**overrides):
+    snapshot = {
+        'title': 'Proxmox VE',
+        'generated_at': '2026-11-17 12:00:00',
+        'source': 'Grafana',
+        'summary': {'nodes': 2, 'guests': 2, 'running': 2, 'vms': 1, 'lxcs': 1, 'storages': 2},
+        'nodes': [
+            {
+                'name': 'pve-a', 'cpu_percent': 37.4, 'cpu_text': '37.4%', 'cpu_level': 'good',
+                'cpu_note': '60m 均 34.1%', 'cores': 16, 'load': '1.20 / 0.90 / 0.70',
+                'memory_percent': 61.2, 'memory_text': '61.2%', 'memory_level': 'warn',
+                'swap_percent': 0.0, 'swap_text': '0.0%', 'swap_level': 'good',
+                'uptime': '12天 3小时', 'temperature_text': '42.3℃',
+                'status': 'online', 'status_level': 'good',
+            },
+            {
+                'name': 'pve-b', 'cpu_percent': 8.0, 'cpu_text': '8.0%', 'cpu_level': 'good',
+                'cpu_note': '', 'cores': 8, 'load': '0.10 / 0.20 / 0.30',
+                'memory_percent': None, 'memory_text': None, 'memory_level': '',
+                'swap_percent': None, 'swap_text': None, 'swap_level': '',
+                'uptime': '3天', 'temperature_text': '38.0℃',
+                'status': 'online', 'status_level': 'good',
+            },
+        ],
+        'guests': [
+            {
+                'vmid': 101, 'name': 'wiki', 'node': 'pve-a', 'type': 'qemu', 'type_label': 'VM',
+                'status': 'running', 'status_label': '运行中', 'status_level': 'good',
+                'cpu_percent': 12.5, 'cpu_text': '12.5%', 'cores': 2,
+                'mem_text': '1.0 GiB / 4.0 GiB', 'mem_percent': 25.0, 'uptime': '3天 4小时',
+            },
+            {
+                'vmid': 201, 'name': 'file', 'node': 'pve-b', 'type': 'lxc', 'type_label': 'LXC',
+                'status': 'running', 'status_label': '运行中', 'status_level': 'good',
+                'cpu_percent': 3.0, 'cpu_text': '3.0%', 'cores': 1,
+                'mem_text': '512 MiB / 1.0 GiB', 'mem_percent': 50.0, 'uptime': '1天 2小时',
+            },
+        ],
+        'storages': [
+            {
+                'name': 'local-lvm', 'node': 'pve-a', 'type': 'lvmthin', 'content': 'images,rootdir',
+                'used_text': '120 GiB', 'total_text': '500 GiB', 'percent': 24.0,
+                'percent_text': '24.0%', 'level': 'good', 'active': True,
+            },
+            {
+                'name': 'backup', 'node': 'pve-b', 'type': 'dir', 'content': 'backup',
+                'used_text': '780 GiB', 'total_text': '1000 GiB', 'percent': 78.0,
+                'percent_text': '78.0%', 'level': 'warn', 'active': False,
+            },
+        ],
+    }
+    snapshot.update(overrides)
+    return snapshot
+
+
 class StatusCardTest(unittest.TestCase):
     def test_cpu_temperature_note_renders_inside_ring(self):
         current = view()
@@ -179,6 +234,62 @@ class StatusCardTest(unittest.TestCase):
             self.assertAlmostEqual(scaled.height / standard.height, width / 1170, delta=.001)
 
 
+class ClusterCardTest(unittest.TestCase):
+    def test_html_contains_nodes_guests_and_storages(self):
+        html = image.build_cluster_html(cluster_view())
+        for piece in ('PROXMOX VE / CLUSTER STATUS', 'Proxmox VE', '2026-11-17 12:00:00',
+                      'pve-a', 'pve-b', 'wiki', '#101', 'VM', 'LXC',
+                      'local-lvm', 'backup', '60m 均 34.1%', '38.0℃', '数据 Grafana · 本地渲染'):
+            self.assertIn(piece, html)
+        self.assertNotIn('未获取到节点数据', html)
+
+    def test_memory_pair_text_sits_below_the_ring(self):
+        node = dict(cluster_view()['nodes'][0], memory_percent=63.0, memory_text='9.08 GB / 14.42 GB')
+        html = image.build_cluster_html(cluster_view(nodes=[node], guests=[], storages=[]))
+        self.assertIn('<p class="detail">9.08 GB / 14.42 GB</p>', html)
+        self.assertIn('63.0%', html, '环心应显示百分比')
+        for fragment in html.split('<svg')[1:]:
+            self.assertNotIn('9.08 GB / 14.42 GB', fragment.split('</svg>')[0], '配对文本不应挤进资源环')
+
+    def test_temperature_is_rendered_once(self):
+        node = dict(cluster_view()['nodes'][0], cpu_note='57.8℃', temperature_text='57.8℃')
+        html = image.build_cluster_html(cluster_view(nodes=[node], guests=[], storages=[]))
+        self.assertEqual(html.count('57.8℃'), 1, 'cpu_note 与 temperature_text 只应渲染一行')
+
+    def test_renders_png_with_requested_width(self):
+        png = image.render_cluster_card(cluster_view(), width=1170)
+        self.assertTrue(png.startswith(b'\x89PNG'))
+        rendered = open_png(png)
+        self.assertEqual(rendered.format, 'PNG')
+        self.assertEqual(rendered.width, 1170)
+        self.assertGreater(rendered.height, 600)
+
+    def test_width_is_clamped(self):
+        narrow = open_png(image.render_cluster_card(cluster_view(), width=100))
+        self.assertEqual(narrow.width, 760, '过窄的宽度会被夹到下限')
+        wide = open_png(image.render_cluster_card(cluster_view(), width=99999))
+        self.assertEqual(wide.width, 2880, '过宽的宽度会被夹到上限')
+
+    def test_empty_guests_and_storages_still_render(self):
+        html = image.build_cluster_html(cluster_view(guests=[], storages=[]))
+        self.assertIn('没有访客数据', html)
+        self.assertIn('没有存储数据', html)
+        png = image.render_cluster_card(cluster_view(guests=[], storages=[]))
+        self.assertTrue(png.startswith(b'\x89PNG'))
+
+    def test_missing_optional_keys_do_not_crash(self):
+        sparse = {
+            'summary': {},
+            'nodes': [{'name': 'pve-only'}],
+            'guests': [{'vmid': 300}],
+            'storages': [{'name': 'store'}],
+        }
+        html = image.build_cluster_html(sparse)
+        self.assertIn('--', html)
+        self.assertIn('没有节点数据', image.build_cluster_html({}))
+        self.assertTrue(image.render_cluster_card(sparse).startswith(b'\x89PNG'))
+
+
 class ReportImageTest(unittest.TestCase):
     def report(self, **overrides):
         payload = {
@@ -211,6 +322,85 @@ class ReportImageTest(unittest.TestCase):
     def test_empty_sections_still_renders(self):
         png = image.render_report(self.report(sections=[]))
         self.assertTrue(png.startswith(b'\x89PNG'))
+
+
+class BannerBackgroundTest(unittest.TestCase):
+    """集群卡与日报 / 周报的顶部横幅从资源集合里随机取，状态卡主视觉固定。"""
+
+    def make_image(self, folder, name, color):
+        path = Path(folder) / name
+        Image.new('RGB', (48, 27), color).save(path, 'JPEG')
+        return path
+
+    def test_cards_pick_from_the_banner_set(self):
+        with TemporaryDirectory(dir=Path(__file__).resolve().parent) as tmp:
+            banners = Path(tmp) / 'banners'
+            banners.mkdir()
+            blue = self.make_image(banners, 'blue.jpg', (10, 40, 200))
+            red = self.make_image(banners, 'red.jpg', (200, 30, 30))
+            with patch.object(image, '_BANNER_DIR', banners), \
+                    patch.object(image, '_BACKGROUND_FILE', Path(tmp) / 'missing.jpg', create=True):
+                expected = {image._art(image.image_uri(path)) for path in (blue, red)}
+                picked = set()
+                for _ in range(40):
+                    html = image.build_cluster_html(cluster_view())
+                    self.assertIn('class="panel cluster-head banner"', html)
+                    art = html.split('<div class="art" style="')[1].split('"></div>')[0]
+                    self.assertIn('data:image/jpeg;base64,', art)
+                    picked.add('<div class="art" style="' + art + '"></div>')
+                self.assertEqual(picked, expected, '两张图都应有机会被选中')
+                self.assertEqual(image.build_report_html(ReportImageTest().report()).count('class="art"'), 1)
+
+    def test_broken_candidate_is_skipped(self):
+        with TemporaryDirectory(dir=Path(__file__).resolve().parent) as tmp:
+            banners = Path(tmp) / 'banners'
+            banners.mkdir()
+            (banners / 'a-broken.jpg').write_bytes(b'not a jpeg')
+            good = self.make_image(banners, 'b-good.jpg', (20, 160, 90))
+            with patch.object(image, '_BANNER_DIR', banners), \
+                    patch.object(image, '_BACKGROUND_FILE', Path(tmp) / 'missing.jpg', create=True), \
+                    patch.object(image.random, 'shuffle', lambda items: None):
+                html = image.build_cluster_html(cluster_view())
+            self.assertIn(image._art(image.image_uri(good)), html)
+
+    def test_no_candidates_falls_back_to_flat_colour(self):
+        with TemporaryDirectory(dir=Path(__file__).resolve().parent) as tmp:
+            empty = Path(tmp) / 'banners'
+            empty.mkdir()
+            with patch.object(image, '_BANNER_DIR', empty), \
+                    patch.object(image, '_BACKGROUND_FILE', Path(tmp) / 'missing.jpg', create=True):
+                self.assertEqual(image.banner_files(), [])
+                self.assertEqual(image.banner_art(), '')
+                self.assertTrue(image.render_cluster_card(cluster_view()).startswith(b'\x89PNG'))
+
+    def test_status_hero_keeps_the_chosen_asset(self):
+        with TemporaryDirectory(dir=Path(__file__).resolve().parent) as tmp:
+            banners = Path(tmp) / 'banners'
+            banners.mkdir()
+            self.make_image(banners, 'other.jpg', (200, 30, 30))
+            hero = self.make_image(Path(tmp), 'hero.jpg', (10, 40, 200))
+            with patch.object(image, '_BANNER_DIR', banners), \
+                    patch.object(image, '_BACKGROUND_FILE', hero, create=True):
+                html = image.build_status_html(view())
+            self.assertIn(image._art(image.image_uri(hero)), html)
+            self.assertNotIn(image._art(image.image_uri(banners / 'other.jpg')), html)
+
+    def test_banner_changes_only_the_top_of_the_card(self):
+        with TemporaryDirectory(dir=Path(__file__).resolve().parent) as tmp:
+            empty = Path(tmp) / 'banners'
+            empty.mkdir()
+            with patch.object(image, '_BANNER_DIR', empty), \
+                    patch.object(image, '_BACKGROUND_FILE', Path(tmp) / 'missing.jpg', create=True):
+                plain = tuple(open_png(png) for png in (image.render_cluster_card(cluster_view()),
+                                                        image.render_report(ReportImageTest().report())))
+        rendered = (open_png(image.render_cluster_card(cluster_view())),
+                    open_png(image.render_report(ReportImageTest().report())))
+        for full, bare in zip(rendered, plain):
+            self.assertEqual(full.size, bare.size, '横幅预留高度，缺素材时布局不变')
+            self.assertNotEqual(full.crop((0, 0, 1170, 300)).tobytes(),
+                                bare.crop((0, 0, 1170, 300)).tobytes(), '背景应出现在顶部')
+            self.assertEqual(full.crop((0, 460, 1170, full.height)).tobytes(),
+                             bare.crop((0, 460, 1170, bare.height)).tobytes())
 
 
 if __name__ == '__main__':

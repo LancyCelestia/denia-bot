@@ -23,6 +23,8 @@ from typing import Any
 
 SECRET_NAME = 'status_grafana_secrets.json'
 MAX_BYTES = 262144
+#: 批量查询一次要装下节点 + 访客 + 存储，给到 1 MiB。
+BATCH_MAX_BYTES = 1048576
 CACHE: dict[tuple[str, str, str, int], tuple[float, dict[str, Any] | None]] = {}
 _LAST_ERROR = ''
 # 内网 Grafana 不能走环境变量里的代理；显式清空 ProxyHandler。
@@ -308,6 +310,152 @@ def _query_flux(url: str, uid: str, query: str, window: int, timeout: int,
             if math.isfinite(value):
                 rows.append((ts, value))
     return _summarize(rows, window)
+
+
+def _frame_records(frame: Any) -> list[dict[str, Any]]:
+    """一帧 -> 若干条记录：字段名 + schema 里的标签。
+
+    Grafana 的 Flux 数据源把 group key 放在 `schema.fields[*].labels`，
+    字段名只在列名上。丢标签就会把不同节点合并成一条，所以两者都要。
+    """
+    if not isinstance(frame, dict):
+        return []
+    schema = frame.get('schema') if isinstance(frame.get('schema'), dict) else {}
+    fields = schema.get('fields') if isinstance(schema.get('fields'), list) else []
+    names = [
+        str(field.get('name') or '') if isinstance(field, dict) else ''
+        for field in fields
+    ]
+    labels: dict[str, Any] = {}
+    for field in fields:
+        if isinstance(field, dict) and isinstance(field.get('labels'), dict):
+            labels.update(field['labels'])  # 后出现的标签覆盖先出现的
+    data = frame.get('data') if isinstance(frame.get('data'), dict) else {}
+    columns = data.get('values') if isinstance(data.get('values'), list) else []
+    if not columns:
+        return []
+    rows = 0
+    for column in columns:
+        if isinstance(column, list):
+            rows = max(rows, len(column))
+    records: list[dict[str, Any]] = []
+    for index in range(rows):
+        record = dict(labels)
+        for position, column in enumerate(columns):
+            if position >= len(names) or not names[position]:
+                continue
+            if isinstance(column, list) and index < len(column):
+                # 字段名在标签之后写入：撞名时以实际取值为准。
+                record[names[position]] = column[index]
+        records.append(record)
+    return records
+
+
+def query_flux_batch(config: dict, queries: dict[str, str], *, token: str = '',
+                     root: Path | str | None = None,
+                     timeout: int | None = None) -> dict[str, list[dict[str, Any]]]:
+    """一次 POST `/api/ds/query`，按 refId 返回展平后的记录。
+
+    与 `fetch_temp` 的区别：这里不聚合时间序列，只把每帧的字段和标签原样
+    交给调用方（集群卡片需要在本地按标签分组）。失败抛 `GrafanaError`，
+    同时把原因写进 `last_error()`，命令层可以原样回显给人看。
+    """
+    config = config if isinstance(config, dict) else {}
+    try:
+        url = _base_url(config)
+    except ValueError as exc:
+        _set_error(str(exc))
+        raise GrafanaError(str(exc)) from exc
+    uid = str(config.get('datasource_uid') or '').strip()
+    if not uid:
+        _set_error('缺少 Datasource UID')
+        raise GrafanaError('缺少 Datasource UID')
+    batch = {str(ref): str(query or '') for ref, query in (queries or {}).items()}
+    if not batch:
+        return {}
+    if timeout is None:
+        try:
+            timeout = int(config.get('timeout_seconds') or 5)
+        except (TypeError, ValueError):
+            timeout = 5
+    timeout = max(3, min(15, int(timeout)))
+    token = token or load_secret(root)
+    if not token:
+        _set_error('未配置 Grafana API Key')
+        raise GrafanaError('未配置 Grafana API Key')
+
+    body = {
+        'queries': [
+            {
+                'refId': ref,
+                'datasource': {'type': 'influxdb', 'uid': uid},
+                'query': query,
+                'rawQuery': True,
+                'resultFormat': 'time_series',
+                'editorMode': 'code',
+            }
+            for ref, query in batch.items()
+        ],
+        # 集群查询用 Flux 的相对时间窗口，绝对范围留 0 让数据源自己算。
+        'from': '0',
+        'to': '0',
+    }
+    api = f'{url}/api/ds/query'
+    request = urllib.request.Request(
+        api,
+        data=json.dumps(body).encode('utf-8'),
+        headers={
+            'Authorization': f'Bearer {token}',
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+        },
+        method='POST',
+    )
+    try:
+        with _OPENER.open(request, timeout=timeout) as response:
+            raw = response.read(BATCH_MAX_BYTES)
+            content_type = response.headers.get('Content-Type', '')
+            status = getattr(response, 'status', 200)
+    except urllib.error.HTTPError as exc:
+        message = f'Grafana HTTP {exc.code}（请求 {api}）：{_snippet(exc.read(BATCH_MAX_BYTES))}'
+        _set_error(message)
+        raise GrafanaError(message) from exc
+    except (urllib.error.URLError, OSError) as exc:
+        message = f'Grafana 请求失败（请求 {api}）：{exc}'
+        _set_error(message)
+        raise GrafanaError(message) from exc
+    try:
+        payload = json.loads(raw.decode('utf-8', 'replace'))
+    except ValueError as exc:
+        hint = ''
+        if raw.lstrip().lower().startswith(b'<!doctype html') or b'<html' in raw[:200].lower():
+            hint = '；返回的是 Grafana 前端页面，请检查地址是否包含页面路径或启用了 serve_from_sub_path'
+        message = (
+            'Grafana 返回非 JSON'
+            f'（HTTP {status}，{content_type or "无 Content-Type"}，请求 {api}）：'
+            f'{_snippet(raw)}{hint}'
+        )
+        _set_error(message)
+        raise GrafanaError(message) from exc
+    results = payload.get('results') if isinstance(payload, dict) else None
+    if not isinstance(results, dict):
+        _set_error('Grafana 返回结果格式异常：缺少 results')
+        raise GrafanaError('Grafana 返回结果格式异常：缺少 results')
+    collected: dict[str, list[dict[str, Any]]] = {}
+    for ref, block in results.items():
+        if not isinstance(block, dict):
+            collected[str(ref)] = []
+            continue
+        if block.get('error'):
+            message = f'Grafana 查询失败（{ref}）：{block["error"]}'
+            _set_error(message)
+            raise GrafanaError(message)
+        records: list[dict[str, Any]] = []
+        for frame in block.get('frames') or []:
+            records.extend(_frame_records(frame))
+        collected[str(ref)] = records
+    _set_error('')
+    return {ref: collected.get(ref, []) for ref in batch}
 
 
 def fetch_temp(config: Any, token: str = '', *, root: Path | str | None = None,

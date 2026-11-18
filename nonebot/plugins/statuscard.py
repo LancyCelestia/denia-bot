@@ -10,6 +10,7 @@
 - `status_image`  达妮娅主题 Pillow 渲染
 - `status_monitor` 五类服务探测 + 判定
 - `status_llm`    包一层 provider 记 LLM 质量
+- `status_cluster` Proxmox VE 集群查询与视图（Grafana InfluxDB）
 
 四个后台任务各管一段，互不阻塞：
 
@@ -35,6 +36,7 @@ from nonebot.adapters.onebot.v11 import Bot, MessageEvent, MessageSegment
 from muicebot.plugin import PluginMetadata
 
 import gate_logic as gl
+import status_cluster as cluster
 import status_collect as collect
 import status_config as config_mod
 import status_grafana as grafana
@@ -53,7 +55,7 @@ except ImportError:  # pragma: no cover - 没有 token 账本时报表少一段�
 __plugin_meta__ = PluginMetadata(
     name='statuscard',
     description='服务器状态卡与运维报表',
-    usage='主人：查看状态 / 状态卡诊断 / 测试通知 / 立即检测 / 预览日报 / 预览周报',
+    usage='主人：查看状态 / 查看集群状态 / 状态卡诊断 / 测试通知 / 立即检测 / 预览日报 / 预览周报',
 )
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -63,11 +65,12 @@ STATE_PATH = DATA / 'statuscard-state.json'
 DB_PATH = DATA / 'statuscard.sqlite3'
 CACHE_DIR = DATA / 'statuscard'
 
-COMMANDS = ('查看状态', '状态卡', '状态卡诊断', '测试通知', '立即检测', '预览日报', '预览周报')
+COMMANDS = ('查看状态', '状态卡', '查看集群状态', '状态卡诊断', '测试通知', '立即检测', '预览日报', '预览周报')
 
 #: `.help` 里的说明。导入时就注册，别等 on_startup —— `.help` 的匹配器可能更早跑。
 gl.register_help_rows([
     ('查看状态', '出一张服务器状态卡（别名：状态卡；仅主人）'),
+    ('查看集群状态', '出一张 Proxmox VE 集群状态卡（仅主人）'),
     ('状态卡诊断', '平台、采样库、告警/日报开关、最近推送结果（仅主人）'),
     ('测试通知', '往当前会话推一条，验证推送链路（仅主人）'),
     ('立即检测', '立刻跑一遍服务监测，只报异常项（仅主人）'),
@@ -1236,8 +1239,14 @@ async def handle_command(bot: Bot, event: MessageEvent) -> None:
     if not _is_admin(event):
         return
 
+    # 面板保存后，采样循环最多要等一分钟才会热加载；命令先自己看一眼 mtime，
+    # 这样「保存 → 立刻发命令」不会读到旧配置（例如集群开关还是 false）。
+    runtime.maybe_reload()
+
     if command == '查看状态' or command == '状态卡':
         await send_status_card(bot, event)
+    elif command == '查看集群状态':
+        await send_cluster_card(bot, event)
     elif command == '状态卡诊断':
         await matcher.finish(diagnose())
     elif command == '测试通知':
@@ -1276,6 +1285,66 @@ async def send_status_card(bot: Bot, event: MessageEvent) -> None:
         await bot.send(event, image_message(pages))
     except Exception as exc:  # noqa: BLE001
         logger.warning(f'[status] 状态卡发送失败：{exc}')
+        await matcher.finish('图片发送失败，请检查协议端连接。')
+
+
+async def build_cluster_view(runtime: Runtime) -> dict[str, Any]:
+    """读 Grafana 拼出集群视图。未启用直接报错，交给调用方翻译成提示。"""
+    conf = runtime.config.get('cluster')
+    conf = conf if isinstance(conf, dict) else {}
+    if not conf.get('enabled'):
+        raise ValueError('集群状态卡未启用')
+    # Grafana 请求是同步阻塞的，别在事件循环里干等
+    return await asyncio.to_thread(
+        cluster.fetch, conf, runtime.config.get('grafana') or {}, root=ROOT)
+
+
+async def render_cluster_cards(runtime: Runtime, view: dict[str, Any] | None = None) -> list[bytes]:
+    """出图。返回 PNG bytes；失败抛 `status_image.RenderError`。"""
+    view = view or await build_cluster_view(runtime)
+    width = int(runtime._display_conf().get('width') or 1170)
+    return await asyncio.to_thread(image.render_cluster_card_pages, view, width=width)
+
+
+async def send_cluster_card(bot: Bot, event: MessageEvent) -> None:
+    """集群状态卡。冷却键独立于状态卡，两个命令互不影响。"""
+    conf = runtime.config.get('cluster')
+    conf = conf if isinstance(conf, dict) else {}
+    if not conf.get('enabled'):
+        await matcher.finish('集群状态卡未启用，请在面板「服务器状态 → Proxmox VE 集群」开启。')
+        return
+
+    display = runtime._display_conf()
+    cooldown = float(display.get('cooldown_seconds') or 10)
+    key = f'cluster:{event.get_session_id()}'
+    now = time.time()
+    if cooldown > 0 and now - float(runtime.cooldowns.get(key) or 0) < cooldown:
+        await matcher.finish('集群状态刚查过，稍等一会儿再试。')
+        return
+    runtime.cooldowns[key] = now
+    if len(runtime.cooldowns) > 500:
+        runtime.cooldowns.clear()
+
+    try:
+        view = await build_cluster_view(runtime)
+    except Exception as exc:  # noqa: BLE001 - 查询失败要变成一句人话，不能把 matcher 打挂
+        detail = str(exc) or grafana.last_error()
+        logger.warning(f'[status] 集群状态读取失败：{detail}')
+        await matcher.finish('集群状态读取失败：' + detail)
+        return
+
+    try:
+        pages = await render_cluster_cards(runtime, view)
+    except image.RenderError as exc:
+        logger.warning(f'[status] 集群状态卡出图失败：{exc}')
+        await matcher.finish(cluster.summary_text(view))
+        return
+
+    try:
+        from card_delivery import image_message
+        await bot.send(event, image_message(pages))
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(f'[status] 集群状态卡发送失败：{exc}')
         await matcher.finish('图片发送失败，请检查协议端连接。')
 
 
