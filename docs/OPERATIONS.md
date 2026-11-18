@@ -179,6 +179,7 @@ knowledge/*.md  ──build_index──▶  rag/index/{chunks,tokens,lexicon,vec
 | 命令 | 作用 |
 |---|---|
 | `查看状态` | 出一张状态卡图片（同会话默认 10 秒冷却） |
+| `查看集群状态` | 出一张 Proxmox VE 集群卡（节点 / 访客 / 存储；独立 10 秒冷却） |
 | `状态卡诊断` | 平台、在线状态、采样库、告警/监测/日报开关、最近推送结果 |
 | `测试通知` | 往当前会话推一条，验证推送链路 |
 | `立即检测` | 跑一遍所有监测项，只报异常与汇总 |
@@ -188,7 +189,7 @@ knowledge/*.md  ──build_index──▶  rag/index/{chunks,tokens,lexicon,vec
 
 | 路径 | 内容 | 保留 |
 |---|---|---|
-| `data/statuscard.json` | 配置（面板可改关键项，改完最多一分钟热加载） | — |
+| `data/statuscard.json` | 配置（面板可改关键项；命令即时读取，后台任务最多一分钟热加载） | — |
 | `data/statuscard-state.json` | 网络采样点、本月流量、告警规则进度、掉线时间、推送记录 | 自动 |
 | `data/statuscard.sqlite3` | 资源/网站/进程采样、异常事件、每日快照、报表发送记录 | 资源 30 天 / 事件 90 天 |
 | `data/statuscard/avatar-<QQ>.png` | QQ 头像缓存 | 24 小时 |
@@ -201,11 +202,22 @@ knowledge/*.md  ──build_index──▶  rag/index/{chunks,tokens,lexicon,vec
 - 查询失败只省略温度，不影响状态卡其他内容；面板「测试连接」可直接验证。
 - Grafana 服务账号需要 `Data sources: Query` 权限；默认查询 `max(node_hwmon_temp_celsius)`，按实际指标调整。
 
+**Proxmox VE 集群状态卡**（可选）：
+
+- 面板「服务器状态 → Proxmox VE 集群」启用，填写卡片标题、InfluxDB Bucket（默认 `proxmox`）、可选的 Datasource UID 覆盖、数据窗口（默认 10 分钟）、节点筛选和 CPU 温度开关。
+- 复用上面的 Grafana 地址、Datasource UID 与 API Key；`cluster.datasource_uid` 留空时使用 `grafana.datasource_uid`。
+- 查询走 Grafana `POST /api/ds/query` 的 InfluxDB Flux 接口，固定读取 Telegraf Proxmox 输入的 `cpustat`、`memory`、`system` 和 `hwmon` measurement。
+- 卡片包含节点 CPU/内存/SWAP/负载/运行时长/CPU 温度、VM/LXC 访客表和存储使用率；每类数据缺失时只留空对应区块，不伪造 0。
+- Grafana 只持续采样运行中的访客；已停止且没有采样的访客不会出现在卡上。命令失败时回退为文字摘要，不影响 `查看状态`。
+- 面板「测试集群查询」可直接验证当前填写的连接与 Bucket，不需要先保存。
+
 **依赖**：`psutil`（采集）、`Pillow`（素材预处理和缩放）与同机 Playwright 容器（排版截图）。
 `requirements.lock` 已包含。
 
 **注意**：状态卡经回环 HTTP 使用**同机 Playwright 容器**，保留 D 浅色泡泡外观，主机信息不发往外部服务。
 这是与上游 AstrBot 插件最大的差别——上游默认把整页 HTML 发给远程 T2I 服务出图。
+
+**渲染**：状态卡、集群卡与日报 / 周报都由 `nonebot/status_image.py` 排版，顶部是达妮娅横幅：状态卡固定用 `resources/statuscard/denia-bubbles.jpg`，集群卡与报表从 `resources/statuscard/banners/` 随机取一张（候选集为空时回落 `denia-bubbles.jpg`），图从顶部渐入、向下渐隐，报表只在第一页出现。素材缺失或损坏时只丢背景（损坏的单张会被跳过），卡片版式与数据不变；集群卡与报表的横幅区固定高 340px。候选图来源、规格与新增方式见 `resources/statuscard/banners/README.md`。
 
 ## 8.6 超级管理员
 
@@ -308,6 +320,30 @@ journalctl -u qqbot -n 80 --no-pager | grep -i epic
 测试服务器在 2026-10-31 已同步 Epic 相关文件，远程原文件备份为 `*.bak-epic-20261031`；`dashboard.py` / `dashboard.html` / `gate_logic.py` 用定点补丁保留远程已有改动。以后升级时不要整文件覆盖这三个接线文件，先比对再合并。
 
 实跑记录见 `docs/research/epic-free-acceptance.md`：真实接口抓取、760 宽卡片、模拟换期推送、卡片失败回退文本、接口失败跳过/命令回文案、面板增删目标均逐项留痕。
+
+## 8.10 B站动态订阅
+
+面板「B站动态订阅」只读展示每个群聊 / 私聊订阅了哪些 UP 主、订阅时间、最近检查时间与投递计数；增删订阅仍然只在会话里做。数据来自机器人持有的 `nonebot/data/bilibili_dynamic/state.sqlite3`，面板以只读 URI（`mode=ro`）打开同一文件，不写库、不触发抓取或投递；机器人正在写入时最多等 2 秒，超时提示稍后刷新。
+
+| 项 | 说明 |
+|---|---|
+| 命令 | `.b站订阅 <UID>` / `.b站退订 <UID>`（仅主人）、`.b站订阅列表`、`.b站搜索 <关键词>`、`.b站选 <序号>` |
+| 接收目标 | `.env` 的 `BILI_TARGETS`（`bot:group:id` / `bot:private:id` 的 JSON 数组）；面板会标出不在目标里的会话，这类订阅不会检查也不会投递 |
+| 面板读取的配置 | `BILI_ENABLED`、`BILI_INTERVAL`、`BILI_TARGETS`、`BILI_STATE_FILE`；先看进程环境，再看 `nonebot/.env` |
+| 状态库 | `state.sqlite3`（`user_version=31`）+ `state.sqlite3.lock`（机器人独占）；随机器人数据一起备份 |
+| 来源暂停 | 命中 B站 403/412/429 时机器人写入 `source_stop`，面板显示「来源已暂停」；确认后把 `BILI_RESUME_SOURCE=true` 重启一次即可恢复 |
+| 投递口径 | 首次订阅只记录基线、不补发历史；`待发` 含 `pending`/`retry`；`送达未知` 不自动重发 |
+| 卡片头像 | 取动态自带的 UP 头像（只允许 `https://*.hdslb.com`，≤2 MiB，5 秒超时）；下载或解码失败时卡片不带头像，仍然正常推送 |
+
+面板与插件版本必须一致：状态库 `user_version` 不是 31 时面板直接报错，不猜字段。部署后检查：
+
+```bash
+cd nonebot && python -m pytest tests -q -k bilibili_panel
+systemctl restart qqbot-dashboard && systemctl is-active qqbot-dashboard
+curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8092/api/bilibili   # 未登录应为 401
+```
+
+2026-11-17 已在测试服务器完成部署，并修正侧栏与内容顺序不一致（「表情包」卡片在实际内容里排在「运行状态」前面）；面板、只读读取真实状态库与侧栏顺序均已验证。
 
 ## 9. 上线前检查
 

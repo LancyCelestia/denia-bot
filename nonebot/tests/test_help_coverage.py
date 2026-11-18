@@ -97,7 +97,7 @@ class HelpCoverageTest(unittest.TestCase):
             '天气', '天气预报',
             '群话题 查看', '群话题 开',
             '记忆 查看', '记忆 忘记', '记忆 纠正',
-            '查看状态', '状态卡', '状态卡诊断', '测试通知', '立即检测', '预览日报', '预览周报',
+            '查看状态', '状态卡', '查看集群状态', '状态卡诊断', '测试通知', '立即检测', '预览日报', '预览周报',
             '地震列表', '气象预警', '台风', '海啸', '灾害源状态',
         )
         missing = [cmd for cmd in expected if not self.covered(cmd)]
@@ -111,7 +111,7 @@ class HelpCoverageTest(unittest.TestCase):
     def test_admin_commands_are_marked(self):
         """只有主人能用的指令，说明里要写清楚，否则普通群友会反复试。"""
         admin_only = ('限流 查看', '模型 查看', '开启解析', '关闭解析', 'blogin',
-                      '查看状态', '预览日报')
+                      '查看状态', '查看集群状态', '预览日报')
         for command in admin_only:
             self.assertIn('主人', self.describe(command), f'{command} 应标注仅主人可用')
 
