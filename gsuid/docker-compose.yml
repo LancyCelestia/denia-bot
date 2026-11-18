@@ -1,0 +1,31 @@
+# 可选：用 Docker 运行 gsuid_core（替代 `cd core && uv run core`，不要同时用）。
+#
+# 前置：先运行 `../install.sh` 或 `../install.ps1`，把 core 与插件按 pin 克隆到
+# `gsuid/core`；本文件只使用上游 Dockerfile 构建镜像并挂载该目录，不复制上游代码。
+# 用法：cd gsuid && docker compose up -d --build
+services:
+  gsuid_core:
+    build:
+      context: ./core
+      target: ${GSCORE_BUILD_TARGET:-runtime}
+    image: gsuid-core:local
+    container_name: gsuid_core
+    ports:
+      # 只映射到回环地址；不要改成 0.0.0.0 直接暴露 8765
+      - "127.0.0.1:${GSUID_PORT:-8765}:8765"
+    volumes:
+      - ./core:/gsuid_core
+      - gsuid_venv:/venv
+    environment:
+      - PYTHONUNBUFFERED=1
+      - TZ=Asia/Shanghai
+      - GSCORE_PYTHON_INDEX=${GSCORE_PYTHON_INDEX:-https://pypi.org/simple}
+      # 上游入口用 uv 装插件依赖，实际读取 UV_DEFAULT_INDEX
+      - UV_DEFAULT_INDEX=${GSCORE_PYTHON_INDEX:-https://pypi.org/simple}
+    restart: unless-stopped
+    extra_hosts:
+      # 让容器内的 RemoteRender / 代理能回连宿主机
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  gsuid_venv:

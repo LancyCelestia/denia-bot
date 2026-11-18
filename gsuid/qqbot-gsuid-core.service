@@ -1,0 +1,19 @@
+[Unit]
+Description=gsuid_core game query backend for denia-bot
+Documentation=https://docs.sayu-bot.com
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/qqbot/gsuid/core
+Environment=PYTHONUNBUFFERED=1
+# 监听局域网：WebConsole 为 http://<服务器IP>:8765/app；WS 由 WS_TOKEN 保护。
+# 若只从本机使用，把 --host 改成 127.0.0.1。
+ExecStart=/opt/qqbot/gsuid/core/.venv/bin/python -m gsuid_core.core --host 0.0.0.0
+Restart=on-failure
+RestartSec=5
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
