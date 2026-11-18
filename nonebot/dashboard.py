@@ -9,7 +9,9 @@ import time
 from pathlib import Path
 from urllib.parse import urlsplit
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response
+import bilibili_panel
+import meme_logic
 import memory_logic as memory
 import group_topics_logic as topics
 import weather_service as weather
@@ -24,6 +26,7 @@ import disaster_store as disaster_store_mod
 import master_settings
 import parser_settings
 import status_collect as status_live
+import status_cluster as status_cluster_mod
 import status_config as status_config_mod
 import status_grafana as status_grafana_mod
 import status_store as status_store_mod
@@ -34,6 +37,7 @@ ROOT = Path(__file__).resolve().parent
 AUTH_FILE = ROOT / 'data' / 'dashboard-auth.json'
 attempts = {}
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+meme_library = meme_logic.Library()
 monitor = Monitor()
 restart_worker = Restart(monitor)
 restart_controller = RestartController(restart_worker)
@@ -136,6 +140,81 @@ def mutate(req, allow_change=False):
     origin = req.headers.get('origin','')
     if req.headers.get('x-csrf-token') != token or not origin or urlsplit(origin).netloc != req.headers.get('host'):
         raise HTTPException(403, '请求来源无效')
+
+
+@app.get('/api/memes')
+def get_memes(req: Request):
+    authorized(req)
+    categories = meme_library.categories()
+    for category in categories:
+        category['images'] = meme_library.images(category['id'])
+    return {'categories': categories, 'rules': meme_library.rules()}
+
+
+@app.post('/api/memes/category')
+async def save_meme_category(req: Request):
+    mutate(req)
+    body = await req.json()
+    try:
+        return {'id': meme_library.put_category(body.get('name', ''), body.get('description', ''), body.get('id'))}
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+
+
+@app.post('/api/memes/category/delete')
+async def delete_meme_category(req: Request):
+    mutate(req)
+    body = await req.json()
+    try:
+        meme_library.delete_category(body.get('id', ''))
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    return {'ok': True}
+
+
+@app.post('/api/memes/image')
+async def upload_meme_image(req: Request, category: str):
+    mutate(req)
+    content = bytearray()
+    async for chunk in req.stream():
+        content.extend(chunk)
+        if len(content) > meme_logic.MAX_IMAGE_BYTES:
+            raise HTTPException(413, '图片大小须在 5 MB 以内')
+    try:
+        return {'id': meme_library.add_image(category, bytes(content))}
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+
+
+@app.get('/api/memes/image/{image_id}')
+def get_meme_image(req: Request, image_id: str):
+    authorized(req)
+    try:
+        content, mime = meme_library.image_info(image_id)
+    except ValueError as e:
+        raise HTTPException(404, str(e)) from e
+    return Response(content, media_type=mime, headers={'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff'})
+
+
+@app.post('/api/memes/image/delete')
+async def delete_meme_image(req: Request):
+    mutate(req)
+    body = await req.json()
+    try:
+        meme_library.delete_image(body.get('id', ''))
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    return {'ok': True}
+
+
+@app.post('/api/memes/rules')
+async def save_meme_rules(req: Request):
+    mutate(req)
+    body = await req.json()
+    try:
+        return meme_library.set_rules(body.get('enabled'), body.get('disabled_scopes'))
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
 
 @app.get('/', response_class=HTMLResponse)
 def index():
@@ -599,6 +678,76 @@ async def test_status_grafana(req: Request):
     return {'ok': True, **result}
 
 
+@app.post('/api/status/cluster/test')
+async def test_status_cluster(req: Request):
+    """用面板当前填写的集群参数试查一次，不保存。
+
+    集群查询永远绕开缓存：面板按键就是用来验证「刚填的 bucket/窗口对不对」的。
+    任意异常（bucket 非法、Grafana 报错、超时）都收成 `{ok:false}`，让前端提示
+    原文，而不是抛 500。
+    """
+    mutate(req)
+    body = await req.json()
+    config = status_config_mod.load_config(status_paths()[0])
+    payload = body if isinstance(body, dict) else {}
+    patch = {}
+    token = ''
+    cluster_patch = payload.get('cluster')
+    if isinstance(cluster_patch, dict):
+        patch['cluster'] = dict(cluster_patch)
+    grafana_patch = payload.get('grafana')
+    if isinstance(grafana_patch, dict):
+        patch['grafana'] = {key: value for key, value in grafana_patch.items() if key != 'token'}
+        token = str(grafana_patch.get('token') or '').strip()
+    merged = status_config_mod.apply_patch(config, patch) if patch else config
+    cluster_settings = dict(merged.get('cluster') or {})
+    grafana_settings = dict(merged.get('grafana') or {})
+    # 测试按钮不受「启用」开关限制：关着也能先验证查询能不能通。
+    cluster_settings['enabled'] = True
+    grafana_settings['enabled'] = True
+    token = token or status_grafana_mod.load_secret(ROOT)
+    if not token:
+        return {'ok': False, 'error': '未配置 Grafana API Key'}
+    try:
+        view = status_cluster_mod.fetch(
+            cluster_settings, grafana_settings, root=ROOT, token=token, use_cache=False
+        )
+    except Exception as exc:
+        return {'ok': False, 'error': str(exc) or type(exc).__name__}
+    items = view if isinstance(view, dict) else {}
+    return {
+        'ok': True,
+        'title': items.get('title') or '',
+        'summary': items.get('summary') or {},
+        'nodes': [
+            {
+                'name': str(item.get('name') or ''),
+                'cpu_text': str(item.get('cpu_text') or ''),
+                'memory_text': str(item.get('memory_text') or ''),
+            }
+            for item in items.get('nodes') or []
+            if isinstance(item, dict)
+        ],
+        'guests': [
+            {
+                'vmid': item.get('vmid'),
+                'name': str(item.get('name') or ''),
+                'status_label': str(item.get('status_label') or ''),
+            }
+            for item in items.get('guests') or []
+            if isinstance(item, dict)
+        ],
+        'storages': [
+            {
+                'name': str(item.get('name') or ''),
+                'percent_text': str(item.get('percent_text') or ''),
+            }
+            for item in items.get('storages') or []
+            if isinstance(item, dict)
+        ],
+    }
+
+
 # ---------------------------------------------------------------- 超级管理员
 # 名单落在 data/superusers.json，机器人进程启动时加载、之后每 30 秒按 mtime
 # 热应用。面板与机器人是两个进程，只有这个文件是它们之间的唯一契约。
@@ -638,5 +787,6 @@ async def set_superusers(req: Request):
 
 app.include_router(game_event_panel.router(authorized, mutate))
 
+bilibili_panel.register(app, authorized=authorized, root=ROOT)
 endfield_panel.register(app, authorized=authorized, mutate=mutate, root=ROOT)
 embedding_panel.register(app, authorized=authorized, mutate=mutate, root=ROOT)
