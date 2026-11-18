@@ -42,7 +42,9 @@ class Service:
         try:
             if not valid:raise BiliError('INVALID_ARGUMENT')
             if action in {'subscribe','unsubscribe'} and not is_owner:raise BiliError('NOT_OWNER')
-            if not self.allowed(scope):raise BiliError('TARGET_DISABLED')
+            # 接收目标管的是「往哪里投递」：新建订阅会绑定投递，必须在清单里；
+            # 搜索/选择/列表都只是会话内即时回复，不产生投递义务，任何会话可用。
+            if action=='subscribe' and not self.allowed(scope):raise BiliError('TARGET_DISABLED')
             await asyncio.wait_for(self.lock.acquire(),1)
             acquired=True
             self.store.require()
@@ -152,7 +154,9 @@ class Service:
                 self._sync_source_stop()
                 self.store.require()
                 if self.store.source_stopped:return
-                rows=self.store.subscriptions()
+                # 接收目标之外的历史订阅按休眠处理：不检查、不投递，省下 API 配额。
+                rows=[r for r in self.store.subscriptions()
+                      if self.allowed(Scope(r['bot'],r['kind'],r['target']))]
                 try:
                     await asyncio.wait_for(self._scan_round(rows),self.scan_budget)
                 except asyncio.TimeoutError:

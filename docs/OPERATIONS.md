@@ -328,7 +328,7 @@ journalctl -u qqbot -n 80 --no-pager | grep -i epic
 | 项 | 说明 |
 |---|---|
 | 命令 | `.b站订阅 <UID>` / `.b站退订 <UID>`（仅主人）、`.b站订阅列表`、`.b站搜索 <关键词>`、`.b站选 <序号>` |
-| 接收目标 | `.env` 的 `BILI_TARGETS`（`bot:group:id` / `bot:private:id` 的 JSON 数组）；面板会标出不在目标里的会话，这类订阅不会检查也不会投递 |
+| 接收目标 | `.env` 的 `BILI_TARGETS`（`bot:group:id` / `bot:private:id` 的 JSON 数组）；只有目标里的会话能新建订阅并收到投递，目标外的历史订阅休眠（不检查也不投递，面板会标出）。`.b站搜索` / `.b站选` / `.b站订阅列表` 只是会话内即时回复、不产生投递，任何会话都能用 |
 | 面板读取的配置 | `BILI_ENABLED`、`BILI_INTERVAL`、`BILI_TARGETS`、`BILI_STATE_FILE`；先看进程环境，再看 `nonebot/.env` |
 | 状态库 | `state.sqlite3`（`user_version=31`）+ `state.sqlite3.lock`（机器人独占）；随机器人数据一起备份 |
 | 来源暂停 | 命中 B站 403/412/429 时机器人写入 `source_stop`，面板显示「来源已暂停」；确认后把 `BILI_RESUME_SOURCE=true` 重启一次即可恢复 |
