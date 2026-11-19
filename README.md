@@ -250,6 +250,7 @@ cp configs/templates.yml.example configs/templates.yml
 | 协议端连接、OneBot token、`SUPERUSERS`、机器人自身 QQ、显示名、gsuid 连接 | `nonebot/.env.example` | `nonebot/.env` |
 | 模型地址、模型名、API Key、首选／备用模型 | `nonebot/configs/models.yml.example` | `nonebot/configs/models.yml` |
 | 人格模板、称呼、主人别名 | `nonebot/configs/templates.yml.example` | `nonebot/configs/templates.yml` |
+| 面板加载的当前人格正文 | — | `nonebot/templates/current.jinja2`（Git 忽略，`git pull` 保留；需随数据备份） |
 | 本机私有覆盖值（优先级高于 `.env`） | — | `local/bot.env` |
 | 管理面板保存的功能配置、密钥、状态库和上传图片 | — | `nonebot/data/` |
 | gsuid_core 的 `WS_TOKEN`、账号绑定和插件配置 | `gsuid/core/.env.example`（安装后生成） | `gsuid/core/data/` |
@@ -272,7 +273,7 @@ python dashboard.py --init     # 已有认证文件时提示并退出，不会�
 python -m pytest tests -q
 ```
 
-重启机器人及面板使代码生效；配置文件的修改方式见上一节。升级前先备份 `nonebot/data/`、`nonebot/.env`、`gsuid/core/data/`（如果启用游戏查询）；不要把备份复制回仓库。需要全新目录时用 `git clone` 或 `git worktree add`，再从旧目录只复制上表列出的被忽略文件与数据。
+重启机器人及面板使代码生效；配置文件的修改方式见上一节。升级前先备份 `nonebot/data/`、`nonebot/.env`、`nonebot/templates/current.jinja2`、`gsuid/core/data/`（如果启用游戏查询）；不要把备份复制回仓库。需要全新目录时用 `git clone` 或 `git worktree add`，再从旧目录只复制上表列出的被忽略文件与数据。
 
 ### 历史与轮换
 
