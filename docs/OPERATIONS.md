@@ -455,6 +455,7 @@ journalctl -u qqbot -n 80 --no-pager | grep -i epic
 | 来源暂停 | 命中 B站 403/412/429 时机器人写入 `source_stop`，面板显示「来源已暂停」；确认后把 `BILI_RESUME_SOURCE=true` 重启一次即可恢复 |
 | 投递口径 | 首次订阅只记录基线、不补发历史；`待发` 含 `pending`/`retry`；`送达未知` 不自动重发 |
 | 卡片头像 | 取动态自带的 UP 头像（只允许 `https://*.hdslb.com`，≤2 MiB，5 秒超时）；下载或解码失败时卡片不带头像，仍然正常推送 |
+| 视频动态封面 | 视频动态额外取 `archive.cover`，在标题下方绘制视频封面（只允许 `.hdslb.com`，≤6 MiB，5 秒超时）；失败时退回纯文字卡片，不影响投递|
 
 面板与插件版本必须一致：状态库 `user_version` 不是 31 时面板直接报错，不猜字段。部署后检查：
 

@@ -1,4 +1,5 @@
 """Local-network administrator console for bot data."""
+import asyncio
 import hashlib
 import hmac
 import json
@@ -10,7 +11,9 @@ from pathlib import Path
 from urllib.parse import urlsplit
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, Response
+import app_version
 import bilibili_panel
+import bot_updater
 import bot_identity
 import meme_logic
 import memory_logic as memory
@@ -42,6 +45,7 @@ meme_library = meme_logic.Library()
 monitor = Monitor()
 restart_worker = Restart(monitor)
 restart_controller = RestartController(restart_worker)
+updater = bot_updater.BotUpdater()
 
 INITIAL_PASSWORD_FILE = 'dashboard-initial-password'
 """首次初始化时写入一次性明文密码的文件名（与认证文件同目录）。"""
@@ -260,7 +264,8 @@ async def save_meme_rules(req: Request):
 
 @app.get('/', response_class=HTMLResponse)
 def index():
-    return (ROOT / 'dashboard.html').read_text(encoding='utf-8')
+    html = (ROOT / 'dashboard.html').read_text(encoding='utf-8')
+    return html.replace('{{APP_VERSION}}', app_version.VERSION)
 
 @app.post('/api/login')
 async def login(req: Request):
@@ -385,6 +390,60 @@ async def bot_restart(req: Request):
     if not restart_worker.available: raise HTTPException(503, '当前环境不支持自动重启')
     if not await restart_controller.start(): raise HTTPException(409, '机器人正在重启，请等待启动完成')
     return {'ok':True}
+
+def update_error(exc: bot_updater.UpdateError):
+    """把 Git 错误变成稳定、可展示的 HTTP 状态。"""
+    if exc.code in {'LOCAL_CHANGES', 'DIVERGED', 'NO_UPSTREAM'}:
+        raise HTTPException(409, str(exc))
+    if exc.code == 'TIMEOUT':
+        raise HTTPException(504, str(exc))
+    raise HTTPException(503, str(exc))
+
+def update_view(result):
+    return {
+        'version': app_version.VERSION,
+        'restart_available': restart_worker.available,
+        **result,
+    }
+
+@app.get('/api/update')
+def update_status(req: Request):
+    authorized(req)
+    return update_view(updater.status())
+
+@app.post('/api/update')
+async def update_bot(req: Request):
+    mutate(req)
+    body = await req.json()
+    if not isinstance(body, dict) or body.get('action') not in {'check', 'apply'}:
+        raise HTTPException(400, '更新动作无效')
+    if body['action'] == 'check':
+        try:
+            result = await asyncio.to_thread(updater.check)
+        except bot_updater.UpdateError as exc:
+            update_error(exc)
+        return update_view(result)
+    if not restart_worker.available:
+        raise HTTPException(503, '当前环境不支持自动重启，已阻止更新')
+    if restart_controller.running:
+        raise HTTPException(409, '机器人正在重启，请等待启动完成')
+    try:
+        result = await asyncio.to_thread(updater.apply)
+    except bot_updater.UpdateError as exc:
+        update_error(exc)
+    if not result.get('updated'):
+        return update_view(result)
+    if not await restart_controller.start():
+        raise HTTPException(409, '代码已更新，但机器人正在重启；请等待启动完成后手动检查')
+    result['restart_started'] = True
+    warnings = []
+    if result.get('requirements_changed'):
+        warnings.append('requirements.lock 已变化，请确认依赖已更新后再使用新版本')
+    if result.get('migration_changed'):
+        warnings.append('数据库迁移脚本已变化，请确认迁移已完成')
+    if warnings:
+        result['warning'] = '；'.join(warnings)
+    return JSONResponse(status_code=202, content=update_view(result))
 
 @app.get('/api/user/{uid}')
 def user(uid: str, req: Request):
