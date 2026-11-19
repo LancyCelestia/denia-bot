@@ -557,7 +557,7 @@ Windows 上使用 `tools\启动所有.bat` / `tools\停止所有.bat` 启停；�
 - 启动前检查 8080：已有机器人在跑时不会重复拉起第二个 NoneBot 实例，而是提示先停止。
 - 启动前清理 `NO_PROXY` 中的 IPv6 回环条目（`::1` / `[::1]`），其他条目原样保留；机器人进程启动时也会做同样清理，避免本机回环请求被系统代理拦住。
 - 启动横幅和结尾的 connection info 都会打印管理面板地址，默认 `http://127.0.0.1:8092`；设置了 `DASHBOARD_HOST` / `DASHBOARD_PORT` 就照实显示。面板是独立进程，脚本只显示地址、不启动它，按 README 的命令在 `nonebot` 目录单独启动。
-- 兼容用的 `.ps1` 必须存成带 UTF-8 BOM，否则 PowerShell 5.1 按 GBK 解析中文会报「字符串缺少终止符」。
+- 含中文的 `.ps1` 必须存成带 UTF-8 BOM，否则 PowerShell 5.1 按 GBK 解析中文会报「字符串缺少终止符」；`tools\startup-preflight.ps1` 保持 ASCII-only，避免依赖 BOM。
 - 直接运行 `tools\启动所有.bat` 或 `tools\启动所有.ps1` 失败时会暂停并等待 Enter；根目录 `启动机器人.bat` 不论成功失败都会保留控制台。需要自动化无人值守时，可设置 `QQBOT_NO_PAUSE=1`（PowerShell 也可传 `-NoPause`）。
 - 账号隔离仍用 `tools\只注入小号.py`（探针识别 PID 后只 load 小号）。
 
