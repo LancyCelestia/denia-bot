@@ -220,6 +220,13 @@ python serve.py --port 8091
 服务同时绑定 8091。`/reindex` 在云端服务上返回 409，必须离线构建并验证新索引，
 不能直接用本地模型索引替换云端索引。
 
+面板「知识库 Embedding」提供「重建 RAG 索引」按钮。按钮会先展示本次重建读取的
+`knowledge/` 下全部 `.md`/`.txt` 语料和可选的
+`rag/imports/character-profiles-*/chunks.jsonl`，点击后还会弹出二次确认。确认后
+后台调用 `rag/rebuild_index.py`：新索引写入同目录的临时重建目录，旧索引在构建期间
+继续服务；验证成功后停止 `qqbot-rag-cloud`、原子替换索引并重启，健康检查失败会
+自动回滚。重建会调用硅基流动 API，耗时和费用取决于语料规模，不要把它当成日常刷新。
+
 切换部署的原始文件备份在服务器 `/opt/qqbot/.deploy-embedding-siliconflow-20261101/backup/`。
 回退需先停止机器人和云端检索服务，再恢复备份的机器人记忆文件及面板文件、启用
 `qqbot-rag`，最后启动面板与机器人。回退前先检查这些文件是否有后续修改。

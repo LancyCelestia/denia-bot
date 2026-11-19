@@ -113,7 +113,7 @@
   </div>
   <div id="biliSessions"></div>
 </section>
-<section id="embedding" class="card"><div class="card-head"><div class="card-icon" aria-hidden="true">◈</div><div><h2>知识库 Embedding</h2><p class="section-description">硅基流动 · BAAI/bge-m3 · 只在这里配置 API Key</p></div></div><div class="controls"><input id="embeddingKey" type="password" autocomplete="new-password" aria-label="硅基流动 API Key" placeholder="sk-..."><button class="primary" onclick="run(saveEmbedding)">保存密钥</button><button onclick="run(loadEmbedding)">刷新状态</button><span id="embeddingState" class="hint" role="status"></span></div><p class="hint"><b>这里要填什么：</b>只填硅基流动 <b>API Key</b>（以 <code>sk-</code> 开头）；模型固定为 <code>BAAI/bge-m3</code>，接口固定为 <code>https://api.siliconflow.cn/v1/embeddings</code>，本面板不配置模型名或接口地址。密钥保存到 <code>nonebot/data/embedding_secrets.json</code>（权限 600，不回显），保存后下一次向量请求生效。</p><p class="hint"><b>还要保证：</b>RAG 检索服务在运行（默认 <code>http://127.0.0.1:8091</code>）；要改检索地址，在启动机器人的环境变量设置 <code>KB_RAG_URL</code>，不要填在这里。索引必须和 <code>BAAI/bge-m3</code> 匹配；换模型或提供商后要重建索引，不能只换 Key。使用本地 ONNX 检索时不需要在这里填 Key。</p></section>
+<section id="embedding" class="card"><div class="card-head"><div class="card-icon" aria-hidden="true">◈</div><div><h2>知识库 Embedding</h2><p class="section-description">硅基流动 · BAAI/bge-m3 · 只在这里配置 API Key</p></div></div><div class="controls"><input id="embeddingKey" type="password" autocomplete="new-password" aria-label="硅基流动 API Key" placeholder="sk-..."><button class="primary" onclick="run(saveEmbedding)">保存密钥</button><button onclick="run(loadEmbedding)">刷新状态</button><span id="embeddingState" class="hint" role="status"></span></div><p class="hint"><b>这里要填什么：</b>只填硅基流动 <b>API Key</b>（以 <code>sk-</code> 开头）；模型固定为 <code>BAAI/bge-m3</code>，接口固定为 <code>https://api.siliconflow.cn/v1/embeddings</code>，本面板不配置模型名或接口地址。密钥保存到 <code>nonebot/data/embedding_secrets.json</code>（权限 600，不回显），保存后下一次向量请求生效。</p><p class="hint"><b>还要保证：</b>RAG 检索服务在运行（默认 <code>http://127.0.0.1:8091</code>）；要改检索地址，在启动机器人的环境变量设置 <code>KB_RAG_URL</code>，不要填在这里。索引必须和 <code>BAAI/bge-m3</code> 匹配；换模型或提供商后要重建索引，不能只换 Key。使用本地 ONNX 检索时不需要在这里填 Key。</p><div class="subsection"><h3>RAG 索引重建</h3><p class="section-description">从下面的语料重新分块和生成 SiliconFlow 向量，不复用旧索引。会调用硅基流动 API，可能耗时并产生费用。</p><p class="hint"><b>重建语料：</b><span id="embeddingRebuildSources">读取中…</span></p><p class="hint"><b>当前索引：</b><code id="embeddingRebuildIndex">读取中…</code> · 服务：<code>qqbot-rag-cloud</code></p><div class="controls"><button id="embeddingRebuildButton" type="button" onclick="openEmbeddingRebuild()">重建 RAG 索引</button><span id="embeddingRebuildState" class="hint" role="status"></span></div><p class="hint">重建期间检索继续使用旧索引；新索引完成并验证后自动切换并重启 RAG 服务。</p></div></section><dialog id="embeddingRebuildDialog" class="confirm-dialog" aria-labelledby="embeddingRebuildTitle"><h2 id="embeddingRebuildTitle">确认重建 RAG 索引？</h2><p>以下语料将被重新分块和向量化：</p><ul id="embeddingRebuildDialogSources" class="list"></ul><p class="hint">当前索引：<code id="embeddingRebuildDialogIndex"></code></p><p class="hint">这会调用硅基流动 API，可能耗时并产生费用。完成前旧索引继续服务；完成后自动切换并重启 RAG 服务。</p><div class="confirm-actions"><button type="button" onclick="$('embeddingRebuildDialog').close()">取消</button><button id="embeddingRebuildConfirm" class="primary" type="button" onclick="startEmbeddingRebuild()">确认重建</button></div></dialog>
 <section id="renderer" class="card"><h2>图片渲染服务</h2><p class="section-description">所有卡片共用本机渲染服务，设置保存后立即生效。</p><div class="controls"><input id="rendererUrl" type="url" aria-label="统一渲染地址" placeholder="http://127.0.0.1:3100"><button id="rendererSave" onclick="run(saveRenderer)">保存地址</button><button onclick="run(loadRenderer)">检查状态</button></div><p id="rendererStatus" class="status"></p></section>
 <section id="disaster" class="card"><div class="card-head"><div class="card-icon" aria-hidden="true">⚠</div><div><h2>灾害预警</h2><p class="section-description">配置中国气象预警、台风、中国海啸与免鉴权地震附加；远程 Playwright 出图。令牌只保存在机器人数据目录，面板不回显明文。</p></div></div>
 <div class="weather-grid">
@@ -202,10 +202,42 @@ async function loadMemes(){
 }
 async function createMemeCategory(){run(async()=>{await api('/api/memes/category',{name:$('memeName').value,description:$('memeDescription').value});$('memeName').value='';$('memeDescription').value='';await loadMemes()})}
 async function saveMemeRules(){run(async()=>{await api('/api/memes/rules',{enabled:$('memeEnabled').checked,disabled_scopes:$('memeDisabledScopes').value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean)});$('memeSaved').textContent='已保存';await loadMemes()})}
-async function loadEmbedding(){let x=await api('/api/embedding');$('embeddingKey').value='';$('embeddingKey').placeholder=x.configured?'已配置，留空保持不变':'请输入 API Key';$('embeddingState').textContent=x.configured?`已配置 · ${x.provider||'SiliconFlow'} · ${x.model||'BAAI/bge-m3'}`:'未配置'}
+async function loadEmbedding(){let x=await api('/api/embedding');$('embeddingKey').value='';$('embeddingKey').placeholder=x.configured?'已配置，留空保持不变':'请输入 API Key';$('embeddingState').textContent=x.configured?`已配置 · ${x.provider||'SiliconFlow'} · ${x.model||'BAAI/bge-m3'}`:'未配置';await loadEmbeddingRebuild()}
+let embeddingRebuildTimer=null,embeddingRebuildSnapshot=null;
+async function loadEmbeddingRebuild(){
+  let x=await api('/api/embedding/rebuild');embeddingRebuildSnapshot=x;
+  let r=x.rebuild||{},sources=x.sources||[],label=sources.map(s=>s.name+(s.kind==='profile'?`（${s.chunks} 块）`:`（${formatSize(s.bytes)}）`)).join('；');
+  $('embeddingRebuildSources').textContent=sources.length?`${sources.length} 个来源：${label}`:'未找到 knowledge/ 下的 .md 或 .txt 语料';
+  $('embeddingRebuildIndex').textContent=x.active_index||'未检测到活动索引';
+  let running=r.state==='running';
+  $('embeddingRebuildButton').disabled=!x.configured||running||!sources.length;
+  let text;
+  if(!x.configured)text='请先保存硅基流动 API Key';
+  else if(running)text=`重建中…${r.total?` ${r.done||0}/${r.total}`:''}${r.message?` · ${r.message}`:''}`;
+  else if(r.state==='success')text=`已完成${r.total?` · ${r.total} 块`:''}${r.message?` · ${r.message}`:''}`;
+  else if(r.state==='failed')text=`失败：${r.message||'未知错误'}`;
+  else text='可重建';
+  $('embeddingRebuildState').textContent=text;
+  if(running){if(!embeddingRebuildTimer)embeddingRebuildTimer=setInterval(()=>loadEmbeddingRebuild().catch(()=>{}),5000)}
+  else if(embeddingRebuildTimer){clearInterval(embeddingRebuildTimer);embeddingRebuildTimer=null}
+}
+function openEmbeddingRebuild(){
+  let x=embeddingRebuildSnapshot;
+  if(!x||!x.configured||!x.sources?.length||x.rebuild?.state==='running')return;
+  let list=$('embeddingRebuildDialogSources');list.replaceChildren();
+  for(const s of x.sources){let li=document.createElement('li');li.textContent=s.name+(s.kind==='profile'?`（${s.chunks} 块）`:`（${formatSize(s.bytes)}）`);list.append(li)}
+  $('embeddingRebuildDialogIndex').textContent=x.active_index||'将在 rag/ 下创建新索引';
+  $('embeddingRebuildDialog').showModal()
+}
+async function startEmbeddingRebuild(){
+  $('embeddingRebuildDialog').close();$('embeddingRebuildConfirm').disabled=true;$('embeddingRebuildState').textContent='正在提交重建任务…';
+  try{await api('/api/embedding/rebuild',{confirm:true});notice('RAG 索引重建任务已启动');await loadEmbeddingRebuild()}
+  catch(e){notice(e.message);await loadEmbeddingRebuild()}
+  finally{$('embeddingRebuildConfirm').disabled=false}
+}
 async function saveEmbedding(){let key=$('embeddingKey').value.trim();if(!key)throw Error('请填写 API Key');await api('/api/embedding',{api_key:key});await loadEmbedding();$('embeddingState').textContent='已保存'}
 async function login(){run(async()=>{let x=await api('/api/login',{password:$('password').value});csrf=x.csrf;$('password').value='';$('login').hidden=true;if(x.must_change){$('changePassword').hidden=false;return}await enterApp()})}
-async function enterApp(){$('auth').hidden=true;$('app').hidden=false;await run(loadBotName);await loadBotStatus();startStatusPolling();await refresh();await loadMaster();await loadParser();await loadEvents();await loadTokens();await loadStatus();await loadSuperusers();await loadEpic();await run(loadRenderer);await run(loadDisaster);await run(loadGameEvents);await run(loadBilibili);await run(loadEmbedding);await run(loadMemes)}
+async function enterApp(){$('auth').hidden=true;$('app').hidden=false;await run(loadEmbedding);await run(loadBotName);await loadBotStatus();startStatusPolling();await refresh();await loadMaster();await loadParser();await loadEvents();await loadTokens();await loadStatus();await loadSuperusers();await loadEpic();await run(loadRenderer);await run(loadDisaster);await run(loadGameEvents);await run(loadBilibili);await run(loadMemes)}
 async function resumeSession(){try{let r=await fetch('/api/session');if(!r.ok)return;let x=await r.json();csrf=x.csrf;if(x.must_change)return;await enterApp()}catch(e){/* 未登录，停在登录框 */}}
 async function changePassword(){run(async()=>{let p=$('newPassword').value;if(p!==$('confirmPassword').value)throw Error('两次输入的密码不一致');await api('/api/password',{password:p});$('newPassword').value='';$('confirmPassword').value='';csrf='';$('changePassword').hidden=true;$('login').hidden=false;notice('密码已修改，请使用新密码登录')})}
 function options(id,items){let el=$(id),old=el.value;el.replaceChildren();items.forEach(x=>{let o=document.createElement('option');o.value=x.value;o.textContent=x.label;el.append(o)});if(items.some(x=>x.value===old))el.value=old}
