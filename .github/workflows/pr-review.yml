@@ -1,0 +1,33 @@
+name: PR review bot
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: Pull request number
+        required: true
+      comment_id:
+        description: Issue comment ID to reuse as the review body (optional)
+        required: false
+      body:
+        description: Review body when comment_id is empty (optional)
+        required: false
+
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Post review as github-actions[bot]
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ inputs.pr }}
+          COMMENT_ID: ${{ inputs.comment_id }}
+          BODY: ${{ inputs.body }}
+        run: python3 .github/scripts/pr_review.py
