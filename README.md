@@ -63,6 +63,7 @@ QQ 协议端 ── OneBot v11 反向 WebSocket ──> NoneBot2 + MuiceBot
 | `bilibili` | B站动态订阅：按会话订阅 UP 主动态并推送卡片（仅主人增删）、关键词搜索；逻辑在 `nonebot/bilibili/`，面板展示订阅与投递状态并可增删接收目标。详见 `docs/OPERATIONS.md` §8.10 |
 
 管理面板：`nonebot/dashboard.py`（FastAPI + 单页 HTML），提供群话题、天气推送、主人设置、B站动态接收目标等管理接口。
+侧边栏一次只显示一个栏目；直接打开 `/#persona` 可进入人格模板，浏览器前进、后退可切换栏目。切换栏目不会重新载入页面，也不会替你保存表单。
 另有 `bot_monitor.py` 做只读状态检查与串行重启。
 
 表情包在管理面板的「表情包」中添加分类、填写使用场景并上传图片。支持 PNG、JPEG、GIF、WebP，单张不超过 5 MB；空图库不会影响聊天。模型只在认为合适时选择分类；已有语义向量的图片可按对话匹配，其他情况随机选取。可关闭全部表情或按 `group:群号`、`private:QQ号` 禁用会话；设置与图片保存在 `nonebot/data/memes/library.sqlite3`，需随机器人数据一同备份。首次部署代码后需重启机器人及面板，之后图片与规则改动无需重启。

@@ -983,7 +983,32 @@ async function loadBilibili(){
     group.append(list);box.append(group);
   }
 }
-document.querySelectorAll('.nav-link[href^="#"]').forEach(link=>link.addEventListener('click',()=>{document.querySelectorAll('.nav-link[href^="#"]').forEach(item=>item.classList.toggle('active',item===link));if(link.getAttribute('href')==='#events')run(loadEvents);if(link.getAttribute('href')==='#tokens')run(loadTokens);if(link.getAttribute('href')==='#status')run(loadStatus);if(link.getAttribute('href')==='#superusers')run(loadSuperusers);if(link.getAttribute('href')==='#game-events')run(loadGameEvents);if(link.getAttribute('href')==='#epic')run(loadEpic);if(link.getAttribute('href')==='#bilibili')run(loadBilibili);if(link.getAttribute('href')==='#disaster')run(loadDisaster)}));
+const sectionLinks = Array.from(document.querySelectorAll('.nav-link[href^="#"]'));
+const sectionLoaders = new Map([
+  ['#events', loadEvents], ['#tokens', loadTokens], ['#status', loadStatus],
+  ['#superusers', loadSuperusers], ['#game-events', loadGameEvents],
+  ['#epic', loadEpic], ['#bilibili', loadBilibili], ['#disaster', loadDisaster],
+]);
+function showWorkspaceSection(refreshSection) {
+  const selected = sectionLinks.find(link => link.hash === location.hash) || sectionLinks[0];
+  for (const link of sectionLinks) {
+    const active = link === selected;
+    $(link.hash.slice(1)).hidden = !active;
+    link.classList.toggle('active', active);
+    if (active) link.setAttribute('aria-current', 'page');
+    else link.removeAttribute('aria-current');
+  }
+  const load = sectionLoaders.get(selected.hash);
+  if (refreshSection && load && !$('app').hidden) run(load);
+}
+window.addEventListener('hashchange', () => showWorkspaceSection(true));
+for (const link of sectionLinks) {
+  // A repeat click doesn't fire hashchange; keep the existing click-to-refresh behavior.
+  link.addEventListener('click', () => {
+    if (link.hash === location.hash) showWorkspaceSection(true);
+  });
+}
+showWorkspaceSection(false);
 async function logout(){if(gameJobTimer){clearTimeout(gameJobTimer);gameJobTimer=null}try{await api('/api/logout',{})}catch(e){}csrf='';if(statusTimer){clearInterval(statusTimer);statusTimer=null}$('app').hidden=true;$('auth').hidden=false;$('login').hidden=false;$('firstRun').hidden=true;notice('')}
 resumeSession();
 </script></html>
