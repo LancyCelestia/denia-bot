@@ -30,7 +30,7 @@
   <p class="hint" id="personaModels">—</p>
   <div class="subsection" id="personaEditor">
     <h3>编辑当前人格正文</h3>
-    <label class="parser-field" for="personaBody"><span>current.jinja2 原始 Jinja2 正文</span><textarea id="personaBody" rows="18" spellcheck="false" wrap="off" oninput="renderPersonaBodyMeta()" aria-describedby="personaBodyHint" placeholder="current.jinja2 尚未创建：请先在上方加载预设。" style="min-height:280px;font:12.5px/1.55 ui-monospace,SFMono-Regular,Consolas,'Courier New',monospace;white-space:pre;overflow:auto;tab-size:2"></textarea><small id="personaBodyMeta">正在读取…</small></label>
+    <label class="parser-field" for="personaBody"><span>current.jinja2 原始 Jinja2 正文</span><textarea id="personaBody" rows="18" spellcheck="false" wrap="off" disabled oninput="renderPersonaBodyMeta()" aria-describedby="personaBodyHint" placeholder="current.jinja2 尚未创建：请先在上方加载预设。" style="min-height:280px;font:12.5px/1.55 ui-monospace,SFMono-Regular,Consolas,'Courier New',monospace;white-space:pre;overflow:auto;tab-size:2"></textarea><small id="personaBodyMeta">正在读取…</small></label>
     <div class="parser-actions"><button id="personaBodySave" class="primary" type="button" onclick="run(savePersonaBody)" disabled>保存当前人格</button><button id="personaBodyReload" type="button" onclick="run(loadPersonaBody)" disabled>刷新编辑内容</button><span id="personaBodyState" class="hint" role="status"></span></div>
     <p class="hint" id="personaBodyHint">保存前会校验空内容、NUL、UTF-8、大小（≤128 KiB）和 Jinja2 语法，失败时保留原文件。正文每次回复都会重新读取，保存后下一条回复生效，无需重启；编辑正文不会修改 models.yml 或切换当前模型。</p>
   </div>
