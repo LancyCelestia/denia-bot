@@ -57,6 +57,8 @@ gsuid/data/
 # RAG 模型权重与索引：可由 knowledge/*.md 重建（见 README）
 rag/models/
 rag/index/
+rag/index-*/
+rag/imports/
 rag/.venv/
 rag/.venv-gpu/
 rag/.quant-eval/
