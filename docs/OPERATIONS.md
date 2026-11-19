@@ -9,7 +9,7 @@
 | SnowLuma（QQ 协议端） | 5099 WebUI / 6081 noVNC | Docker `qqbot-snowluma` | compose 环境变量 + `/opt/qqbot/snowluma/config` |
 | NoneBot2 + MuiceBot | 8080 | `python bot.py` | `nonebot/.env`、`nonebot/configs/models.yml` |
 | RAG 检索服务（可选） | 8091 | `rag/.venv/bin/python rag/serve.py` | 独立 venv；环境变量 `KB_GATE_MODE` 等，见 `rag/core.py`；索引 `rag/index/` |
-| 管理面板 | 8092 | `uvicorn dashboard:app` | `nonebot/data/dashboard-auth.json`（0600） |
+| 管理面板 | 8092 | `uvicorn dashboard:app` | `nonebot/data/dashboard-auth.json`（0600）；监听地址用 `DASHBOARD_HOST` / `DASHBOARD_PORT`（默认 `127.0.0.1:8092`） |
 | 模型网关 AxonHub（可选） | 8090 | 独立二进制 | `axonhub/config.yml` |
 | gsuid_core（可选） | 8765 | `cd gsuid/core && uv run core`，或 compose 服务 | `gsuid/core/data/config.json` |
 
@@ -24,6 +24,14 @@
 3. gsuid_core（启用游戏账号查询时）：先运行 `gsuid/install.sh` 完成安装；启动时 `cd gsuid/core && uv run core`（或 compose `docker compose up -d`）；**必须先于 NoneBot 启动**，否则适配器首连失败；core 启动后下一条消息会重试，必要时重启机器人
 4. NoneBot：`cd nonebot && ../.venv/bin/python bot.py`
 5. 面板：首次启动前先在 `nonebot/` 执行 `python dashboard.py --init`（生成认证文件与一次性密码，见 §8.0），再 `systemctl start qqbot-dashboard`（见 `nonebot/qqbot-dashboard.service`）。未初始化时面板可以启动，但登录必然返回 401。
+
+NoneBot 启动时会打印面板地址，首次部署不用再猜端口：
+
+```text
+[dashboard] 管理面板: http://127.0.0.1:8092（独立进程，需单独启动）
+```
+
+日志里的地址按 `DASHBOARD_HOST` / `DASHBOARD_PORT` 生成，未设置时是默认回环地址 `127.0.0.1:8092`（见 §8.0）。Linux 上看这一行：`journalctl -u qqbot -n 50 | grep dashboard`。
 
 Linux 常驻 gsuid_core：`sudo cp gsuid/qqbot-gsuid-core.service /etc/systemd/system/ && sudo systemctl enable --now qqbot-gsuid-core`；NoneBot 单元用 drop-in 增加 `After=qqbot-gsuid-core.service`。局域网 WebConsole 需要 core `HOST=0.0.0.0` 且只对本子网放行 TCP 8765；Windows 用 `tools\gsuid-局域网访问.ps1`，详见 `gsuid/README.md` §6.1。
 
@@ -259,6 +267,12 @@ python dashboard.py --init
 | 会话 | Cookie `admin_session`，8 小时；面板重启后仍然有效，改密后全部失效 |
 
 两个文件权限必须是 0600；Windows 上至少保证 `nonebot/data/` 不对其他用户共享。不要删除认证文件来「重置」面板——那会让面板回到未初始化状态，所有登录继续 401。
+
+面板默认地址是 `http://127.0.0.1:8092`。机器人与面板共用同一组进程环境变量 `DASHBOARD_HOST` / `DASHBOARD_PORT`（写在 `nonebot/.env` 里不会生效，systemd 用 `Environment=`，Windows 用系统环境变量或启动前 `set`）：
+
+- 两个变量都没设置时，`bot.py` 启动日志和 Windows 启动脚本都显示默认回环地址 `http://127.0.0.1:8092`。
+- 面板绑内网 IP 时（§10 的 systemd drop-in），把同样的 `Environment=` 也加到托管 `bot.py` 的单元（或启动它的 shell 环境）里，启动日志才会照实打印那个地址；只给面板单元设置时，机器人日志仍显示默认回环地址，面板本身按 drop-in 监听。
+- 面板是独立进程：`bot.py` 只在启动日志里打印地址，不会拉起面板；Windows 启停脚本同样只显示地址。
 
 ## 8.1 机器人显示名称
 
@@ -508,7 +522,7 @@ git clone <仓库地址> /opt/qqbot-new
 Environment=DASHBOARD_HOST=<部署机内网地址>
 ```
 
-改完执行 `systemctl daemon-reload && systemctl restart qqbot-dashboard`，再用 `systemctl show -p ExecStart` 核对实际监听地址。
+改完执行 `systemctl daemon-reload && systemctl restart qqbot-dashboard`，再用 `systemctl show -p ExecStart` 核对实际监听地址。想让 `bot.py` 的启动日志也打印这个地址，把同一行 `Environment=DASHBOARD_HOST=<部署机内网地址>` 加到机器人单元（`qqbot.service`）的 drop-in 里；不设置时日志显示默认 `127.0.0.1:8092`，不影响面板实际监听。
 
 ## 附录：Windows 单机（本机开发）
 
@@ -518,6 +532,7 @@ Windows 上使用 `tools\启动所有.bat` / `tools\停止所有.bat` 启停；�
 - 脚本按自身所在目录解析检出路径（`%~dp0`），检出放哪个盘都行；不要改回写死的绝对路径。
 - 启动前检查 8080：已有机器人在跑时不会重复拉起第二个 NoneBot 实例，而是提示先停止。
 - 启动前清理 `NO_PROXY` 中的 IPv6 回环条目（`::1` / `[::1]`），其他条目原样保留；机器人进程启动时也会做同样清理，避免本机回环请求被系统代理拦住。
+- 启动横幅和结尾的 connection info 都会打印管理面板地址，默认 `http://127.0.0.1:8092`；设置了 `DASHBOARD_HOST` / `DASHBOARD_PORT` 就照实显示。面板是独立进程，脚本只显示地址、不启动它，按 README 的命令在 `nonebot` 目录单独启动。
 - 兼容用的 `.ps1` 必须存成带 UTF-8 BOM，否则 PowerShell 5.1 按 GBK 解析中文会报「字符串缺少终止符」。
 - 账号隔离仍用 `tools\只注入小号.py`（探针识别 PID 后只 load 小号）。
 

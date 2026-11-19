@@ -135,6 +135,8 @@ python dashboard.py --init    # 首次部署：生成面板密码，只写认证
 python bot.py
 ```
 
+`python bot.py` 启动后，日志里会打印一行 `[dashboard] 管理面板: http://127.0.0.1:8092（独立进程，需单独启动）`。地址按 `DASHBOARD_HOST` / `DASHBOARD_PORT` 生成，未设置时就是默认回环地址；面板仍需按下面「管理面板单独启动」的命令另行启动。Linux 上可用 `journalctl -u qqbot -n 50 | grep dashboard` 查看。
+
 在 `.env` 中配置 `ONEBOT_ACCESS_TOKEN`、初始 `SUPERUSERS` 和监听地址；在 `configs/models.yml` 中配置模型地址、模型名和密钥。协议端的反向 WebSocket 地址指向 `ws://<机器人地址>:8080/onebot/v11/ws`，并使用相同的 OneBot token。初次运行后，超级管理员可在面板维护。
 
 `dashboard.py --init` 只创建 `nonebot/data/dashboard-auth.json`（0600，只存 scrypt 盐和哈希）并在同目录写一份 0600 的 `dashboard-initial-password`，明文密码只在终端显示这一次；加 `--password` 可指定初始密码（12–256 位），已有认证文件时拒绝覆盖。**没有初始化就启动面板，登录不会成功**：`POST /api/login` 返回 401「密码错误或后台尚未配置」，其他管理接口返回 401「请登录」。首次登录后必须修改密码，改完一次性密码文件和所有会话一起失效。
@@ -148,6 +150,8 @@ python bot.py
 ```bash
 uvicorn dashboard:app --host 127.0.0.1 --port 8092
 ```
+
+默认地址是 `http://127.0.0.1:8092`。需要绑内网 IP 或换端口时用进程环境变量 `DASHBOARD_HOST` / `DASHBOARD_PORT` 覆盖（写在 `.env` 里不生效；Linux systemd 通过 drop-in 注入，见运维手册 §10）；机器人启动日志读同一组变量，所以两个进程都配置时日志显示的地址与实际监听一致。
 
 面板配置、协议端连接、RAG、systemd 和故障排查见 [运维手册](docs/OPERATIONS.md) 与 [常见问题](docs/PITFALLS.md)。远程访问建议使用 SSH 隧道或受保护的 HTTPS 反向代理。
 
@@ -171,7 +175,7 @@ python serve.py --port 8091
 
 ## Windows 本机（开发）
 
-Windows 上使用 `tools\启动所有.bat` / `tools\停止所有.bat` 启停；根目录的 `启动机器人.bat` / `停止机器人.bat` 只是调用它们的薄入口。脚本按自身位置解析检出目录，启动前检查 8080 是否已有实例，并清理 `NO_PROXY` 中无法识别的 IPv6 回环条目（`::1` / `[::1]`），避免本机回环请求被系统代理或代理例外规则拦住。它们是本机开发/调试入口；生产部署仍走 Linux + systemd。
+Windows 上使用 `tools\启动所有.bat` / `tools\停止所有.bat` 启停；根目录的 `启动机器人.bat` / `停止机器人.bat` 只是调用它们的薄入口。脚本按自身位置解析检出目录，启动前检查 8080 是否已有实例，并清理 `NO_PROXY` 中无法识别的 IPv6 回环条目（`::1` / `[::1]`），避免本机回环请求被系统代理或代理例外规则拦住。启动横幅和结尾的 connection info 都会打印管理面板地址（默认 `http://127.0.0.1:8092`，设置了 `DASHBOARD_HOST` / `DASHBOARD_PORT` 就照实显示）；面板是独立进程，仍需按上面的命令单独启动。它们是本机开发/调试入口；生产部署仍走 Linux + systemd。
 
 ## 功能说明
 

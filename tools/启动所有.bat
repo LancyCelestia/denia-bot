@@ -37,10 +37,24 @@ if not defined BOT_UIN call :read_self_id "%ROOT%\nonebot\.env"
 if defined BOT_UIN set "BOT_UIN=%BOT_UIN:"=%"
 if defined BOT_UIN set "BOT_UIN=%BOT_UIN: =%"
 
+rem ---------- admin dashboard address (display only) ----------
+rem The panel is a separate process; this script does not start it.
+rem Default is loopback 127.0.0.1:8092. DASHBOARD_HOST / DASHBOARD_PORT
+rem (the same variables the dashboard service uses) override the shown
+rem address. A wildcard bind is shown as the local loopback entry point.
+set "DASH_HOST=%DASHBOARD_HOST%"
+if not defined DASH_HOST set "DASH_HOST=127.0.0.1"
+if "%DASH_HOST%"=="0.0.0.0" set "DASH_HOST=127.0.0.1"
+if "%DASH_HOST%"=="::" set "DASH_HOST=127.0.0.1"
+if "%DASH_HOST:~0,1%"==":" set "DASH_HOST=[%DASH_HOST%]"
+set "DASH_PORT=%DASHBOARD_PORT%"
+if not defined DASH_PORT set "DASH_PORT=8092"
+
 echo ==========================================
 echo   QQ bot start (SnowLuma + NoneBot2 + gsuid_core)
 echo ==========================================
 echo   Repo root: %ROOT%
+echo   Admin panel URL: http://%DASH_HOST%:%DASH_PORT%  (separate process)
 echo.
 
 if not exist "%ROOT%\nonebot\bot.py" goto :not_checkout
@@ -226,6 +240,7 @@ if "%GS_EXPECT%%GS_READY%"=="10" echo   [!!] gsuid_core not ready (optional), se
 echo.
 echo ---------------- connection info ----------------
 echo   OneBot reverse WS : ws://127.0.0.1:8080/onebot/v11/ws
+echo   Admin dashboard   : http://%DASH_HOST%:%DASH_PORT%
 if defined BOT_UIN echo   Bot QQ            : %BOT_UIN%
 if not defined BOT_UIN echo   Bot QQ            : QQBOT_SELF_ID not configured
 echo   Stop services with the stop launcher in this repo root

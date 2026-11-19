@@ -47,6 +47,35 @@ def sanitize_proxy_environment(environ=None) -> list[str]:
 sanitize_proxy_environment()
 
 
+# 管理面板是独立进程（uvicorn dashboard:app），这里只打印地址，方便首次启动
+# 时知道去哪里打开面板。DASHBOARD_HOST / DASHBOARD_PORT 与面板服务用同一组
+# 变量；面板绑 0.0.0.0 / :: 时本机入口仍是回环地址，不打印通配地址误导用户。
+DASHBOARD_DEFAULT_HOST = '127.0.0.1'
+DASHBOARD_DEFAULT_PORT = 8092
+_DASHBOARD_WILDCARD_HOSTS = frozenset({'0.0.0.0', '::', '[::]'})
+
+
+def dashboard_address(environ=None) -> str:
+    """面板地址：DASHBOARD_HOST / DASHBOARD_PORT 优先，缺省 127.0.0.1:8092。"""
+    env = os.environ if environ is None else environ
+    host = (env.get('DASHBOARD_HOST') or '').strip() or DASHBOARD_DEFAULT_HOST
+    if host in _DASHBOARD_WILDCARD_HOSTS:
+        host = DASHBOARD_DEFAULT_HOST
+    elif ':' in host and not host.startswith('['):
+        host = f'[{host}]'
+    port = (env.get('DASHBOARD_PORT') or '').strip()
+    if not port.isdigit():
+        port = str(DASHBOARD_DEFAULT_PORT)
+    return f'http://{host}:{port}'
+
+
+def log_dashboard_address(logger=None) -> str:
+    """启动日志打印一次面板地址，返回同一地址。"""
+    address = dashboard_address()
+    (logger or nonebot.logger).info(f'[dashboard] 管理面板: {address}（独立进程，需单独启动）')
+    return address
+
+
 # 启动标识：面板重启通过 QQBOT_START_TOKEN 传入新令牌，必须优先采用；
 # 普通启动没有该变量，就生成一次进程级令牌，健康检查不再返回 null。
 def resolve_start_token(environ=None) -> str:
@@ -63,6 +92,10 @@ os.environ['OPENAI_CUSTOM_HEADERS'] = configure()
 
 # 初始化 NoneBot（读取 .env）
 nonebot.init(command_start={'.'})
+
+# 面板地址放在启动日志前段；只有真正执行入口时才打印，导入 bot.py 的测试不触发。
+if __name__ == '__main__':
+    log_dashboard_address()
 
 driver = nonebot.get_driver()
 
