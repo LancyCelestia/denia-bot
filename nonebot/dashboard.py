@@ -25,6 +25,7 @@ import render_settings
 import disaster_store as disaster_store_mod
 import master_settings
 import parser_settings
+import persona_settings
 import status_collect as status_live
 import status_cluster as status_cluster_mod
 import status_config as status_config_mod
@@ -422,6 +423,29 @@ async def change_bot_name(req: Request):
         raise HTTPException(400, str(e))
     except OSError:
         raise HTTPException(503, '机器人名称无法保存')
+
+@app.get('/api/persona')
+def persona_config(req: Request):
+    authorized(req)
+    try:
+        return persona_settings.public()
+    except (OSError, ValueError, KeyError):
+        raise HTTPException(503, '人格模板配置无法读取')
+
+@app.post('/api/persona')
+async def set_persona_config(req: Request):
+    mutate(req)
+    body = await req.json()
+    if not isinstance(body, dict):
+        raise HTTPException(400, '请求体必须是对象')
+    try:
+        return persona_settings.save(body.get('template'), body.get('scope', 'active'))
+    except persona_settings.Unpublished as e:
+        raise HTTPException(409, str(e))
+    except (ValueError, TypeError) as e:
+        raise HTTPException(400, str(e))
+    except OSError:
+        raise HTTPException(503, '人格模板配置无法保存')
 
 @app.get('/api/parser')
 def parser_config(req: Request):

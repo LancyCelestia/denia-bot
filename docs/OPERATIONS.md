@@ -75,6 +75,8 @@ SnowLuma 是**进程级注入**，同一 QQ 客户端里登录的所有号都会
 
 人格 = `nonebot/templates/<Name>.jinja2` + `nonebot/configs/templates.yml` 里的变量。
 
+管理面板「人格模板」可以直接切换模板：它列出 `nonebot/templates/` 下的文件、当前生效条目和解析出的绝对路径，并把 `template: <Name>` 写进 `configs/models.yml` 的生效条目（可选择同步全部条目）。保存走配置发布流程，原子替换并更新摘要，API Key、注释和其他条目保持原样；若 `models.yml` 有未发布的本地改动会拒绝保存。MuiceBot 的监视器不保证响应原子替换，保存后请重启机器人或私聊发送 `.model reload`。
+
 切人格只需三处：
 
 - `configs/templates.yml` 的 `ai_nickname` / `master_nickname` / `userinfos`
