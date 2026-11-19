@@ -75,12 +75,19 @@ SnowLuma 是**进程级注入**，同一 QQ 客户端里登录的所有号都会
 
 人格 = `nonebot/templates/<Name>.jinja2` + `nonebot/configs/templates.yml` 里的变量。
 
-管理面板「人格模板」可以直接切换模板：它列出 `nonebot/templates/` 下的文件、当前生效条目和解析出的绝对路径，并把 `template: <Name>` 写进 `configs/models.yml` 的生效条目（可选择同步全部条目）。保存走配置发布流程，原子替换并更新摘要，API Key、注释和其他条目保持原样；若 `models.yml` 有未发布的本地改动会拒绝保存。MuiceBot 的监视器不保证响应原子替换，保存后请重启机器人或私聊发送 `.model reload`。
+管理面板「人格模板」使用一个可持久演进的当前正文 `nonebot/templates/current.jinja2`：
 
-切人格只需三处：
+- 选择一个预设（`templates/` 下的 `*.jinja2`/`*.j2`，不含 `current`）后点「加载预设到 current.jinja2」：面板原子复制预设字节到 `current.jinja2`（权限 0600），再把 `configs/models.yml` 的 `template` 字段改成 `current`。预设文件本身不被修改。
+- `current.jinja2` 被 Git 忽略，`git pull --ff-only` 不会覆盖它，因此可以直接在面板里反复加载/手改正文；`Denia`/`Shorekeeper` 等跟踪预设随上游更新可能变化，只有主动加载才会复制新内容。
+- `git clean -fdx` 或重新克隆会删除 `current.jinja2`；迁移和备份必须单独带上它（见第 10 节清单）。
+- models.yml 的写入仍走配置发布流程，原子替换并更新摘要，API Key、注释和其他条目保持原样；若 `models.yml` 有未发布的本地改动会拒绝保存。复制/发布失败时会回滚旧的 `current.jinja2`。
+- 正文文件每次渲染都会重新读取，替换 `current.jinja2` 无需重启；只有 `template` 字段首次切换为 `current` 时，才需要重启机器人或私聊发送 `.model reload`。称呼和主人信息仍读 `configs/templates.yml`。
 
+人格相关文件：
+
+- `templates/current.jinja2`（当前正文；被 Git 忽略，需备份）或选定的 `templates/<Name>.jinja2` 预设
+- `configs/models.yml` 里每条模型的 `template: current`（或预设名）
 - `configs/templates.yml` 的 `ai_nickname` / `master_nickname` / `userinfos`
-- `configs/models.yml` 里每条模型的 `template: <Name>`
 - `.env` 的 `DEFAULT_TEMPLATE` 和 `MUICE_NICKNAMES`
 
 写人格的三个要点：
@@ -464,7 +471,7 @@ curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8092/api/bilibili   # 
 - [ ] 数据卷 `qqbot-qq-config` / `qqbot-qq-data` **绝对不能删**，删了要重新扫码
 - [ ] `sysctl kernel.yama.ptrace_scope` ≤ 2（= 3 会直接拒绝注入）
 - [ ] 给容器加 `mem_limit` / `cpus`
-- [ ] 备份：数据库、`gate.json`、`model_pref.json`、`rag/index`、`data/statuscard*`、`gsuid/core/data`（启用 gsuid_core 时含账号绑定与 `config.json`）
+- [ ] 备份：数据库、`gate.json`、`model_pref.json`、`nonebot/templates/current.jinja2`、`rag/index`、`data/statuscard*`、`gsuid/core/data`（启用 gsuid_core 时含账号绑定与 `config.json`）
 - [ ] 面板已执行 `python dashboard.py --init` 且首次密码已修改；`data/dashboard-auth.json` 权限为 0600，一次性密码文件 `data/dashboard-initial-password` 已删除
 - [ ] 启用 RAG 时：独立 venv 已装 `onnxruntime` 等依赖，索引已构建；本地与云端索引/向量没有混用
 - [ ] 状态卡默认已勾选「主机名」「进程信息」脱敏；公开群再加「网络数据」
@@ -478,6 +485,7 @@ curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8092/api/bilibili   # 
 | `nonebot/.env` | `nonebot/.env.example` | OneBot token、`SUPERUSERS`、`QQBOT_SELF_ID` 等 |
 | `nonebot/configs/models.yml` | `nonebot/configs/models.yml.example` | 模型地址与密钥 |
 | `nonebot/configs/templates.yml` | `nonebot/configs/templates.yml.example` | 人格配置；`userinfos` 含主人 QQ |
+| `nonebot/templates/current.jinja2` | — | 面板加载的当前人格正文；被 Git 忽略，`git pull` 保留，迁移必须单独复制 |
 | `nonebot/data/` | — | 运行时状态与凭据 |
 | `rag/index/`、`rag/models/` | — | 可重建的索引与模型权重；不随 Git 更新，迁移时复制可省去数小时重建 |
 | `local/bot.env` | — | 被 Git 忽略的本机私有值；`QQBOT_SELF_ID` 优先从这里读取 |

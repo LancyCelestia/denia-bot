@@ -439,6 +439,11 @@ async def set_persona_config(req: Request):
     if not isinstance(body, dict):
         raise HTTPException(400, '请求体必须是对象')
     try:
+        # ``preset`` is the durable flow: copy a tracked preset into
+        # templates/current.jinja2, then point models.yml at ``current``.
+        # ``template`` keeps the old direct-preset behavior for API callers.
+        if 'preset' in body:
+            return persona_settings.load_preset(body.get('preset'), body.get('scope', 'active'))
         return persona_settings.save(body.get('template'), body.get('scope', 'active'))
     except persona_settings.Unpublished as e:
         raise HTTPException(409, str(e))

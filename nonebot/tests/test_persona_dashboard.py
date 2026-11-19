@@ -63,10 +63,14 @@ def test_persona_requires_csrf_and_valid_template(panel):
     client = panel['client']
     headers = login(client)
     assert client.post('/api/persona', json={'template': 'Shorekeeper'}).status_code == 403
+    assert client.post('/api/persona', json={'preset': 'Shorekeeper'}).status_code == 403
 
     bad = client.post('/api/persona', json={'template': '../secret'}, headers=headers)
     assert bad.status_code == 400
+    bad_preset = client.post('/api/persona', json={'preset': '../secret'}, headers=headers)
+    assert bad_preset.status_code == 400
     assert client.post('/api/persona', json=[], headers=headers).status_code == 400
+    assert not (panel['templates'] / 'current.jinja2').exists()
     assert model_publication.read_published(panel['models']) == panel['models'].read_bytes()
 
 
@@ -104,3 +108,47 @@ def test_persona_refuses_unpublished_configuration(panel):
 
     assert response.status_code == 409
     assert panel['models'].read_bytes() == before
+
+
+def test_persona_loads_preset_into_current(panel):
+    client = panel['client']
+    headers = login(client)
+    preset_bytes = (panel['templates'] / 'Shorekeeper.jinja2').read_bytes()
+
+    response = client.post('/api/persona', json={'preset': 'Shorekeeper', 'scope': 'all'},
+                           headers=headers)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body['loaded_preset'] == 'Shorekeeper'
+    assert body['target_template'] == 'current'
+    assert body['restart_required'] is True
+    assert body['models_changed'] == ['relay', 'echo-test']
+    current = panel['templates'] / 'current.jinja2'
+    assert current.read_bytes() == preset_bytes
+    assert (panel['templates'] / 'Shorekeeper.jinja2').read_bytes() == preset_bytes
+    text = panel['models'].read_text(encoding='utf-8')
+    assert text.count('template: current') == 2
+    assert 'api_key: sk-secret-value' in text
+    assert model_publication.read_published(panel['models']) == panel['models'].read_bytes()
+
+    refreshed = client.get('/api/persona').json()
+    assert refreshed['resolved']['template'] == 'current'
+    assert refreshed['current']['exists'] is True
+    assert refreshed['current']['safe'] is True
+    assert {item['name'] for item in refreshed['templates']} == {'Denia', 'Shorekeeper'}
+
+
+def test_persona_second_load_needs_no_restart(panel):
+    client = panel['client']
+    headers = login(client)
+    first = client.post('/api/persona', json={'preset': 'Shorekeeper'}, headers=headers)
+    assert first.status_code == 200
+
+    second = client.post('/api/persona', json={'preset': 'Denia'}, headers=headers)
+
+    assert second.status_code == 200
+    body = second.json()
+    assert body['models_changed'] == []
+    assert body['restart_required'] is False
+    assert (panel['templates'] / 'current.jinja2').read_bytes() == b'denia'

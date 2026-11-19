@@ -20,14 +20,16 @@
   <p class="hint">只改显示名称，不改人格、唤醒词或模型设置；默认名称为「达妮娅」。名称最多 40 个字符。</p>
 </section>
 <section id="persona" class="card">
-  <div class="card-head"><div class="card-icon" aria-hidden="true">✎</div><div><h2>人格模板</h2><p class="section-description">选择 MuiceBot 加载的人格模板。保存会写入 <code>configs/models.yml</code> 的 <code>template</code> 字段并原子更新后台配置摘要；API Key、注释和其他设置保持原样。</p></div></div>
+  <div class="card-head"><div class="card-icon" aria-hidden="true">✎</div><div><h2>人格模板</h2><p class="section-description">选择一个预设并加载到 <code>nonebot/templates/current.jinja2</code>，再把 <code>configs/models.yml</code> 的 <code>template</code> 字段指向 <code>current</code>；预设文件本身不会被修改，API Key、注释和其他设置保持原样。</p></div></div>
   <div class="parser-grid">
-    <label class="parser-field"><span>人格模板</span><select id="personaTemplate" aria-label="人格模板"></select><small id="personaResolved">加载中…</small></label>
+    <label class="parser-field"><span>预设模板</span><select id="personaTemplate" aria-label="预设模板"></select><small id="personaResolved">加载中…</small></label>
     <label class="parser-field"><span>应用范围</span><select id="personaScope"><option value="active" selected>当前生效条目 + 默认条目（推荐）</option><option value="all">全部模型条目（切换或降级时也保持一致）</option></select><small>生效条目：<b id="personaActive">—</b>；默认条目：<b id="personaDefault">—</b>。来自 <code>data/model_pref.json</code> 的首选或 <code>models.yml</code> 的 <code>default</code>。</small></label>
   </div>
-  <div class="parser-actions"><button id="personaSave" class="primary" type="button" onclick="run(savePersona)" disabled>保存人格</button><button type="button" onclick="run(loadPersona)">刷新</button><span id="personaState" class="hint" role="status"></span></div>
+  <div class="parser-actions"><button id="personaSave" class="primary" type="button" onclick="run(savePersona)" disabled>加载预设到 current.jinja2</button><button type="button" onclick="run(loadPersona)">刷新</button><span id="personaState" class="hint" role="status"></span></div>
+  <p class="hint" id="personaCurrent">—</p>
   <p class="hint" id="personaModels">—</p>
-  <p class="hint"><b>生效方式：</b>MuiceBot 的配置监视器对原子替换不保证触发，保存后请重启机器人，或在主人私聊发送 <code>.model reload</code>；面板本身不需要重启。这里只换模板文件，称呼和主人信息仍读 <code>configs/templates.yml</code>。</p>
+  <p class="hint"><b>current.jinja2 说明：</b>当前人格正文保存在被 Git 忽略的 <code>nonebot/templates/current.jinja2</code>，<code>git pull</code> 不会覆盖它；它需要随迁移单独备份，<code>git clean -fdx</code> 或重新克隆会删除它。<code>Denia</code>／<code>Shorekeeper</code> 是可读预设，上游更新可能改变内容；加载预设只会复制一份，不会改动预设文件。</p>
+  <p class="hint"><b>生效方式：</b>正文文件每次渲染都会重新读取，替换 <code>current.jinja2</code> 无需重启；只有 <code>models.yml</code> 的 <code>template</code> 字段首次从预设切换为 <code>current</code> 时，才需要重启机器人或在主人私聊发送 <code>.model reload</code>。称呼和主人信息仍读 <code>configs/templates.yml</code>。</p>
 </section>
 <section id="account" class="card">
   <div class="card-head"><div class="card-icon" aria-hidden="true">⚿</div><div><h2>管理员密码</h2><p class="section-description">首次设置完成后，可在这里修改面板登录密码。保存后所有设备都需要用新密码重新登录；不会影响机器人配置或超级管理员名单。</p></div></div>
@@ -315,16 +317,18 @@ async function saveBotName(){run(async()=>{const name=$('botNameInput').value.tr
 async function loadPersona(){
   const data=await api('/api/persona');const select=$('personaTemplate');select.replaceChildren();
   for(const item of data.templates){const option=document.createElement('option');option.value=item.name;option.textContent=item.name+' · '+item.file;select.append(option)}
-  if(!data.templates.length){const option=document.createElement('option');option.value='';option.textContent='没有可用模板（templates/*.jinja2）';select.append(option)}
-  if(data.resolved.template)select.value=data.resolved.template;
+  if(!data.templates.length){const option=document.createElement('option');option.value='';option.textContent='没有可用预设（templates/*.jinja2）';select.append(option)}
+  if(data.resolved.template&&data.resolved.template!=='current')select.value=data.resolved.template;
   $('personaActive').textContent=data.active_model+(data.active_source==='model_pref'?'（模型首选）':'（默认条目）');
   $('personaDefault').textContent=data.default_model;
-  $('personaResolved').textContent=data.resolved.exists?('解析路径：'+data.resolved.path+(data.resolved.builtin?'（MuiceBot 内置）':'')):('未找到模板 '+(data.resolved.template||'')+' 的路径');
+  $('personaResolved').textContent=(data.resolved.exists?('生效模板：'+data.resolved.template+(data.resolved.template==='current'?'（当前正文）':'')+' → '+data.resolved.path+(data.resolved.builtin?'（MuiceBot 内置）':'')):('未找到模板 '+(data.resolved.template||'')+' 的路径'));
+  const current=data.current||{};const hash=current.sha256?current.sha256.slice(0,12):'—';
+  $('personaCurrent').textContent='current.jinja2：'+(current.path||'—')+(current.exists?(' · 已存在 · '+current.size+' 字节 · sha256 '+hash+' · 修改于 '+(current.modified||'—')+(current.safe?' · 内容可用':(' · 内容异常：'+(current.reason||'未知')))):(' · 尚未创建（'+(current.reason||'')+'）'));
   $('personaModels').textContent='模型条目：'+data.models.map(m=>m.name+(m.active?' · 生效':'')+(m.default?' · 默认':'')+' → '+(m.template||'未设置')+(m.template_source==='default_template'?'（DEFAULT_TEMPLATE 兜底）':'')+(m.template_mode?' · '+m.template_mode:'')).join('；');
   $('personaSave').disabled=!data.templates.length||!data.publication.published;
   $('personaState').textContent=data.publication.published?'当前配置已发布':'配置未发布，保存已锁定：请先核对 models.yml 并重新发布摘要';
 }
-async function savePersona(){run(async()=>{const template=$('personaTemplate').value;if(!template)throw Error('没有可用的人格模板');const data=await api('/api/persona',{template,scope:$('personaScope').value});await loadPersona();$('personaState').textContent='已保存 '+data.resolved.template+' · 重启机器人或发送 .model reload 后生效'})}
+async function savePersona(){run(async()=>{const preset=$('personaTemplate').value;if(!preset)throw Error('没有可用的人格预设');const data=await api('/api/persona',{preset,scope:$('personaScope').value});await loadPersona();$('personaState').textContent='已加载预设 '+preset+' 到 current.jinja2'+(data.restart_required?' · 模板字段已切换为 current，请发送 .model reload 或重启机器人':' · 正文已更新，无需重启')})}
 async function resetBotName(){run(async()=>{if(!confirm('恢复默认机器人名称「达妮娅」？'))return;const data=await api('/api/bot-name',{reset:true});$('botNameInput').value=data.name;applyBotName(data.name);const labels={file:'面板设置',env:'环境变量',default:'默认名称'};$('botNameState').textContent=`已恢复 · ${labels[data.source]||data.source||'未知'}`})}
 let tokenData=null;
 function formatTokens(n){n=Number(n)||0;if(n<1000)return String(n);if(n<1000000)return (n/1000).toFixed(1)+'K';return (n/1000000).toFixed(2)+'M'}

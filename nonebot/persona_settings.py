@@ -39,6 +39,13 @@ TEMPLATE_SUFFIXES = (".jinja2", ".j2")
 SCOPES = ("active", "all")
 NAME_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 
+# ``current.jinja2`` is user-owned and Git-ignored.  The panel copies a tracked
+# preset into it and points models.yml at ``current``; tracked presets are never
+# modified, so ``git pull`` can update them without touching the live persona.
+CURRENT_NAME = "current"
+CURRENT_FILENAME = f"{CURRENT_NAME}.jinja2"
+CURRENT_MODE = 0o600
+
 
 class Unpublished(ValueError):
     """The current models.yml was not approved, so the panel will not publish it."""
@@ -65,6 +72,8 @@ def list_templates(templates_dir=None) -> list[dict]:
             if not entry.is_file() or entry.suffix not in TEMPLATE_SUFFIXES:
                 continue
             name = entry.stem
+            if name == CURRENT_NAME:
+                continue
             if not NAME_PATTERN.fullmatch(name) or ".." in name:
                 continue
             stat = entry.stat()
@@ -158,6 +167,76 @@ def normalize_template(value, templates_dir=None) -> str:
     return name
 
 
+def _preset_source(name: str, templates_dir=None) -> Path:
+    """The tracked preset file behind a validated template name."""
+    base = _path(templates_dir, TEMPLATES_DIR)
+    try:
+        base = base.resolve()
+    except OSError as exc:
+        raise ValueError("templates 目录不可用") from exc
+    for suffix in TEMPLATE_SUFFIXES:
+        candidate = base / f"{name}{suffix}"
+        try:
+            if candidate.is_file() and candidate.resolve().parent == base:
+                return candidate.resolve()
+        except OSError:
+            continue
+    raise ValueError(f"人格模板 {name} 不在 templates 目录中")
+
+
+def _current_state(templates_dir=None) -> dict:
+    """Metadata for the user-owned ``current.jinja2`` body.
+
+    ``safe`` only means the panel could read a non-empty UTF-8 text file; it is
+    a readiness check, not a review of the persona content.
+    """
+    path = _path(templates_dir, TEMPLATES_DIR) / CURRENT_FILENAME
+    state = {
+        "name": CURRENT_NAME,
+        "file": CURRENT_FILENAME,
+        "path": str(path.resolve()),
+        "exists": False,
+        "sha256": "",
+        "size": 0,
+        "modified": "",
+        "mode": "",
+        "safe": False,
+        "reason": "current.jinja2 尚未创建",
+    }
+    try:
+        if not path.is_file():
+            if path.exists():
+                state["reason"] = "current.jinja2 不是普通文件"
+            return state
+        content = path.read_bytes()
+        stat = path.stat()
+    except OSError:
+        state["reason"] = "current.jinja2 无法读取"
+        return state
+
+    state.update({
+        "exists": True,
+        "sha256": hashlib.sha256(content).hexdigest(),
+        "size": stat.st_size,
+        "modified": time.strftime("%Y-%m-%d %H:%M", time.localtime(stat.st_mtime)),
+        "mode": oct(stat.st_mode & 0o777),
+    })
+    if not content.strip():
+        state["reason"] = "current.jinja2 内容为空"
+        return state
+    if b"\x00" in content:
+        state["reason"] = "current.jinja2 含 NUL 字节"
+        return state
+    try:
+        content.decode("utf-8")
+    except UnicodeDecodeError:
+        state["reason"] = "current.jinja2 不是 UTF-8 文本"
+        return state
+    state["safe"] = True
+    state["reason"] = ""
+    return state
+
+
 # ---------------------------------------------------------------- model config
 
 
@@ -240,6 +319,7 @@ def public(models_path=None, templates_dir=None, state_path=None) -> dict:
     active_template = next(item["template"] for item in models if item["active"])
     return {
         "templates": list_templates(templates_dir),
+        "current": _current_state(templates_dir),
         "models": models,
         "default_model": default,
         "active_model": active,
@@ -343,33 +423,66 @@ def _atomic_prepare(directory: Path, content: bytes) -> Path:
     return Path(temporary)
 
 
-def save(template, scope="active", *, models_path=None, templates_dir=None, state_path=None) -> dict:
-    """Validate and publish a persona change; return the refreshed panel view."""
-    name = normalize_template(template, templates_dir)
-    if scope not in SCOPES:
-        raise ValueError("应用范围无效")
+def _current_write(content: bytes, templates_dir=None) -> bytes | None:
+    """Atomically install ``content`` as ``current.jinja2``; return old bytes."""
+    base = _path(templates_dir, TEMPLATES_DIR)
+    base.mkdir(parents=True, exist_ok=True)
+    target = base / CURRENT_FILENAME
+    previous = target.read_bytes() if target.is_file() else None
+    prepared = _atomic_prepare(base, content)
+    try:
+        os.chmod(prepared, CURRENT_MODE)
+        os.replace(prepared, target)
+    finally:
+        prepared.unlink(missing_ok=True)
+    try:
+        os.chmod(target, CURRENT_MODE)
+    except OSError:
+        pass
+    return previous
 
-    path = _path(models_path, MODELS_PATH)
-    text, data = _read_models(path)
+
+def _current_restore(previous, templates_dir=None) -> None:
+    """Best-effort rollback so a failed models save leaves no half switch."""
+    base = _path(templates_dir, TEMPLATES_DIR)
+    target = base / CURRENT_FILENAME
+    try:
+        if previous is None:
+            target.unlink(missing_ok=True)
+            return
+        prepared = _atomic_prepare(base, previous)
+        try:
+            os.chmod(prepared, CURRENT_MODE)
+            os.replace(prepared, target)
+        finally:
+            prepared.unlink(missing_ok=True)
+        os.chmod(target, CURRENT_MODE)
+    except OSError:
+        pass
+
+
+def _require_published(path: Path) -> None:
+    if not publication_state(path)["published"]:
+        raise Unpublished(
+            "configs/models.yml 当前未发布（缺少或过期摘要），请先核对文件并用 "
+            "python -m model_publication --approve-existing 重新发布"
+        )
+
+
+def _publish_template(template, scope, path, text, data, templates_dir, state_path) -> tuple[dict, list[str]]:
+    """Rewrite the selected entries, publish models.yml, return view and targets."""
     default = _default_model(data)
     active, _ = _active_model(data, state_path)
     targets = list(data) if scope == "all" else [active]
     if scope == "active" and default != active:
         targets.append(default)
 
-    state = publication_state(path)
-    if not state["published"]:
-        raise Unpublished(
-            "configs/models.yml 当前未发布（缺少或过期摘要），请先核对文件并用 "
-            "python -m model_publication --approve-existing 重新发布"
-        )
-
-    rewritten = _rewrite_templates(text, targets, name)
+    rewritten = _rewrite_templates(text, targets, template)
     try:
         loaded = yaml.safe_load(rewritten)
     except yaml.YAMLError as exc:
         raise ValueError("人格模板写入后配置格式无效，已放弃保存") from exc
-    if loaded != _expected(data, targets, name):
+    if loaded != _expected(data, targets, template):
         raise ValueError("人格模板写入校验失败，已放弃保存")
 
     content = rewritten.encode("utf-8")
@@ -392,4 +505,59 @@ def save(template, scope="active", *, models_path=None, templates_dir=None, stat
         "revision": digest,
         "restart_required": True,
     })
+    return view, targets
+
+
+def save(template, scope="active", *, models_path=None, templates_dir=None, state_path=None) -> dict:
+    """Directly point models.yml at a tracked preset (backward-compatible API)."""
+    name = normalize_template(template, templates_dir)
+    if scope not in SCOPES:
+        raise ValueError("应用范围无效")
+
+    path = _path(models_path, MODELS_PATH)
+    text, data = _read_models(path)
+    _require_published(path)
+    view, _ = _publish_template(name, scope, path, text, data, templates_dir, state_path)
+    return view
+
+
+def load_preset(preset, scope="active", *, models_path=None, templates_dir=None,
+                state_path=None) -> dict:
+    """Copy a tracked preset into ``current.jinja2`` and point models.yml at it.
+
+    The copy happens before models.yml is published.  If publication fails the
+    previous ``current.jinja2`` bytes are restored (or the file removed when it
+    did not exist), so a failed save never leaves a half-applied switch.
+    """
+    name = normalize_template(preset, templates_dir)
+    if scope not in SCOPES:
+        raise ValueError("应用范围无效")
+
+    path = _path(models_path, MODELS_PATH)
+    text, data = _read_models(path)
+    _require_published(path)
+    content = _preset_source(name, templates_dir).read_bytes()
+    if not content.strip():
+        raise ValueError(f"人格预设 {name} 内容为空")
+
+    previous = _current_write(content, templates_dir)
+    try:
+        view, targets = _publish_template(
+            CURRENT_NAME, scope, path, text, data, templates_dir, state_path
+        )
+    except BaseException:
+        _current_restore(previous, templates_dir)
+        raise
+
+    models_changed = [entry for entry in targets
+                      if data[entry].get("template") != CURRENT_NAME]
+    view.update({
+        "changed": targets,
+        "models_changed": models_changed,
+        "loaded_preset": name,
+        "target_template": CURRENT_NAME,
+    })
+    # The body is read from disk for every render, so only a real models.yml
+    # switch needs ``.model reload`` / a restart.
+    view["restart_required"] = bool(models_changed)
     return view

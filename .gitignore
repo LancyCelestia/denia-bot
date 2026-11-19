@@ -6,6 +6,10 @@ nonebot/configs/models.yml.published-sha256
 nonebot/configs/.model-publish-*
 # 真实人格配置含主人 QQ 等私人信息；仓库只保留 templates.yml.example
 nonebot/configs/templates.yml
+# 面板加载的当前人格正文：用户私有，必须跨 git pull 保留；只忽略这一个文件
+/nonebot/templates/current.jinja2
+# 面板写 current.jinja2 时的原子临时文件（正常会立即删除）
+/nonebot/templates/.persona-*
 tools/*token*.txt
 tools/*pass*.txt
 tools/*.pem
