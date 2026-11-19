@@ -11,8 +11,8 @@ log=logging.getLogger(__name__)
 
 
 class OneBotSender:
-    def __init__(self,bots,*,render=render_card,avatar=None):
-        self.bots,self.render,self.avatar=bots,render,avatar
+    def __init__(self,bots,*,render=render_card,avatar=None,cover=None):
+        self.bots,self.render,self.avatar,self.cover=bots,render,avatar,cover
 
     def _bot(self,scope):
         bot=self.bots().get(scope.bot)
@@ -35,8 +35,17 @@ class OneBotSender:
             except Exception:
                 # Avatar is decoration: never let it cost the message.
                 log.warning('bilibili avatar unavailable; card drawn without it')
+        picture=None
+        if self.cover is not None and getattr(item,'cover',''):
+            try:
+                picture=await self.cover(item)
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                # A missing cover falls back to a text-only card, never a retry.
+                log.warning('bilibili video cover unavailable; card drawn without it')
         try:
-            png=self.render(item,avatar=face)
+            png=self.render(item,avatar=face,cover=picture)
             message=Message([MessageSegment.image(png),MessageSegment.text('\n'+item.url)])
         except Exception:
             note='CARD_FALLBACK'

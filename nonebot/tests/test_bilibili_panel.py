@@ -144,14 +144,18 @@ def test_view_never_writes_to_the_state_database(tmp_path, clean_env):
     assert not (path.parent / 'state.sqlite3-journal').exists()
 
 
-def test_sidebar_order_matches_section_order():
+def test_sidebar_keeps_primary_order_and_groups_bot_settings():
     text = (Path(dashboard.__file__).with_name('dashboard.html')).read_text(encoding='utf-8')
     nav = re.search(r'<nav class="nav".*?</nav>', text, re.S).group(0)
-    links = re.findall(r'<a class="nav-link[^"]*" href="#([^"]+)"', nav)
+    links = re.findall(r'<a [^>]*href="#([^"]+)"', nav)
+    basics = re.search(r'<nav id="botBasicsNav".*?</nav>', text, re.S).group(0)
+    basics_links = re.findall(r'<a [^>]*href="#([^"]+)"', basics)
     sections = [name for name in re.findall(r'<section id="([^"]+)"', text)
-                if name not in {'login', 'changePassword'}]
+                if name not in {'login', 'firstRun', 'changePassword'}]
+    assert links[:5] == ['bot-info', 'memes', 'memory', 'group', 'status']
+    assert basics_links == ['bot-info', 'persona', 'tokens', 'master', 'superusers']
     assert 'bilibili' in links
-    assert links == sections
+    assert set(links) | set(basics_links) == set(sections)
 
 
 def test_target_route_requires_csrf_and_forwards_target(tmp_path, clean_env, monkeypatch):

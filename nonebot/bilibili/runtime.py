@@ -20,7 +20,8 @@ class Runtime:
         self.client_factory=client_factory or partial(BiliClient,
             cookie_provider=parser_login_cookies if config.bili_use_parser_login else None)
         self.sender_factory=sender_factory or (lambda:OneBotSender(bots,render=partial(render_card,font_file=config.bili_font_file),
-            avatar=self.client.avatar if self.client is not None else None))
+            avatar=self.client.avatar if self.client is not None else None,
+            cover=self.client.cover if self.client is not None else None))
         self.service=None
         self.client=None
         self.task=None

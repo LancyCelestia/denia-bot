@@ -6,7 +6,7 @@ import re
 
 import httpx
 
-from .model import BiliError, Item, Page, clean, face_url, identifier
+from .model import BiliError, Item, Page, clean, face_url, identifier, image_url
 from .auth import cookie_header
 
 SPACE = '/x/polymer/web-dynamic/v1/feed/space'
@@ -44,12 +44,17 @@ def normalize_item(raw, uid, depth=0):
         'DYNAMIC_TYPE_AV':'视频动态','DYNAMIC_TYPE_ARTICLE':'专栏动态','DYNAMIC_TYPE_FORWARD':'转发动态'}
     label = labels.get(kind,'未知类型动态')
     major_type = major.get('type')
+    title = ''
+    cover = ''
     if major_type in {'MAJOR_TYPE_ARCHIVE','MAJOR_TYPE_ARTICLE','MAJOR_TYPE_OPUS'}:
         key = {'MAJOR_TYPE_ARCHIVE':'archive','MAJOR_TYPE_ARTICLE':'article','MAJOR_TYPE_OPUS':'opus'}[major_type]
         content = mapping(major.get(key))
-        title = clean(content.get('title') or '',200)
+        content_title = clean(content.get('title') or '',200)
+        if key == 'archive':
+            title = content_title
+            cover = image_url(content.get('cover'))
         summary = mapping(content.get('summary') or {}).get('text','') if key=='opus' else content.get('desc','')
-        extra = '\n'.join(p for p in (title,clean(summary)) if p)
+        extra = '\n'.join(p for p in (content_title,clean(summary)) if p)
         if extra: text = (text+'\n'+extra).strip()
         if key=='opus': label='图文动态'
     elif major_type == 'MAJOR_TYPE_DRAW':
@@ -77,7 +82,7 @@ def normalize_item(raw, uid, depth=0):
     except (TypeError,ValueError,OverflowError) as exc:
         raise BiliError('REMOTE_SCHEMA') from exc
     return Item(identifier(raw.get('id_str')),uid,clean(author.get('name'),80),ts,label,clean(text),
-                face_url(author.get('face')))
+                face_url(author.get('face')),title,cover)
 
 
 class BiliClient:
@@ -187,15 +192,21 @@ class BiliClient:
     async def avatar(self,item):
         """One bounded read from the pinned avatar CDN; no credential, no redirects."""
         try:
-            return await asyncio.wait_for(self._avatar(item),5)
+            return await asyncio.wait_for(self._image(item.face, 2*1024*1024),5)
         except asyncio.TimeoutError as exc:
             raise BiliError('DEADLINE') from exc
 
-    async def _avatar(self,item):
-        url = item.face
+    async def cover(self,item):
+        """One bounded read from the pinned video-cover CDN; optional decoration."""
+        try:
+            return await asyncio.wait_for(self._image(item.cover, 6*1024*1024),5)
+        except asyncio.TimeoutError as exc:
+            raise BiliError('DEADLINE') from exc
+
+    async def _image(self,url,max_bytes):
         if not url:
             return None
-        # The CDN never sees the login cookie; the host allowlist lives in face_url.
+        # The CDN never sees the login cookie; the host allowlist lives in image_url/face_url.
         self.http.cookies.clear()
         try:
             async with self.http.stream('GET',url) as response:
@@ -209,7 +220,7 @@ class BiliClient:
                 content = bytearray()
                 async for part in response.stream:
                     content.extend(part)
-                    if len(content) > 2*1024*1024:
+                    if len(content) > max_bytes:
                         raise BiliError('REMOTE_SCHEMA')
             return bytes(content) or None
         except httpx.HTTPError as exc:

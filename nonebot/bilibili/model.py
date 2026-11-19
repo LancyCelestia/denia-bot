@@ -3,7 +3,7 @@ import html
 import math
 import re
 import unicodedata
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, urlunsplit
 
 
 class BiliError(RuntimeError):
@@ -44,6 +44,25 @@ def face_url(value):
     return value
 
 
+def image_url(value):
+    """Pinned Bilibili image CDN only; normalize legacy HTTP covers to HTTPS."""
+    if not isinstance(value, str):
+        return ''
+    value = value.strip()
+    if not value or len(value) > 1024:
+        return ''
+    try:
+        parsed = urlsplit(value)
+        host = parsed.hostname or ''
+    except ValueError:
+        return ''
+    if (parsed.scheme not in {'http', 'https'} or not host.endswith('.hdslb.com')
+            or parsed.username or parsed.password or parsed.port is not None
+            or parsed.fragment):
+        return ''
+    return urlunsplit(('https', host, parsed.path, parsed.query, ''))
+
+
 @dataclass(frozen=True)
 class Scope:
     bot: str
@@ -70,17 +89,20 @@ class Item:
     kind: str
     text: str
     face: str = ''
+    title: str = ''
+    cover: str = ''
 
     def __post_init__(self):
         identifier(self.id)
         identifier(self.uid)
         if isinstance(self.ts, bool) or not isinstance(self.ts, (int, float)) or not math.isfinite(self.ts) or self.ts <= 0:
             raise BiliError('REMOTE_SCHEMA')
-        for value, limit in ((self.name,80),(self.kind,40),(self.text,1600)):
+        for value, limit in ((self.name,80),(self.kind,40),(self.text,1600),(self.title,200)):
             if not isinstance(value,str) or len(value)>limit:
                 raise BiliError('REMOTE_SCHEMA')
-        # A malformed avatar URL must never block the text card or the delivery.
+        # A malformed avatar or cover URL must never block the text card or the delivery.
         object.__setattr__(self, 'face', face_url(self.face))
+        object.__setattr__(self, 'cover', image_url(self.cover))
 
     @property
     def url(self):
