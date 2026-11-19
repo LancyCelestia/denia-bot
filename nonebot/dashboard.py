@@ -42,15 +42,47 @@ monitor = Monitor()
 restart_worker = Restart(monitor)
 restart_controller = RestartController(restart_worker)
 
-def set_password(password, must_change=False):
-    if not 12 <= len(password) <= 256: raise ValueError('密码长度须为 12 到 256 位')
+INITIAL_PASSWORD_FILE = 'dashboard-initial-password'
+"""首次初始化时写入一次性明文密码的文件名（与认证文件同目录）。"""
+
+
+def _write_auth_file(path, password, must_change):
+    """原子写入认证文件，权限固定为 0600。"""
     salt = secrets.token_bytes(16)
     digest = hashlib.scrypt(password.encode(), salt=salt, n=16384, r=8, p=1).hex()
-    AUTH_FILE.parent.mkdir(parents=True, exist_ok=True)
-    temp = AUTH_FILE.with_name(AUTH_FILE.name + '.tmp')
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temp = path.with_name(path.name + '.tmp')
     fd = os.open(temp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
     with os.fdopen(fd, 'w', encoding='utf-8') as f: json.dump({'salt':salt.hex(),'hash':digest,'must_change':must_change}, f)
-    os.replace(temp, AUTH_FILE)
+    os.chmod(temp, 0o600)
+    os.replace(temp, path)
+
+
+def set_password(password, must_change=False):
+    if not 12 <= len(password) <= 256: raise ValueError('密码长度须为 12 到 256 位')
+    _write_auth_file(AUTH_FILE, password, must_change)
+
+
+def initialize_password(password=None, *, path=None):
+    """首次部署时创建认证文件，返回一次性明文密码。
+
+    已有认证文件时拒绝覆盖：密码只能在面板内修改，避免误操作把现有管理员锁在门外。
+    未指定密码时随机生成，并把明文写入同目录的 dashboard-initial-password（0600）。
+    """
+    target = Path(path) if path is not None else AUTH_FILE
+    if target.exists():
+        raise FileExistsError(f'认证文件已存在，拒绝覆盖：{target}')
+    if password is None:
+        password = secrets.token_urlsafe(24)
+    elif not 12 <= len(password) <= 256:
+        raise ValueError('密码长度须为 12 到 256 位')
+    _write_auth_file(target, password, True)
+    initial = target.parent / INITIAL_PASSWORD_FILE
+    fd = os.open(initial, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, 'w', encoding='utf-8') as f: f.write(password + '\n')
+    os.chmod(initial, 0o600)
+    return password
 
 def password_matches(password, saved):
     got = hashlib.scrypt(password.encode(),salt=bytes.fromhex(saved['salt']),n=16384,r=8,p=1).hex()
@@ -263,7 +295,7 @@ async def change_password(req: Request):
     set_password(password)
     sessions.clear()
     save_sessions(sessions)       # 改密码一律让所有设备重新登录
-    (AUTH_FILE.parent / 'dashboard-initial-password').unlink(missing_ok=True)
+    (AUTH_FILE.parent / INITIAL_PASSWORD_FILE).unlink(missing_ok=True)
     response = JSONResponse({'ok':True})
     response.delete_cookie('admin_session', path='/')
     return response
@@ -808,3 +840,30 @@ app.include_router(game_event_panel.router(authorized, mutate))
 
 bilibili_panel.register(app, authorized=authorized, mutate=mutate, root=ROOT)
 embedding_panel.register(app, authorized=authorized, mutate=mutate, root=ROOT)
+
+
+if __name__ == '__main__':
+    # 首次部署入口：只创建认证文件，不加载 NoneBot、不启动 uvicorn。
+    import argparse
+    import sys
+
+    parser = argparse.ArgumentParser(description='初始化本地管理面板密码')
+    parser.add_argument('--init', action='store_true', help='创建 data/dashboard-auth.json 并打印一次性密码')
+    parser.add_argument('--password', help='指定初始密码（12 到 256 位），省略则随机生成')
+    args = parser.parse_args()
+    if not args.init:
+        parser.error('需要 --init 才会创建认证文件')
+    try:
+        initial_password = initialize_password(args.password)
+    except FileExistsError as exc:
+        print(exc, file=sys.stderr)
+        print('密码已有配置；如需重置，请先备份并移走该文件，或在面板内修改密码。', file=sys.stderr)
+        sys.exit(1)
+    except ValueError as exc:
+        print(exc, file=sys.stderr)
+        sys.exit(2)
+    print('已生成面板初始密码（只显示这一次）：')
+    print(f'  {initial_password}')
+    print('首次登录后必须修改密码。')
+    print('启动面板：')
+    print('  uvicorn dashboard:app --host 127.0.0.1 --port 8092 --no-access-log')

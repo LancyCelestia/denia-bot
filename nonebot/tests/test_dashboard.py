@@ -209,4 +209,51 @@ class DashboardTest(unittest.TestCase):
                 self.assertEqual(secret['token'], 'glsa_secret')
                 self.assertNotIn('glsa_secret', json.dumps(response.json()))
 
+    def test_initialize_password_creates_usable_initial_credentials(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            auth = Path(tmp)/'dashboard-auth.json'
+            with patch.object(d, 'AUTH_FILE', auth), \
+                 patch.object(d, 'session_store_path', lambda: Path(tmp)/'dashboard-sessions.json'):
+                password = d.initialize_password()
+                self.assertGreaterEqual(len(password), 24)
+                saved = json.loads(auth.read_text(encoding='utf-8'))
+                self.assertTrue(saved['must_change'])
+                self.assertTrue(d.password_matches(password, saved))
+                initial = auth.parent/d.INITIAL_PASSWORD_FILE
+                self.assertTrue(initial.exists())
+                self.assertEqual(initial.read_text(encoding='utf-8').strip(), password)
+                # Windows 的 chmod 只处理只读位，权限断言只在类 Unix 上有意义。
+                if os.name != 'nt':
+                    self.assertEqual(auth.stat().st_mode & 0o777, 0o600)
+                    self.assertEqual(initial.stat().st_mode & 0o777, 0o600)
+                with TestClient(d.app) as client:
+                    login = client.post('/api/login', json={'password':password})
+                    self.assertEqual(login.status_code, 200)
+                    self.assertTrue(login.json()['must_change'])
+                    headers = {'Origin':'http://testserver','X-CSRF-Token':login.json()['csrf']}
+                    self.assertEqual(client.get('/api/state').status_code, 403)
+
+    def test_initialize_password_honours_explicit_path(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            auth = Path(tmp)/'nested'/'dashboard-auth.json'
+            password = d.initialize_password('explicit-pass-1234', path=auth)
+            self.assertEqual(password, 'explicit-pass-1234')
+            self.assertTrue(d.password_matches(password, json.loads(auth.read_text(encoding='utf-8'))))
+            self.assertEqual((auth.parent/d.INITIAL_PASSWORD_FILE).read_text(encoding='utf-8').strip(), password)
+
+    def test_initialize_password_rejects_short_password_and_overwrite(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            auth = Path(tmp)/'dashboard-auth.json'
+            with patch.object(d, 'AUTH_FILE', auth):
+                with self.assertRaises(ValueError):
+                    d.initialize_password('too-short')
+                self.assertFalse(auth.exists())
+                self.assertFalse((auth.parent/d.INITIAL_PASSWORD_FILE).exists())
+                d.initialize_password('explicit-pass-1234')
+                original = auth.read_text(encoding='utf-8')
+                with self.assertRaises(FileExistsError):
+                    d.initialize_password('another-pass-1234')
+                self.assertEqual(auth.read_text(encoding='utf-8'), original)
+                self.assertEqual((auth.parent/d.INITIAL_PASSWORD_FILE).read_text(encoding='utf-8').strip(), 'explicit-pass-1234')
+
 if __name__ == '__main__': unittest.main()
