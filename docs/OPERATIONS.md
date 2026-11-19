@@ -446,9 +446,10 @@ journalctl -u qqbot -n 80 --no-pager | grep -i epic
 
 首次登录面板会显示一次插件引导，可选择要启用的可选插件。之后在侧栏「插件管理」中修改；开关保存在 `nonebot/data/plugins.json`（0600，Git 忽略），普通 `git pull` 不会覆盖。
 
-- 核心插件（消息入口、模型接线、提示词/引用/图片保护等）在面板中锁定，不能关闭。
-- 关闭只影响机器人下次启动时是否加载插件；不会删除插件代码、数据或配置，也不会自动卸载 gsuid_core 外部进程。
-- `gsuid` 开关只控制 NoneBot 侧的 `GenshinUID` 连接器。要完全停用游戏账号查询，还需停止 `gsuid_core` 及其外部插件。
+- 核心插件（消息入口、模型接线、提示词/引用/图片保护、QQ 超级管理员、主人识别等）在面板中锁定，不能关闭。
+- 关闭插件不会删除插件代码、数据或配置；机器人下次启动时不再加载。
+- `gsuid` 开关还会尝试处理对应的外部服务：Linux 优先停止并禁用 `qqbot-gsuid-core.service`（或 Docker 容器 `gsuid_core`），Windows 停止 `logs/gsuid-core.pid`/命令行匹配的 gsuid_core 进程；重新启用时再启动。服务操作失败会在面板显示原因，不会静默忽略。
+- Windows 下次运行 `启动所有` 时会读取 `nonebot/data/plugins.json`，关闭 gsuid 后不再拉起 gsuid_core。
 - 修改后需重启机器人；数据库和私有配置不会被清理。
 
 ## 8.10 B站动态订阅

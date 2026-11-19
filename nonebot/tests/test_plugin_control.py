@@ -28,11 +28,15 @@ class PluginControlTest(unittest.TestCase):
         self.assertEqual(plugin_control.load(self.path)['disabled'], ['bilibili', 'gsuid'])
 
     def test_core_and_unknown_plugins_are_rejected(self):
-        with self.assertRaises(ValueError):
-            plugin_control.save(['gate'], path=self.path)
+        for plugin_id in ('gate', 'superusers', 'master_aware'):
+            with self.assertRaises(ValueError):
+                plugin_control.save([plugin_id], path=self.path)
         with self.assertRaises(ValueError):
             plugin_control.save(['not-a-plugin'], path=self.path)
         self.assertFalse(self.path.exists())
+        view = plugin_control.view(self.path)
+        locked = {item['id'] for item in view['plugins'] if item['core']}
+        self.assertTrue({'superusers', 'master_aware'} <= locked)
 
     def test_module_normalization_and_core_are_enabled(self):
         self.assertEqual(plugin_control.normalize_target('./plugins/statuscard.py'), 'statuscard')

@@ -112,6 +112,13 @@ goto :rag_done
 
 rem ---------- 2/4 gsuid_core (8765, optional) ----------
 echo [2/4] gsuid_core (8765, optional) ...
+if exist "%ROOT%\nonebot\data\plugins.json" (
+    findstr /C:"gsuid" "%ROOT%\nonebot\data\plugins.json" >nul 2>&1
+    if not errorlevel 1 (
+        echo       [--] disabled by plugin manager, skipped
+        goto :gs_done
+    )
+)
 call :is_listening 8765
 if not errorlevel 1 goto :gs_running
 if not exist "%GS_PY%" goto :gs_not_installed

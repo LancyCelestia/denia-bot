@@ -70,8 +70,20 @@ if (Test-Listening 8091) {
 }
 
 # ---------- 2. gsuid_core（可选游戏查询）----------
+$gsuidEnabled = $true
+$pluginSettings = "$ROOT\nonebot\data\plugins.json"
+if (Test-Path -LiteralPath $pluginSettings) {
+    try {
+        $pluginData = Get-Content -LiteralPath $pluginSettings -Raw -Encoding UTF8 | ConvertFrom-Json
+        if ($pluginData.disabled -contains 'gsuid') { $gsuidEnabled = $false }
+    } catch {
+        $gsuidEnabled = $true
+    }
+}
 Write-Host "[2/5] gsuid_core (8765) ..." -NoNewline
-if (Test-Listening 8765) {
+if (-not $gsuidEnabled) {
+    Write-Host " [--] 已由插件管理关闭" -ForegroundColor Yellow
+} elseif (Test-Listening 8765) {
     Write-Host " 已在运行" -ForegroundColor Yellow
 } elseif (-not (Test-Path $GSUID_PY)) {
     Write-Host " [!!] 未安装，先运行 gsuid\install.ps1" -ForegroundColor Yellow
@@ -118,7 +130,7 @@ if (Test-Listening 5099) {
 # ---------- 5. 等待各端就绪 ----------
 Write-Host "[5/5] 等待服务就绪 ..." -NoNewline
 $ok1 = $false; $ok2 = $false; $ok3 = $false; $ok4 = $false
-$coreExpected = Test-Path $GSUID_PY
+$coreExpected = $gsuidEnabled -and (Test-Path $GSUID_PY)
 for ($i = 0; $i -lt 30; $i++) {
     Start-Sleep -Seconds 2
     Write-Host "." -NoNewline

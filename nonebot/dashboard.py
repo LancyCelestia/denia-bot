@@ -20,6 +20,7 @@ import memory_logic as memory
 import group_topics_logic as topics
 import weather_service as weather
 import epic_free_config as epic_config
+import external_services
 import game_event_panel
 import embedding_panel
 import disaster_config as disaster_config_mod
@@ -457,12 +458,24 @@ async def set_plugin_settings(req: Request):
     body = await req.json()
     if not isinstance(body, dict):
         raise HTTPException(400, '请求体必须是对象')
+    before = plugin_control.load()
     try:
-        return plugin_control.save(body.get('disabled'), body.get('onboarded'))
+        saved = plugin_control.save(body.get('disabled'), body.get('onboarded'))
     except ValueError as exc:
         raise HTTPException(400, str(exc))
     except OSError:
         raise HTTPException(503, '插件设置无法保存')
+    gsuid_before = 'gsuid' not in before['disabled']
+    gsuid_after = 'gsuid' not in saved['disabled']
+    if gsuid_before != gsuid_after:
+        service = await asyncio.to_thread(
+            external_services.apply_plugin_change, 'gsuid', gsuid_after
+        )
+        if service:
+            saved['service'] = service
+            if service.get('warning'):
+                saved['warning'] = service['warning']
+    return saved
 
 @app.get('/api/user/{uid}')
 def user(uid: str, req: Request):

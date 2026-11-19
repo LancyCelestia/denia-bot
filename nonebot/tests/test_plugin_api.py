@@ -42,16 +42,23 @@ class PluginApiTest(unittest.TestCase):
             self.client.post('/api/plugins', json={'disabled': [], 'onboarded': False}).status_code,
             403,
         )
-        response = self.client.post(
-            '/api/plugins',
-            json={'disabled': ['gsuid', 'bilibili'], 'onboarded': True},
-            headers=self.headers,
-        )
+        with patch.object(
+            d.external_services, 'apply_plugin_change',
+            return_value={'service': 'gsuid_core', 'managed': True,
+                          'backend': 'test', 'running': False},
+        ) as service:
+            response = self.client.post(
+                '/api/plugins',
+                json={'disabled': ['gsuid', 'bilibili'], 'onboarded': True},
+                headers=self.headers,
+            )
         self.assertEqual(response.status_code, 200)
+        service.assert_called_once_with('gsuid', False)
         data = response.json()
         self.assertTrue(data['onboarded'])
         self.assertTrue(data['changed'])
         self.assertEqual(data['disabled'], ['bilibili', 'gsuid'])
+        self.assertEqual(data['service']['backend'], 'test')
         self.assertTrue(self.path.exists())
         view = self.client.get('/api/plugins').json()
         self.assertTrue(view['onboarded'])
