@@ -14,6 +14,8 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, Mock, patch
 
 ROOT = Path(__file__).resolve().parents[1]
 os.chdir(ROOT)
@@ -214,6 +216,126 @@ class LifecycleTest(unittest.TestCase):
                 self.assertEqual(runtime.tasks, [], '关闭钩子要把任务清空')
             finally:
                 plugin.runtime = old
+
+
+class MasterSwitchTest(unittest.IsolatedAsyncioTestCase):
+    def setUp(self):
+        folder = tempfile.TemporaryDirectory()
+        self.addCleanup(folder.cleanup)
+        self.path = Path(folder.name) / 'statuscard.json'
+        plugin.save_config({'enabled': False, 'cluster': {'enabled': True}}, self.path)
+        self.rt = plugin.Runtime(base=self.path.parent, lazy=True)
+        swap = patch.object(plugin, 'runtime', self.rt)
+        swap.start()
+        self.addCleanup(swap.stop)
+
+    async def test_installed_llm_hook_preserves_chat_and_stream_while_off(self):
+        response = object()
+        ask = AsyncMock(return_value=response)
+        provider = SimpleNamespace(ask=ask, model='test')
+        module = SimpleNamespace(Muice=lambda: SimpleNamespace(model=provider))
+        self.rt.config['enabled'] = True
+        with patch.dict(sys.modules, {'muicebot.muice': module}):
+            self.assertTrue(self.rt.quality.install())
+        self.rt.config['enabled'] = False
+        self.assertIs(await provider.ask('hello', stream=True, extra=123), response)
+        ask.assert_awaited_once_with('hello', stream=True, extra=123)
+        self.assertEqual(self.rt.quality.summary()['total'], 0)
+        self.rt.config['enabled'] = True
+        self.assertIs(await provider.ask('again'), response)
+        self.assertEqual(self.rt.quality.summary()['total'], 1)
+
+    async def test_disabling_cancels_inflight_cluster_command_before_send(self):
+        self.path.unlink()
+        entered = asyncio.Event()
+        delivery = Mock()
+
+        async def rendering(*_):
+            entered.set()
+            await asyncio.Event().wait()
+            delivery()
+
+        with patch.object(plugin, 'send_cluster_card', rendering):
+            handler = asyncio.create_task(plugin.handle_command(None, event('查看集群状态')))
+            await asyncio.wait_for(entered.wait(), 2)
+            plugin.save_config({'enabled': False}, self.path)
+            await plugin._sync_workers()
+            await asyncio.wait_for(handler, 2)
+        delivery.assert_not_called()
+        self.assertFalse(self.rt.commands)
+
+    async def test_off_skips_probes_report_rendering_and_push(self):
+        self.rt.config['display']['website_targets'] = ['https://example.org']
+        self.rt.config['monitors']['items'] = [{'type': 'http', 'url': 'https://example.org'}]
+        with patch.object(plugin, '_pick_bot') as bot, \
+                patch.object(plugin.monitor, 'probe', new_callable=AsyncMock) as probe, \
+                patch.object(plugin.cluster, 'fetch') as fetch, \
+                patch.object(plugin, 'build_report_view') as report:
+            self.assertFalse(await plugin.collect_bot_info(self.rt))
+            self.assertFalse(await plugin.probe_websites(self.rt, force=True))
+            self.assertFalse(await plugin.run_monitors(self.rt, now=1))
+            with self.assertRaises(ValueError):
+                await plugin.build_cluster_view(self.rt)
+            self.assertFalse(await plugin.send_report(self.rt, kind='daily', day='2026-01-01', targets=[]))
+            self.assertFalse(await plugin.push(self.rt, [{'kind': 'group', 'id': 1}], 'notification'))
+        bot.assert_not_called()
+        probe.assert_not_awaited()
+        fetch.assert_not_called()
+        report.assert_not_called()
+
+    async def test_off_does_not_claim_commands_or_dispatch(self):
+        with patch.object(plugin, 'send_cluster_card', new_callable=AsyncMock) as cluster:
+            for command in plugin.COMMANDS:
+                self.assertFalse(await plugin._rule(event(command)))
+            await plugin.handle_command(None, event('查看集群状态'))
+            cluster.assert_not_awaited()
+            self.path.unlink()  # 缺省配置重新启用，同一实例无需重启
+            self.assertTrue(await plugin._rule(event('查看集群状态')))
+            await plugin.handle_command(None, event('查看集群状态'))
+            cluster.assert_awaited_once()
+
+    async def test_disabled_hooks_leave_qq_traffic_alone(self):
+        bot = Mock(spec=['call_api'])
+        original = bot.call_api = AsyncMock(return_value=42)
+        await plugin._on_bot_connect(bot)
+        original.assert_not_awaited()
+        plugin._install_send_counter(bot)  # previously installed wrapper
+        self.assertEqual(await bot.call_api('send_group_msg'), 42)
+        await plugin._count_recv(event('hello'))
+        self.assertEqual(self.rt.counters, {'sent': 0, 'recv': 0})
+        self.assertFalse(self.rt.state.get('self_id'))
+        self.rt.config['enabled'] = True
+        self.assertEqual(await bot.call_api('send_group_msg'), 42)
+        await plugin._count_recv(event('hello'))
+        self.assertEqual(self.rt.counters, {'sent': 1, 'recv': 1})
+
+    async def test_supervisor_starts_and_stops_workers_on_file_changes(self):
+        async def idle(*_):
+            await asyncio.Event().wait()
+
+        with patch.multiple(plugin, sample_loop=idle, alert_loop=idle,
+                            monitor_loop=idle, schedule_loop=idle), \
+                patch.object(plugin.collect, 'prime_cpu') as prime, \
+                patch.object(plugin.collect, 'prime_process_cpu'), \
+                patch.object(self.rt.quality, 'install') as install:
+            await plugin._startup()
+            try:
+                self.assertEqual(self.rt.tasks, [])
+                self.assertIsNone(self.rt.samples)
+                prime.assert_not_called()
+                install.assert_not_called()
+                self.path.unlink()
+                await plugin._sync_workers()
+                workers = list(self.rt.tasks)
+                self.assertEqual(len(workers), 4)
+                prime.assert_called_once()
+                install.assert_called_once()
+                plugin.save_config({'enabled': False}, self.path)
+                await plugin._sync_workers()
+                self.assertTrue(all(t.cancelled() for t in workers))
+                self.assertEqual(self.rt.tasks, [])
+            finally:
+                await plugin._shutdown()
 
 
 class MonitorWiringTest(unittest.TestCase):

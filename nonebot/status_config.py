@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 DEFAULT_CONFIG: dict[str, Any] = {
+    'enabled': True,
     'display': {
         'width': 1170,
         'compact': False,
@@ -168,6 +169,7 @@ def public_view(config: dict[str, Any]) -> dict[str, Any]:
     grafana = config.get('grafana') or {}
     cluster = config.get('cluster') or {}
     return {
+        'enabled': config.get('enabled', True),
         'display': {
             'width': display.get('width'),
             'compact': display.get('compact'),
@@ -237,6 +239,8 @@ def apply_patch(config: dict[str, Any], patch: dict[str, Any]) -> dict[str, Any]
     整次保存失败。
     """
     out = dict(config)
+    if isinstance((patch or {}).get('enabled'), bool):
+        out['enabled'] = patch['enabled']
     for section, fields in EDITABLE.items():
         incoming = (patch or {}).get(section)
         if not isinstance(incoming, dict):

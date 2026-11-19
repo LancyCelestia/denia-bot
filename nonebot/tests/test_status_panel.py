@@ -7,6 +7,7 @@
 """
 
 import asyncio
+from contextlib import ExitStack
 import os
 import sys
 import tempfile
@@ -40,6 +41,7 @@ class PanelTest(unittest.TestCase):
             'collected_at': time.time(),
         }
         self.patches = [
+            patch.object(dashboard, 'ROOT', self.base),
             patch.object(dashboard.status_live, 'panel_snapshot', lambda **kw: dict(fake_live)),
             patch.object(dashboard, 'status_paths',
                          lambda: (self.base / 'statuscard.json', self.base / 'statuscard-state.json', self.base / 'statuscard.sqlite3')),
@@ -57,12 +59,63 @@ class PanelTest(unittest.TestCase):
 
     def test_overview_on_empty_data_does_not_crash(self):
         data = dashboard.status_overview(None, days=7)
+        self.assertIs(data['enabled'], True)
+        self.assertIs(data['config']['enabled'], True)
         self.assertEqual(data['range_days'], 7)
         self.assertIn('live', data)
         self.assertEqual(data['history']['points'], [])
         self.assertEqual(data['events'], [])
         self.assertIsNone(data['report'])
         self.assertIn('options', data['config'])
+
+    def test_switch_round_trip_preserves_legacy_config_secret_and_history(self):
+        path, _, db = dashboard.status_paths()
+        path.write_text('{"display":{"width":937},"custom":17}', encoding='utf-8')
+        grafana = dashboard.status_grafana_mod
+        grafana.save_secret('test-only-key', root=self.base)
+        samples = status_store.SampleStore(db)
+        samples.add_event(int(time.time()), 'resource', 'existing event', 'details')
+
+        self.assertIs(dashboard.status_overview(None)['enabled'], True)
+        saved = asyncio.run(dashboard.set_status_config(FakeRequest({'enabled': False})))
+        self.assertIs(saved['config']['enabled'], False)
+        with ExitStack() as stack:
+            probes = [stack.enter_context(patch.object(module, name)) for module, name in (
+                (dashboard, 'status_stores'), (dashboard.status_live, 'panel_snapshot'),
+                (grafana, 'fetch_temp'), (grafana, 'panel_view'),
+            )]
+            overview = dashboard.status_overview(None)
+            self.assertEqual(overview, {'enabled': False, 'config': saved['config']})
+            for probe in probes:
+                probe.assert_not_called()
+        self.assertNotIn('test-only-key', str(overview))
+        self.assertNotIn('custom', overview['config'])
+
+        asyncio.run(dashboard.set_status_config(FakeRequest({'enabled': True})))
+        restored = dashboard.status_overview(None)
+        self.assertIs(restored['enabled'], True)
+        self.assertEqual(restored['events'][0]['title'], 'existing event')
+        self.assertEqual(restored['config']['display']['width'], 937)
+        self.assertEqual(status_config.load_config(path)['custom'], 17)
+        self.assertEqual(grafana.load_secret(self.base), 'test-only-key')
+
+    def test_disabled_manual_probes_cannot_override_saved_switch(self):
+        status_config.save_config({'enabled': False}, dashboard.status_paths()[0])
+        grafana = dashboard.status_grafana_mod
+        with ExitStack() as stack:
+            probes = [stack.enter_context(patch.object(module, name)) for module, name in (
+                (grafana, 'fetch_temp'), (grafana, 'fetch_datasources'),
+                (grafana, 'load_secret'), (dashboard.status_cluster_mod, 'fetch'),
+            )]
+            for route in (dashboard.list_status_grafana_datasources, dashboard.test_status_grafana,
+                          dashboard.test_status_cluster):
+                with self.subTest(route=route.__name__):
+                    req = FakeRequest({'enabled': True, 'grafana': {'enabled': True, 'token': 'tmp'}})
+                    with self.assertRaises(dashboard.HTTPException) as denied:
+                        asyncio.run(route(req))
+                    self.assertEqual(denied.exception.status_code, 409)
+            for probe in probes:
+                probe.assert_not_called()
 
     def test_range_is_clamped(self):
         self.assertEqual(dashboard.status_overview(None, days=999)['range_days'], 30)

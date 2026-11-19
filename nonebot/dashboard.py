@@ -701,6 +701,9 @@ def downsample(points, limit=240):
 @app.get('/api/status/overview')
 def status_overview(req: Request, days: int = 1):
     authorized(req)
+    config = status_config_mod.load_config(status_paths()[0])
+    if not config['enabled']:
+        return {'enabled': False, 'config': status_config_mod.public_view(config)}
     try:
         days = max(1, min(30, int(days)))
     except (TypeError, ValueError):
@@ -708,7 +711,6 @@ def status_overview(req: Request, days: int = 1):
     samples, state = status_stores()
     now = time.time()
     since = int(now - days * 86400)
-    config = status_config_mod.load_config(status_paths()[0])
     try:
         live = status_live.panel_snapshot()
     except Exception:
@@ -730,6 +732,7 @@ def status_overview(req: Request, days: int = 1):
     panel = state.section('panel')
     report = samples.latest_report_run()
     return {
+        'enabled': True,
         'now': now,
         'range_days': days,
         'live': live,
@@ -752,12 +755,19 @@ def status_overview(req: Request, days: int = 1):
     }
 
 
+def status_probe_config(req: Request):
+    mutate(req)
+    config = status_config_mod.load_config(status_paths()[0])
+    if not config['enabled']:
+        raise HTTPException(409, '服务器状态已关闭')
+    return config
+
+
 @app.post('/api/status/grafana/datasources')
 async def list_status_grafana_datasources(req: Request):
     """用面板填写的地址和 Key 列出数据源，不保存。"""
-    mutate(req)
+    config = status_probe_config(req)
     body = await req.json()
-    config = status_config_mod.load_config(status_paths()[0])
     incoming = (body or {}).get('grafana') if isinstance(body, dict) else None
     settings = dict(config.get('grafana') or {})
     token = ''
@@ -799,9 +809,8 @@ async def set_status_config(req: Request):
 @app.post('/api/status/grafana/test')
 async def test_status_grafana(req: Request):
     """用面板当前填写的参数试查一次，不保存。"""
-    mutate(req)
+    config = status_probe_config(req)
     body = await req.json()
-    config = status_config_mod.load_config(status_paths()[0])
     incoming = (body or {}).get('grafana') if isinstance(body, dict) else None
     patch = {}
     token = ''
@@ -828,9 +837,8 @@ async def test_status_cluster(req: Request):
     任意异常（bucket 非法、Grafana 报错、超时）都收成 `{ok:false}`，让前端提示
     原文，而不是抛 500。
     """
-    mutate(req)
+    config = status_probe_config(req)
     body = await req.json()
-    config = status_config_mod.load_config(status_paths()[0])
     payload = body if isinstance(body, dict) else {}
     patch = {}
     token = ''
@@ -844,7 +852,7 @@ async def test_status_cluster(req: Request):
     merged = status_config_mod.apply_patch(config, patch) if patch else config
     cluster_settings = dict(merged.get('cluster') or {})
     grafana_settings = dict(merged.get('grafana') or {})
-    # 测试按钮不受「启用」开关限制：关着也能先验证查询能不能通。
+    # 总开关打开时，允许先验证尚未启用的 Grafana 和集群配置。
     cluster_settings['enabled'] = True
     grafana_settings['enabled'] = True
     token = token or status_grafana_mod.load_secret(ROOT)

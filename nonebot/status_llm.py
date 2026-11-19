@@ -32,7 +32,8 @@ KEEP_DAYS = 30
 class LLMQuality:
     """模型调用质量账本 + provider 包装器。"""
 
-    def __init__(self, store: Any = None, *, log: Any = None):
+    def __init__(self, store: Any = None, *, log: Any = None, enabled: Callable[[], bool] = lambda: True):
+        self._enabled = enabled
         self.store = store
         self.log = log
         self._installed_on: int | None = None
@@ -57,6 +58,8 @@ class LLMQuality:
             return False
 
         async def wrapped(request: Any, *, stream: bool = False, **kwargs: Any):
+            if not self._enabled():
+                return await original(request, stream=stream, **kwargs)
             return await self._call(provider, original, request, stream=stream, **kwargs)
 
         for attribute in ('__name__', '__doc__', '__module__'):
@@ -86,11 +89,11 @@ class LLMQuality:
             return self.install()
         return True
 
-    async def _call(self, provider: Any, original: Callable[..., Any], request: Any, *, stream: bool):
+    async def _call(self, provider: Any, original: Callable[..., Any], request: Any, *, stream: bool, **kwargs: Any):
         model = self._resolve_name(provider)
         started = time.perf_counter()
         try:
-            response = await original(request, stream=stream)
+            response = await original(request, stream=stream, **kwargs)
         except BaseException:
             self.record(model, ok=False, latency_ms=(time.perf_counter() - started) * 1000)
             raise
@@ -151,7 +154,7 @@ class LLMQuality:
         ttft_ms: float | None = None,
         when: str | None = None,
     ) -> None:
-        if self.store is None:
+        if self.store is None or not self._enabled():
             return
         day = when or time.strftime('%Y-%m-%d')
         try:

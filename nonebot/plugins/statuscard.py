@@ -122,10 +122,11 @@ class Runtime:
         self.state_path = data_dir / 'statuscard-state.json'
         self.db_path = data_dir / 'statuscard.sqlite3'
         self.cache_dir = data_dir / 'statuscard'
+        self._config_mtime = self._config_stamp()
         self.config = load_config(self.config_path)
         self.state = store.StateStore(self.state_path, log=logger)
         self.samples: store.SampleStore | None = None if lazy else store.SampleStore(self.db_path, log=logger)
-        self.quality = llm.LLMQuality(self.state, log=logger)
+        self.quality = llm.LLMQuality(self.state, log=logger, enabled=lambda: self.enabled)
         self.aggregator = logic.AlertAggregator(self._alert_conf().get('aggregate_seconds', 120))
         loaded = self.state.section('counters') or {}
         self.counters = {'recv': int(loaded.get('recv') or 0), 'sent': int(loaded.get('sent') or 0)}
@@ -136,16 +137,20 @@ class Runtime:
         self.last_render_ms: float = 0.0
         self.last_push: dict[str, Any] = {}
         self.tasks: list[asyncio.Task] = []
+        self.supervisor: asyncio.Task | None = None
+        self.commands: set[asyncio.Task] = set()
         self.started_at = time.time()
-        self._config_mtime = self._config_stamp()
 
     def prepare(self) -> None:
-        """启动时调用：建目录、建库、载入计数。"""
+        """首次启用时才建目录、建库。"""
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         if self.samples is None:
             self.samples = store.SampleStore(self.db_path, log=logger)
-        self.reload()
+
+    @property
+    def enabled(self) -> bool:
+        return self.config.get('enabled', True) is not False
 
     @property
     def sample_store(self) -> store.SampleStore:
@@ -171,20 +176,16 @@ class Runtime:
         section = self.config.get('report')
         return section if isinstance(section, dict) else {}
 
-    def _config_stamp(self) -> float:
+    def _config_stamp(self) -> int:
         try:
-            return self.config_path.stat().st_mtime
+            return self.config_path.stat().st_mtime_ns
         except OSError:
-            return 0.0
+            return 0
 
     def maybe_reload(self) -> bool:
-        """面板保存过配置就热加载。
-
-        没有文件监听器，就用 mtime 在采样循环里顺便看一眼：面板改完最多一分钟
-        生效，不用重启机器人。
-        """
+        """只在配置文件变更（包括删除）时重新读取。"""
         stamp = self._config_stamp()
-        if stamp <= self._config_mtime:
+        if stamp == self._config_mtime:
             return False
         self._config_mtime = stamp
         self.reload()
@@ -194,9 +195,13 @@ class Runtime:
     def reload(self) -> None:
         self.config = load_config(self.config_path)
         self.aggregator = logic.AlertAggregator(self._alert_conf().get('aggregate_seconds', 120))
-        self.counters = dict(self.state.section('counters') or {}) or {'recv': 0, 'sent': 0}
-        self.counters.setdefault('recv', 0)
-        self.counters.setdefault('sent', 0)
+        if not self.enabled:
+            self.cancel_status_work()
+
+    def cancel_status_work(self) -> None:
+        # 命令也会刷新配置；一旦读到关闭，不必再等监督任务的下一次轮询。
+        for task in (*self.tasks, *self.commands):
+            task.cancel()
 
     # ---------------------------------------------------------------- 目标
     def targets(self, kind: str | None = None) -> list[dict[str, Any]]:
@@ -220,7 +225,7 @@ class Runtime:
 
     # ---------------------------------------------------------------- 头像
     async def avatar(self, self_id: str) -> bytes | None:
-        if not self_id.isdigit():
+        if not self.enabled or not self_id.isdigit():
             return None
         ttl = int(self._display_conf().get('avatar_cache_seconds') or 86400)
         cached = self.avatar_cache.get(self_id)
@@ -303,6 +308,8 @@ def _pick_bot() -> Bot | None:
 
 async def collect_bot_info(runtime: Runtime) -> dict[str, Any]:
     """好友/群/群员/协议端/在线状态。每个字段独立缓存，一个慢调用不拖垮全卡。"""
+    if not runtime.enabled:
+        return {}
     bot = _pick_bot()
     now = time.time()
     cache = runtime.bot_cache
@@ -413,6 +420,8 @@ def _rates_from_state(runtime: Runtime, now: float) -> tuple[float, float, float
 
 
 async def probe_websites(runtime: Runtime, *, force: bool = False) -> list[dict[str, Any]]:
+    if not runtime.enabled:
+        return []
     display = runtime._display_conf()
     targets = display.get('website_targets') or []
     cache_seconds = float(display.get('website_cache_seconds') or 60)
@@ -556,6 +565,8 @@ async def push(runtime: Runtime, targets: list[dict[str, Any]], message: Any, *,
     只发一次：拿不到连接或目标非法才换下一个目标，绝不因为超时重发——
     QQ 侧的回执可能只是丢了，重发会让群里出现两条。
     """
+    if not runtime.enabled:
+        return False
     bot = _pick_bot()
     if bot is None:
         logger.warning(f'[status] {label}失败：没有已连接的 Bot')
@@ -568,6 +579,8 @@ async def push(runtime: Runtime, targets: list[dict[str, Any]], message: Any, *,
 
     detail = ''
     for target in targets:
+        if not runtime.enabled:
+            return False
         action = 'send_group_msg' if target['kind'] == 'group' else 'send_private_msg'
         params = {'group_id': target['id']} if target['kind'] == 'group' else {'user_id': target['id']}
         try:
@@ -608,6 +621,8 @@ def _recovery_text(name: str, duration: float) -> str:
 
 async def evaluate_resources(runtime: Runtime, *, now: float) -> None:
     """资源阈值告警。每个指标一个规则，状态存在 JSON 里，重启不丢。"""
+    if not runtime.enabled:
+        return
     alerts = runtime.state.section('alerts')
     rules = alerts.get('rules') if isinstance(alerts.get('rules'), dict) else {}
     conf = runtime._alert_conf()
@@ -704,6 +719,8 @@ async def check_offline(runtime: Runtime, *, now: float) -> None:
 
     查询失败的原因记进状态，`状态卡诊断` 能看到；但不影响判定。
     """
+    if not runtime.enabled:
+        return
     bot = _pick_bot()
     state = runtime.state.section('offline')
     missing = int(state.get('missing') or 0)
@@ -748,6 +765,8 @@ async def check_offline(runtime: Runtime, *, now: float) -> None:
 
 
 async def check_provider(runtime: Runtime, *, now: float) -> None:
+    if not runtime.enabled:
+        return
     conf = runtime._alert_conf().get('provider_watch') or {}
     if not conf.get('enabled'):
         return
@@ -787,6 +806,8 @@ async def run_monitors(runtime: Runtime, *, now: float, notify: bool = True) -> 
     `suppress_when_down`——上游的「重复层抑制」。以前是一边探一边判，抑制配置
     只能解析、无法生效，那种「配了没作用」的字段比没有更糟。
     """
+    if not runtime.enabled:
+        return []
     conf = runtime._monitor_conf()
     items = monitor.normalize_items(conf.get('items') or [])
     active = [item for item in items if item.get('enabled') is not False]
@@ -899,6 +920,8 @@ def build_report_view(runtime: Runtime, *, kind: str, day: str) -> dict[str, Any
 
 
 async def send_report(runtime: Runtime, *, kind: str, day: str, targets: list[dict[str, Any]]) -> bool:
+    if not runtime.enabled:
+        return False
     conf = runtime._report_conf()
     report = build_report_view(runtime, kind=kind, day=day)
     if conf.get('with_image', True):
@@ -929,7 +952,6 @@ async def sample_loop(runtime: Runtime) -> None:
     """采样：网络/磁盘速率、月流量、历史折线。"""
     while True:
         try:
-            runtime.maybe_reload()
             conf = runtime._display_conf()
             interval = max(10, int(conf.get('sample_seconds') or 60))
             now = time.time()
@@ -1107,6 +1129,8 @@ async def schedule_loop(runtime: Runtime) -> None:
 
 
 async def _run_schedule(runtime: Runtime) -> None:
+    if not runtime.enabled:
+        return
     now = datetime.now()
     today = now.strftime('%Y-%m-%d')
     clock = now.strftime('%H:%M')
@@ -1227,7 +1251,10 @@ def _command(event: MessageEvent) -> str:
 
 
 async def _rule(event: MessageEvent) -> bool:
-    return _command(event) in COMMANDS
+    if _command(event) not in COMMANDS:
+        return False
+    runtime.maybe_reload()
+    return runtime.enabled
 
 
 matcher = on_message(rule=_rule, priority=1, block=True)
@@ -1239,10 +1266,24 @@ async def handle_command(bot: Bot, event: MessageEvent) -> None:
     if not _is_admin(event):
         return
 
-    # 面板保存后，采样循环最多要等一分钟才会热加载；命令先自己看一眼 mtime，
-    # 这样「保存 → 立刻发命令」不会读到旧配置（例如集群开关还是 false）。
+    # 手动命令不必等后台检查配置。
     runtime.maybe_reload()
+    if not runtime.enabled:
+        return
+    if runtime.samples is None:
+        runtime.prepare()
+    task = asyncio.create_task(_dispatch_command(command, bot, event))
+    runtime.commands.add(task)
+    try:
+        await asyncio.wait({task})
+        if not task.cancelled():
+            task.result()  # 让 matcher.finish 等控制流异常原样传递
+    finally:
+        task.cancel()
+        runtime.commands.discard(task)
 
+
+async def _dispatch_command(command: str, bot: Bot, event: MessageEvent) -> None:
     if command == '查看状态' or command == '状态卡':
         await send_status_card(bot, event)
     elif command == '查看集群状态':
@@ -1292,7 +1333,7 @@ async def build_cluster_view(runtime: Runtime) -> dict[str, Any]:
     """读 Grafana 拼出集群视图。未启用直接报错，交给调用方翻译成提示。"""
     conf = runtime.config.get('cluster')
     conf = conf if isinstance(conf, dict) else {}
-    if not conf.get('enabled'):
+    if not runtime.enabled or not conf.get('enabled'):
         raise ValueError('集群状态卡未启用')
     # Grafana 请求是同步阻塞的，别在事件循环里干等
     return await asyncio.to_thread(
@@ -1443,18 +1484,14 @@ async def preview_report(event: MessageEvent, *, kind: str) -> None:
         await matcher.finish('报表发送失败，请查看日志。')
 
 
-async def on_message_count(event: MessageEvent) -> None:
-    runtime.bump('recv')
-
-
 recv_matcher = on_message(priority=0, block=False)
 
 
 @recv_matcher.handle()
 async def _count_recv(event: MessageEvent) -> None:
-    if event.post_type != 'message':
+    if not runtime.enabled or event.post_type != 'message':
         return
-    await on_message_count(event)
+    runtime.bump('recv')
     # 查询接口偶发失败时 self_id 会拿不到，从收到的事件里补一份
     self_id = str(getattr(event, 'self_id', '') or '')
     if self_id and self_id != str(runtime.state.get('self_id') or ''):
@@ -1467,13 +1504,15 @@ def _install_send_counter(bot: Bot) -> None:
     NoneBot 没有全局的发送钩子，但所有发送最终都走 `bot.call_api`。只在这个
     bot 实例上包一层，只记成功、异常原样抛出——发送路径不能因为统计而改变行为。
     """
-    if getattr(bot, '_statuscard_counting', False):
+    if getattr(bot, '_statuscard_counting', False) is True:
         return
     original = bot.call_api
 
     async def counted(action: str, **params: Any) -> Any:
+        if not runtime.enabled or action not in SEND_ACTIONS:
+            return await original(action, **params)
         result = await original(action, **params)
-        if str(action) in SEND_ACTIONS:
+        if runtime.enabled:
             runtime.bump('sent')
         return result
 
@@ -1486,8 +1525,13 @@ def _install_send_counter(bot: Bot) -> None:
 
 @get_driver().on_bot_connect
 async def _on_bot_connect(bot: Bot) -> None:
+    runtime.maybe_reload()
+    if not runtime.enabled:
+        return
     _install_send_counter(bot)
     for row in await asyncio.gather(_call(bot, 'get_login_info', timeout=6), return_exceptions=True):
+        if not runtime.enabled:
+            return
         if isinstance(row, dict):
             user_id = _as_dict(row).get('user_id')
             if user_id:
@@ -1495,12 +1539,17 @@ async def _on_bot_connect(bot: Bot) -> None:
                 runtime.state.save()
 
 
-@get_driver().on_startup
-async def _startup() -> None:
+async def _start_workers() -> None:
     runtime.prepare()
     runtime.quality.install()
+    for bot in get_bots().values():
+        _install_send_counter(bot)
     await asyncio.to_thread(collect.prime_cpu)
+    if not runtime.enabled:
+        return
     await asyncio.to_thread(collect.prime_process_cpu)
+    if not runtime.enabled:
+        return
 
     config = runtime.config
     logger.info(
@@ -1532,11 +1581,47 @@ async def _startup() -> None:
     ]
 
 
+async def _stop_workers() -> None:
+    tasks = (*runtime.tasks, *runtime.commands)
+    runtime.cancel_status_work()
+    if tasks:
+        await asyncio.gather(*tasks, return_exceptions=True)
+    runtime.tasks = []
+
+
+async def _sync_workers() -> None:
+    runtime.maybe_reload()
+    if runtime.tasks and all(task.cancelled() for task in runtime.tasks):
+        # 关闭又立即重开，两次检查之间可能留下已取消的任务。
+        runtime.tasks = []
+    if runtime.enabled and not runtime.tasks:
+        await _start_workers()
+    elif not runtime.enabled and (runtime.tasks or runtime.commands):
+        await _stop_workers()
+
+
+async def _watch_config() -> None:
+    # 即使全部采集任务都关闭，也要能从面板重新启用。高频消息钩子只读内存。
+    while True:
+        await asyncio.sleep(1)
+        try:
+            await _sync_workers()
+        except Exception:
+            logger.exception('[status] 配置切换失败')
+
+
+@get_driver().on_startup
+async def _startup() -> None:
+    await _sync_workers()
+    runtime.supervisor = asyncio.create_task(_watch_config())
+
+
 @get_driver().on_shutdown
 async def _shutdown() -> None:
-    for task in runtime.tasks:
-        task.cancel()
-    if runtime.tasks:
-        await asyncio.gather(*runtime.tasks, return_exceptions=True)
-    runtime.tasks = []
-    runtime.flush_counters()
+    if runtime.supervisor is not None:
+        runtime.supervisor.cancel()
+        await asyncio.gather(runtime.supervisor, return_exceptions=True)
+        runtime.supervisor = None
+    await _stop_workers()
+    if runtime.enabled and runtime.samples is not None:
+        runtime.flush_counters()

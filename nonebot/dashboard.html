@@ -2,6 +2,7 @@
 <style>
 :root{color-scheme:light;--bg:#faf9f5;--paper:#fffefa;--sidebar:#f0eee7;--ink:#292721;--muted:#817e73;--line:#e8e5dc;--accent:#c66e4e;--accent-dark:#a9563c;--accent-soft:#f7eae2;--radius:16px}*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif}button,input,select{font:inherit}button,input,select{border:1px solid #ddd9cf;border-radius:9px;min-height:40px}button{cursor:pointer;color:#554f44;background:#fffefa;padding:8px 14px;transition:background .15s,border-color .15s}button:hover{background:#f3f0e9;border-color:#cfc8ba}button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{outline:3px solid #db9c83;outline-offset:2px}input,select{color:var(--ink);background:#fffefa;padding:8px 12px;max-width:100%}input::placeholder{color:#a5a095}a{color:inherit;text-decoration:none}[hidden]{display:none!important}.shell{min-height:100vh}.sidebar{position:fixed;inset:0 auto 0 0;width:244px;background:var(--sidebar);border-right:1px solid #e5e1d7;padding:27px 18px;display:flex;flex-direction:column}.brand{display:flex;align-items:center;gap:11px;padding:0 7px 30px;font-weight:650;font-size:16px;letter-spacing:.02em}.brand-mark{display:grid;place-items:center;width:34px;height:34px;border-radius:10px;background:var(--accent);color:white;font-size:18px}.nav-caption{font-size:11px;letter-spacing:.1em;color:#a19b8f;margin:6px 12px 10px}.nav-link{display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:9px;color:#625e53;margin:2px 0}.nav-link:hover{background:#e8e4db}.nav-link.active{background:#e5e1d7;color:#332e27;font-weight:600}.nav-icon{width:18px;text-align:center;font-size:17px;color:#9a705d}.nav-ext{margin-left:auto;color:#a19b8f;font-size:12px}.nav-link.external .nav-icon{color:#8a7c6d}.side-bottom{margin-top:auto;border-top:1px solid #dfdbd0;padding:18px 8px 0;color:#858072;font-size:12px}.side-bottom strong{display:block;color:#575248;font-size:13px}.side-logout{margin-top:10px;min-height:30px;font-size:12px;padding:4px 12px;background:transparent;color:#8a8375;border-color:#dfdbd0}.side-logout:hover{background:#e8e4db;color:#6b6558}.workspace{margin-left:244px;padding:42px 64px 80px;max-width:1500px}.topline{color:#9a9387;font-size:13px;display:flex;justify-content:space-between;gap:20px}.topline b{color:#716a5f;font-weight:500}.intro{padding:38px 0 24px}.eyebrow{font-size:12px;color:var(--accent-dark);font-weight:600;letter-spacing:.08em}.intro h1{font-family:Georgia,"Songti SC",serif;font-weight:500;letter-spacing:-.035em;font-size:37px;line-height:1.2;margin:9px 0 10px}.intro p,.section-description{color:var(--muted);margin:0}.card{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:26px 28px;margin:0 0 20px;scroll-margin-top:24px}.card-head{display:flex;gap:15px;align-items:flex-start;margin-bottom:23px}.card-icon{width:40px;height:40px;flex:none;display:grid;place-items:center;border-radius:12px;color:var(--accent-dark);background:var(--accent-soft);font-size:19px}.card h2{font-size:18px;letter-spacing:-.02em;margin:0 0 3px}.card h3{font-size:14px;margin:26px 0 10px}.card p{margin:10px 0}.section-description{font-size:13px}.controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.controls select,.controls input{min-width:150px}.controls .grow{flex:1}.primary{background:var(--accent);color:#fff;border-color:var(--accent)}.primary:hover{background:var(--accent-dark);border-color:var(--accent-dark)}.danger{color:#a2513e}.status{font-size:13px;color:var(--muted);margin:12px 0!important}.status:before{content:'';display:inline-block;width:7px;height:7px;border-radius:50%;background:#b3a998;margin-right:8px}.list{list-style:none;padding:0;margin:14px 0 0}.list:empty:after{content:'暂无内容';display:block;color:#aaa398;font-size:13px;padding:15px 0}.list li{display:flex;align-items:center;gap:7px;flex-wrap:wrap;border-top:1px solid #efede7;padding:12px 0;color:#554f46}.list li button{min-height:32px;font-size:12px;padding:4px 10px}.list li button:first-of-type{margin-left:auto}.subsection{border-top:1px solid var(--line);margin-top:24px;padding-top:1px}.hint{color:#938d81;font-size:12px}.auth-wrap{min-height:100vh;display:grid;place-items:center;padding:24px}.auth-card{width:min(100%,420px);padding:40px;background:var(--paper);border:1px solid var(--line);border-radius:20px;box-shadow:0 16px 50px #4b3b2510}.auth-card .brand-mark{width:42px;height:42px;margin-bottom:28px}.auth-card h1{font:500 29px/1.25 Georgia,"Songti SC",serif;margin:0 0 9px}.auth-card p{color:var(--muted);font-size:14px;margin:0 0 24px}.auth-card input{width:100%;margin-bottom:10px}.auth-card button{width:100%;margin-top:6px}.auth-label{display:block;font-size:13px;color:#6d675c;margin-bottom:7px}.auth-foot{font-size:12px!important;color:#aaa296!important;text-align:center;margin:24px 0 0!important}#message{color:#a44c39;font-size:13px;min-height:20px;margin:12px 0}#message:empty{display:none}.notice-slot{max-width:960px}.separator{height:1px;background:var(--line);margin:24px 0}.weather-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.weather-grid label{font-size:12px;color:#7c756a}.weather-grid input{display:block;width:100%;margin-top:5px}.weather-actions{margin-top:12px}.mobile-brand{display:none}
 @media(min-width:801px){.nav{min-height:0;overflow-y:auto;overscroll-behavior:contain}}
+.basics-nav{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:16px}.basics-nav .nav-link{white-space:nowrap}
 @media(max-width:800px){.sidebar{position:static;width:auto;padding:16px;display:block;border-right:0;border-bottom:1px solid var(--line)}.brand{padding:0 0 12px}.nav-caption,.side-bottom{display:none}.nav{display:flex;gap:4px;overflow:auto}.nav-link{white-space:nowrap;margin:0;padding:8px 10px}.workspace{margin:0;padding:25px 20px 60px}.intro{padding:30px 0 22px}.intro h1{font-size:31px}.card{padding:22px 18px}.topline{font-size:12px}}@media(max-width:520px){.weather-grid{grid-template-columns:1fr}.controls input,.controls select{flex:1 1 100%}.auth-card{padding:30px 24px}.topline span:last-child{display:none}}
 .status:empty:before{display:none}#appMessage:not(:empty){color:#a44c39;background:#faede7;border:1px solid #efd7ca;border-radius:9px;padding:10px 14px;margin-bottom:18px;font-size:13px}
 .topic-visuals{margin-top:22px;border-top:1px solid var(--line);padding-top:22px}.topic-heading{display:flex;justify-content:space-between;align-items:baseline;gap:12px}.topic-heading h3{margin:0}.topic-heading small{color:var(--muted);font-size:12px}.topic-cloud{min-height:150px;display:flex;align-content:center;justify-content:center;align-items:baseline;flex-wrap:wrap;gap:10px 19px;padding:25px 18px;margin:14px 0 24px;background:#f8f5ef;border:1px solid #f0ece4;border-radius:12px}.topic-word{color:#a65c44;line-height:1.4;overflow-wrap:anywhere}.topic-word:nth-child(4n+2){color:#8e7e6e}.topic-word:nth-child(4n+3){color:#665e50}.topic-word:nth-child(4n){color:#bc856e}.topic-ranking{list-style:none;margin:12px 0 0;padding:0}.topic-ranking li{display:grid;grid-template-columns:28px minmax(70px,130px) minmax(30px,1fr) auto;align-items:center;gap:10px;padding:8px 0;font-size:13px}.topic-rank{color:#aaa298;font-variant-numeric:tabular-nums}.topic-label{overflow-wrap:anywhere}.topic-bar{height:7px;background:#f0ede7;border-radius:8px;overflow:hidden}.topic-fill{display:block;height:100%;background:#c97d60;border-radius:8px}.topic-count{color:#827a6f;font-variant-numeric:tabular-nums;white-space:nowrap}.topic-empty{color:var(--muted);font-size:13px;text-align:center;margin:0!important}.topic-note{margin-top:16px!important;font-size:12px;color:#918b7e}@media(max-width:520px){.topic-ranking li{grid-template-columns:20px minmax(55px,90px) minmax(30px,1fr) auto;gap:6px}.topic-cloud{gap:9px 14px;padding:18px 12px}}
@@ -12,8 +13,32 @@
 </style>
 <div id="auth" class="auth-wrap"><div class="auth-card"><div class="brand-mark" aria-hidden="true">✳</div><section id="login"><h1>欢迎回来</h1><p>登录管理控制台，继续照看你的机器人。</p><form onsubmit="login();return false"><label class="auth-label" for="password">管理员密码</label><input id="password" type="password" autocomplete="current-password" placeholder="请输入密码" required><button class="primary" type="submit">登录控制台　→</button></form></section>
 <section id="firstRun" hidden><h1>首次设置密码</h1><p>这是首次登录。请设置新的管理员密码（12 至 256 位），完成后所有设备都需要用新密码重新登录，一次性临时密码文件会被删除。</p><form onsubmit="setupPassword();return false"><label class="auth-label" for="setupPassword">新密码</label><input id="setupPassword" type="password" autocomplete="new-password" minlength="12" maxlength="256" placeholder="至少 12 位" required><label class="auth-label" for="setupPasswordConfirm">确认新密码</label><input id="setupPasswordConfirm" type="password" autocomplete="new-password" minlength="12" maxlength="256" placeholder="再次输入密码" required><button class="primary" type="submit">完成设置并重新登录　→</button></form></section><p id="message" role="status" aria-live="polite"></p><p class="auth-foot">QQ BOT · 管理员控制台</p></div></div>
-<div id="app" class="shell" hidden><aside class="sidebar"><div class="brand"><span class="brand-mark" aria-hidden="true">✳</span><span><span id="botBrandName">达妮娅</span> <span style="color:#a39b8d;font-weight:400">/</span> 控制台</span></div><div class="nav-caption">管理空间</div><nav class="nav" aria-label="管理导航"><a class="nav-link active" href="#bot-info"><span class="nav-icon">◈</span>bot基本信息</a><a class="nav-link" href="#persona"><span class="nav-icon">✎</span>人格模板</a><a class="nav-link" href="#account"><span class="nav-icon">⚿</span>管理员密码</a><a class="nav-link" href="#monitor"><span class="nav-icon">◌</span>运行状态</a><a class="nav-link" href="#memes"><span class="nav-icon">☺</span>表情包</a><a class="nav-link" href="#status"><span class="nav-icon">◧</span>服务器状态</a><a class="nav-link" href="#tokens"><span class="nav-icon">◫</span>Token 消耗</a><a class="nav-link" href="#master"><span class="nav-icon">◇</span>主人识别</a><a class="nav-link" href="#superusers"><span class="nav-icon">⚑</span>超级管理员</a><a class="nav-link" href="#memory"><span class="nav-icon">◈</span>用户记忆</a><a class="nav-link" href="#group"><span class="nav-icon">◉</span>群聊话题</a><a class="nav-link" href="#weather"><span class="nav-icon">☼</span>天气助手</a><a class="nav-link" href="#game-events"><span class="nav-icon">▣</span>游戏活动</a><a class="nav-link" href="#epic"><span class="nav-icon">✧</span>Epic 喜加一</a><a class="nav-link" href="#bilibili"><span class="nav-icon">▷</span>B站动态</a><a class="nav-link" href="#embedding"><span class="nav-icon">◈</span>知识库 Embedding</a><a class="nav-link" href="#renderer"><span class="nav-icon">◧</span>图片渲染服务</a><a class="nav-link" href="#disaster"><span class="nav-icon">⚠</span>灾害预警</a><a class="nav-link" href="#parser"><span class="nav-icon">↗</span>链接解析</a><a class="nav-link" href="#events"><span class="nav-icon">≡</span>解析日志</a><div class="nav-caption">外部服务</div><a id="gsuidConsoleLink" class="nav-link external" href="http://127.0.0.1:8765/app" target="_blank" rel="noopener noreferrer" title="gsuid_core WebConsole（独立登录，默认端口 8765）" aria-label="打开 gsuid_core 游戏账号控制台（端口 8765）"><span class="nav-icon">⚙</span>游戏账号控制台<span class="nav-ext">↗</span></a></nav><div class="side-bottom"><strong>QQ 机器人</strong>本地管理空间<button type="button" class="side-logout" onclick="logout()">退出登录</button></div></aside>
+<div id="app" class="shell" hidden><aside class="sidebar"><div class="brand"><span class="brand-mark" aria-hidden="true">✳</span><span><span id="botBrandName">达妮娅</span> <span style="color:#a39b8d;font-weight:400">/</span> 控制台</span></div><div class="nav-caption">管理空间</div><nav class="nav" aria-label="管理导航">
+<a id="botBasicsLink" class="nav-link active" href="#bot-info"><span class="nav-icon">◈</span>Bot 基本情况</a>
+<a class="nav-link" href="#memes"><span class="nav-icon">☺</span>表情包</a>
+<a class="nav-link" href="#memory"><span class="nav-icon">◈</span>用户记忆</a>
+<a class="nav-link" href="#group"><span class="nav-icon">◉</span>群聊话题</a>
+<a class="nav-link" href="#status"><span class="nav-icon">◧</span>服务器状态</a>
+<a class="nav-link" href="#weather"><span class="nav-icon">☼</span>天气助手</a>
+<a class="nav-link" href="#game-events"><span class="nav-icon">▣</span>游戏活动</a>
+<a class="nav-link" href="#epic"><span class="nav-icon">✧</span>Epic 喜加一</a>
+<a class="nav-link" href="#bilibili"><span class="nav-icon">▷</span>B站动态</a>
+<a class="nav-link" href="#disaster"><span class="nav-icon">⚠</span>灾害预警</a>
+<a class="nav-link" href="#parser"><span class="nav-icon">↗</span>链接解析</a>
+<a class="nav-link" href="#embedding"><span class="nav-icon">◈</span>知识库 Embedding</a>
+<a class="nav-link" href="#renderer"><span class="nav-icon">◧</span>图片渲染服务</a>
+<a class="nav-link" href="#monitor"><span class="nav-icon">◌</span>运行状态</a>
+<a class="nav-link" href="#events"><span class="nav-icon">≡</span>解析日志</a>
+<a class="nav-link" href="#account"><span class="nav-icon">⚿</span>管理员密码</a>
+<div class="nav-caption">外部服务</div><a id="gsuidConsoleLink" class="nav-link external" href="http://127.0.0.1:8765/app" target="_blank" rel="noopener noreferrer" title="gsuid_core WebConsole（独立登录，默认端口 8765）" aria-label="打开 gsuid_core 游戏账号控制台（端口 8765）"><span class="nav-icon">⚙</span>游戏账号控制台<span class="nav-ext">↗</span></a></nav><div class="side-bottom"><strong>QQ 机器人</strong>本地管理空间<button type="button" class="side-logout" onclick="logout()">退出登录</button></div></aside>
 <main class="workspace"><div class="topline"><span>管理空间 <b> /　控制台</b></span><span>记忆 · 群聊 · 天气</span></div><div class="intro"><div class="eyebrow">YOUR BOT, AT A GLANCE</div><h1>你好，欢迎回来。</h1><p>在这里管理她的记忆、群里的话题与天气提醒。</p></div><div id="appMessage" class="notice-slot" role="status" aria-live="polite"></div>
+<nav id="botBasicsNav" class="basics-nav" aria-label="Bot 基本情况">
+<a class="nav-link" href="#bot-info"><span class="nav-icon">◈</span>基本信息</a>
+<a class="nav-link" href="#persona"><span class="nav-icon">✎</span>人格模板</a>
+<a class="nav-link" href="#tokens"><span class="nav-icon">◫</span>Token 消耗</a>
+<a class="nav-link" href="#master"><span class="nav-icon">◇</span>主人识别</a>
+<a class="nav-link" href="#superusers"><span class="nav-icon">⚑</span>超级管理员</a>
+</nav>
 <section id="bot-info" class="card">
   <div class="card-head"><div class="card-icon" aria-hidden="true">◈</div><div><h2>bot基本信息</h2><p class="section-description">设置机器人在状态卡、日报、集群卡、灾害卡和指令菜单中显示的 bot-name。保存后立即生效，不需要重启机器人。</p></div></div>
   <div class="controls"><input id="botNameInput" maxlength="40" placeholder="如：达妮娅" aria-label="机器人名称"><button class="primary" type="button" onclick="run(saveBotName)">保存名称</button><button type="button" onclick="run(resetBotName)">恢复默认</button><span id="botNameState" class="hint" role="status"></span></div>
@@ -52,7 +77,9 @@
 <div class="controls"><label class="parser-toggle"><input id="memeEnabled" type="checkbox">启用表情包</label><button type="button" onclick="run(loadMemes)">刷新</button></div>
 <div class="subsection"><h3>不使用表情的会话</h3><label class="parser-field"><span>每行一个，填写 group:群号 或 private:QQ号；留空代表所有会话都可使用。</span><textarea id="memeDisabledScopes" placeholder="group:123456"></textarea></label><div class="parser-actions"><button class="primary" type="button" onclick="saveMemeRules()">保存使用规则</button><span id="memeSaved" class="hint" role="status"></span></div></div>
 <div class="subsection"><h3>添加分类</h3><div class="controls"><input id="memeName" maxlength="40" placeholder="分类名称，如 开心" aria-label="分类名称"><input id="memeDescription" maxlength="300" class="grow" placeholder="适用场景，如 庆祝好消息" aria-label="分类适用场景"><button class="primary" type="button" onclick="createMemeCategory()">添加分类</button></div><p class="hint">支持 PNG、JPEG、GIF、WebP，单张最大 5 MB。机器人在合适的场景中可能选用，并非每次都会发送。</p><p id="memeEmpty" class="parser-empty">还没有分类，添加分类后即可上传图片。</p><div id="memeCategories"></div></div></section>
-<section id="status" class="card"><div class="card-head"><div class="card-icon" aria-hidden="true">◧</div><div><h2>服务器状态</h2><p class="section-description">实时资源与历史趋势；采样由机器人每 5 分钟写入，QQ 数据来自最近一次落盘。</p></div></div><div class="status-toolbar"><select id="statusRange" onchange="run(loadStatus)"><option value="1">最近 24 小时</option><option value="7">最近 7 天</option><option value="30">最近 30 天</option></select><button type="button" onclick="run(loadStatus)">刷新</button><span id="statusStamp" class="hint"></span></div><div class="status-grid" id="statusMetrics"></div><div class="subsection"><h3>历史趋势 <span id="statusRangeNote" class="hint"></span></h3><div class="status-chart"><svg id="statusChart" viewBox="0 0 600 150" preserveAspectRatio="none" role="img" aria-label="资源趋势"></svg></div><div class="status-legend"><span><i style="background:#c66e4e"></i>CPU</span><span><i style="background:#6d9d78"></i>内存</span></div></div><div class="subsection"><h3>磁盘与进程</h3><div class="status-kv" id="statusDisks"></div><ol id="statusProcs" class="topic-ranking"></ol></div><div class="subsection"><h3>异常事件 <span class="hint">最近 20 条</span></h3><p id="statusEventsEmpty" class="parser-empty" hidden>这个区间没有异常。</p><ul id="statusEvents" class="topic-ranking event-list"></ul></div><div class="subsection"><h3>推送与报表</h3><div class="status-kv" id="statusDelivery"></div></div><div class="subsection"><h3>状态卡设置</h3><div class="status-redact" id="statusRedact"></div><div class="status-toolbar" style="margin-top:14px"><label class="parser-toggle">告警<select id="statusAlertsEnabled"><option value="false">关闭</option><option value="true">开启</option></select></label><label class="parser-toggle">日报<select id="statusReportEnabled"><option value="false">关闭</option><option value="true">开启</option></select></label><label class="parser-toggle">日报时间<input id="statusReportTime" type="time" style="min-height:36px"></label><label class="parser-toggle">推送目标<input id="statusTargets" placeholder="群号，多个用逗号隔开" style="min-height:36px"></label><button class="primary" type="button" onclick="saveStatusConfig()">保存</button><span id="statusSaved" class="hint" role="status"></span></div><div class="subsection"><h3>Grafana CPU 温度</h3><p class="section-description">从 Grafana 的 Prometheus 数据源读取温度；查询失败时状态卡省略温度，不影响其他内容。</p><div class="parser-grid"><label class="parser-field"><span>启用</span><select id="statusGrafanaEnabled"><option value="false">关闭</option><option value="true">开启</option></select></label><label class="parser-field"><span>Grafana 地址</span><input id="statusGrafanaUrl" placeholder="http://grafana:3000"></label><label class="parser-field"><span>Datasource UID</span><input id="statusGrafanaUid" placeholder="Prometheus 数据源 UID"></label><label class="parser-field"><span>查询语句（PromQL / Flux）</span><input id="statusGrafanaQuery" placeholder="PromQL 或 Flux；Flux 可用 {window} 占位符"></label><label class="parser-field"><span>平均窗口（分钟）</span><input id="statusGrafanaWindow" type="number" min="1" max="1440"></label><label class="parser-field"><span>API Key</span><input id="statusGrafanaToken" type="password" autocomplete="new-password" placeholder="已配置则留空保持不变"></label></div><div class="status-toolbar" style="margin-top:10px"><button type="button" onclick="loadStatusGrafanaSources()">读取数据源</button><button type="button" onclick="testStatusGrafana()">测试连接</button><span id="statusGrafanaResult" class="hint" role="status"></span></div></div><div class="subsection"><h3>Proxmox VE 集群</h3><p class="section-description">从同一个 Grafana 的 InfluxDB（Flux）读取节点、访客与存储；只有最近窗口内有采样的节点和访客才会出现，已停止的访客通常没有数据。修改后点此保存；测试查询不保存。</p><div class="parser-grid"><label class="parser-field"><span>启用</span><select id="statusClusterEnabled"><option value="false">关闭</option><option value="true">开启</option></select></label><label class="parser-field"><span>卡片标题</span><input id="statusClusterTitle" placeholder="Proxmox VE"></label><label class="parser-field"><span>Bucket</span><input id="statusClusterBucket" placeholder="proxmox"></label><label class="parser-field"><span>Datasource UID</span><input id="statusClusterUid" placeholder="留空沿用上方 Grafana 数据源"></label><label class="parser-field"><span>数据窗口（分钟）</span><input id="statusClusterWindow" type="number" min="1" max="1440"></label><label class="parser-field"><span>节点筛选</span><input id="statusClusterNodes" placeholder="逗号分隔；留空表示全部节点"></label><label class="parser-field"><span>CPU 温度</span><select id="statusClusterTemp"><option value="false">关闭</option><option value="true">开启</option></select></label></div><div class="status-toolbar" style="margin-top:10px"><button class="primary" type="button" onclick="saveStatusConfig()">保存</button><button type="button" onclick="testStatusCluster()">测试集群查询</button><span id="statusClusterResult" class="hint" role="status"></span></div></div><p class="hint">基础配置在插件目录的 data/statuscard.json；监测条目等高级项请直接改该文件。</p></div></section><section id="tokens" class="card"><div class="card-head"><div class="card-icon" aria-hidden="true">◫</div><div><h2>Token 消耗</h2><p class="section-description">按天累计的模型用量，以及各模型的消耗排名。</p></div></div><div class="token-toolbar"><label class="parser-toggle">统计区间<select id="tokenDays" onchange="run(loadTokens)"><option value="1">今天</option><option value="7" selected>近 7 天</option><option value="30">近 30 天</option><option value="90">近 90 天</option></select></label><button type="button" onclick="run(loadTokens)">刷新</button><button type="button" onclick="confirmClearTokens()">清空统计</button><span id="tokenRange" class="hint"></span></div><div class="token-cards"><div class="token-card"><span>今日</span><strong id="tkToday">—</strong></div><div class="token-card"><span>昨日</span><strong id="tkYesterday">—</strong></div><div class="token-card"><span>近 7 天</span><strong id="tkWeek">—</strong></div><div class="token-card"><span>近 30 天</span><strong id="tkMonth">—</strong></div><div class="token-card"><span>累计</span><strong id="tkAll">—</strong></div></div><div class="subsection"><h3>模型排名 <span id="tokenModelNote" class="hint"></span></h3><p id="tokenEmpty" class="parser-empty" hidden>这个区间还没有记录。发出一次对话后就会开始统计。</p><ol id="tokenModels" class="topic-ranking"></ol></div><div class="subsection"><h3>每日用量</h3><div id="tokenDaily" class="token-daily"></div></div></section>
+<section id="status" class="card"><div class="card-head"><div class="card-icon" aria-hidden="true">◧</div><div><h2>服务器状态</h2><p class="section-description">实时资源与历史趋势；采样由机器人每 5 分钟写入，QQ 数据来自最近一次落盘。</p></div></div><div class="status-toolbar"><label class="parser-toggle"><input id="statusEnabled" type="checkbox" role="switch" onchange="run(toggleStatusEnabled)" disabled>服务器状态总开关</label><button id="statusRefresh" type="button" onclick="run(loadStatus)">刷新</button><span id="statusMode" class="hint" role="status">正在读取状态…</span></div>
+<div id="statusDetails" hidden><div class="status-toolbar"><select id="statusRange" onchange="run(loadStatus)"><option value="1">最近 24 小时</option><option value="7">最近 7 天</option><option value="30">最近 30 天</option></select><span id="statusStamp" class="hint"></span></div><div class="status-grid" id="statusMetrics"></div><div class="subsection"><h3>历史趋势 <span id="statusRangeNote" class="hint"></span></h3><div class="status-chart"><svg id="statusChart" viewBox="0 0 600 150" preserveAspectRatio="none" role="img" aria-label="资源趋势"></svg></div><div class="status-legend"><span><i style="background:#c66e4e"></i>CPU</span><span><i style="background:#6d9d78"></i>内存</span></div></div><div class="subsection"><h3>磁盘与进程</h3><div class="status-kv" id="statusDisks"></div><ol id="statusProcs" class="topic-ranking"></ol></div><div class="subsection"><h3>异常事件 <span class="hint">最近 20 条</span></h3><p id="statusEventsEmpty" class="parser-empty" hidden>这个区间没有异常。</p><ul id="statusEvents" class="topic-ranking event-list"></ul></div><div class="subsection"><h3>推送与报表</h3><div class="status-kv" id="statusDelivery"></div></div><div class="subsection"><h3>状态卡设置</h3><div class="status-redact" id="statusRedact"></div><div class="status-toolbar" style="margin-top:14px"><label class="parser-toggle">告警<select id="statusAlertsEnabled"><option value="false">关闭</option><option value="true">开启</option></select></label><label class="parser-toggle">日报<select id="statusReportEnabled"><option value="false">关闭</option><option value="true">开启</option></select></label><label class="parser-toggle">日报时间<input id="statusReportTime" type="time" style="min-height:36px"></label><label class="parser-toggle">推送目标<input id="statusTargets" placeholder="群号，多个用逗号隔开" style="min-height:36px"></label><button class="primary" type="button" onclick="saveStatusConfig()">保存</button><span id="statusSaved" class="hint" role="status"></span></div><div class="subsection"><h3>Grafana CPU 温度</h3><p class="section-description">从 Grafana 的 Prometheus 数据源读取温度；查询失败时状态卡省略温度，不影响其他内容。</p><div class="parser-grid"><label class="parser-field"><span>启用</span><select id="statusGrafanaEnabled"><option value="false">关闭</option><option value="true">开启</option></select></label><label class="parser-field"><span>Grafana 地址</span><input id="statusGrafanaUrl" placeholder="http://grafana:3000"></label><label class="parser-field"><span>Datasource UID</span><input id="statusGrafanaUid" placeholder="Prometheus 数据源 UID"></label><label class="parser-field"><span>查询语句（PromQL / Flux）</span><input id="statusGrafanaQuery" placeholder="PromQL 或 Flux；Flux 可用 {window} 占位符"></label><label class="parser-field"><span>平均窗口（分钟）</span><input id="statusGrafanaWindow" type="number" min="1" max="1440"></label><label class="parser-field"><span>API Key</span><input id="statusGrafanaToken" type="password" autocomplete="new-password" placeholder="已配置则留空保持不变"></label></div><div class="status-toolbar" style="margin-top:10px"><button type="button" onclick="loadStatusGrafanaSources()">读取数据源</button><button type="button" onclick="testStatusGrafana()">测试连接</button><span id="statusGrafanaResult" class="hint" role="status"></span></div></div><div class="subsection"><h3>Proxmox VE 集群</h3><p class="section-description">从同一个 Grafana 的 InfluxDB（Flux）读取节点、访客与存储；只有最近窗口内有采样的节点和访客才会出现，已停止的访客通常没有数据。修改后点此保存；测试查询不保存。</p><div class="parser-grid"><label class="parser-field"><span>启用</span><select id="statusClusterEnabled"><option value="false">关闭</option><option value="true">开启</option></select></label><label class="parser-field"><span>卡片标题</span><input id="statusClusterTitle" placeholder="Proxmox VE"></label><label class="parser-field"><span>Bucket</span><input id="statusClusterBucket" placeholder="proxmox"></label><label class="parser-field"><span>Datasource UID</span><input id="statusClusterUid" placeholder="留空沿用上方 Grafana 数据源"></label><label class="parser-field"><span>数据窗口（分钟）</span><input id="statusClusterWindow" type="number" min="1" max="1440"></label><label class="parser-field"><span>节点筛选</span><input id="statusClusterNodes" placeholder="逗号分隔；留空表示全部节点"></label><label class="parser-field"><span>CPU 温度</span><select id="statusClusterTemp"><option value="false">关闭</option><option value="true">开启</option></select></label></div><div class="status-toolbar" style="margin-top:10px"><button class="primary" type="button" onclick="saveStatusConfig()">保存</button><button type="button" onclick="testStatusCluster()">测试集群查询</button><span id="statusClusterResult" class="hint" role="status"></span></div></div><p class="hint">基础配置在插件目录的 data/statuscard.json；监测条目等高级项请直接改该文件。</p></div></div></section>
+<section id="tokens" class="card"><div class="card-head"><div class="card-icon" aria-hidden="true">◫</div><div><h2>Token 消耗</h2><p class="section-description">按天累计的模型用量，以及各模型的消耗排名。</p></div></div><div class="token-toolbar"><label class="parser-toggle">统计区间<select id="tokenDays" onchange="run(loadTokens)"><option value="1">今天</option><option value="7" selected>近 7 天</option><option value="30">近 30 天</option><option value="90">近 90 天</option></select></label><button type="button" onclick="run(loadTokens)">刷新</button><button type="button" onclick="confirmClearTokens()">清空统计</button><span id="tokenRange" class="hint"></span></div><div class="token-cards"><div class="token-card"><span>今日</span><strong id="tkToday">—</strong></div><div class="token-card"><span>昨日</span><strong id="tkYesterday">—</strong></div><div class="token-card"><span>近 7 天</span><strong id="tkWeek">—</strong></div><div class="token-card"><span>近 30 天</span><strong id="tkMonth">—</strong></div><div class="token-card"><span>累计</span><strong id="tkAll">—</strong></div></div><div class="subsection"><h3>模型排名 <span id="tokenModelNote" class="hint"></span></h3><p id="tokenEmpty" class="parser-empty" hidden>这个区间还没有记录。发出一次对话后就会开始统计。</p><ol id="tokenModels" class="topic-ranking"></ol></div><div class="subsection"><h3>每日用量</h3><div id="tokenDaily" class="token-daily"></div></div></section>
 <dialog id="restartDialog" class="confirm-dialog" aria-labelledby="restartTitle"><h2 id="restartTitle">确认重启机器人？</h2><p>机器人服务将短暂中断，正在处理的消息可能被中止。SnowLuma、QQ 和知识库服务继续运行。</p><div class="confirm-actions"><button onclick="$('restartDialog').close()">取消</button><button class="primary" onclick="restartBotNow()">确认重启</button></div></dialog>
 <section id="master" class="card"><div class="card-head"><div class="card-icon" aria-hidden="true">◇</div><div><h2>主人识别</h2><p class="section-description">设置当前发言人的身份识别与称呼。</p></div></div><div class="controls"><label for="masterEnabled">身份识别</label><select id="masterEnabled"><option value="true">开启</option><option value="false">关闭</option></select></div><div class="weather-grid" style="margin-top:14px"><label>主人 QQ 号（多个用逗号隔开）<input id="masterOwners" inputmode="numeric" placeholder="留空沿用已有主人配置"></label><label>主人称呼<input id="masterTitle" placeholder="留空沿用人格配置"></label></div><p class="hint">留空使用原有配置；修改主人身份不会授予管理权限。保存后直接生效。</p><button class="primary" onclick="saveMaster()">保存主人识别设置</button><span id="masterSaved" class="hint" role="status"></span></section>
 <section id="superusers" class="card"><div class="card-head"><div class="card-icon" aria-hidden="true">⚑</div><div><h2>超级管理员</h2><p class="section-description">能用「限流」「换模型」「查看状态」「解析开关」等管理指令的 QQ 号。改完最多 30 秒生效，不用重启机器人。</p></div></div><div class="controls"><input id="superuserInput" inputmode="numeric" placeholder="QQ 号" aria-label="新增管理员 QQ 号"><button class="primary" type="button" onclick="addSuperuser()">添加</button><button type="button" onclick="run(loadSuperusers)">刷新</button><button type="button" class="danger" onclick="resetSuperusers()">回退到 .env</button><span id="superuserSource" class="hint" role="status"></span></div><p id="superuserState" class="status"></p><ul id="superuserList" class="list"></ul><p class="hint">面板第一次保存后以这份名单为准；<code>nonebot/.env</code> 的 <code>SUPERUSERS</code> 只在还没有名单文件时作为初始值。面板登录密码与这里的 QQ 号是两套东西，改名单不会影响登录。</p></section><section id="memory" class="card"><div class="card-head"><div class="card-icon" aria-hidden="true">◈</div><div><h2>用户记忆</h2><p class="section-description">查看和管理机器人为每位用户保存的记忆。</p></div></div><div class="controls"><select id="users" aria-label="选择用户" onchange="loadUser()"></select><button onclick="memoryAction('开启')">开启记忆</button><button onclick="memoryAction('关闭')">关闭记忆</button></div><p id="userState" class="status"></p><ul id="memories" class="list"></ul><div class="subsection"><h3>待处理候选</h3><p class="section-description">检查可能重复或冲突的记忆，再决定如何处理。</p><ul id="candidates" class="list"></ul></div></section>
@@ -597,10 +624,31 @@ function renderStatusChart(points){
   let zero=document.createElementNS(SVG_NS,'text');zero.setAttribute('x',P);zero.setAttribute('y',H-1);zero.setAttribute('fill','#a5a095');zero.setAttribute('font-size','10');zero.textContent='0%';svg.append(zero);
   let full=document.createElementNS(SVG_NS,'text');full.setAttribute('x',P);full.setAttribute('y',P+8);full.setAttribute('fill','#a5a095');full.setAttribute('font-size','10');full.textContent='100%';svg.append(full);
 }
+let statusRevision=0,statusWriting=false,statusDirty=false;
+$('statusDetails').addEventListener('input',event=>{if(event.target.id!=='statusRange')statusDirty=true});
+function lockStatus(message){
+  $('statusEnabled').disabled=true;
+  $('statusDetails').hidden=true;
+  $('statusMode').textContent=message;
+}
 async function loadStatus(){
+  if(statusWriting)return;
+  const revision=++statusRevision;
   const days=Number($('statusRange').value||1);
-  const x=await api('/api/status/overview?days='+days);
+  lockStatus('正在读取状态…');
+  let x;
+  try{x=await api('/api/status/overview?days='+days)}catch(error){
+    if(revision!==statusRevision)return;
+    lockStatus('未能读取服务器状态，请刷新重试。');throw error;
+  }
+  if(revision!==statusRevision)return;
+  const enabled=x.enabled!==false && x.config?.enabled!==false;
+  $('statusEnabled').checked=enabled;
+  $('statusEnabled').disabled=false;
+  $('statusMode').textContent=enabled?'已开启':'已关闭，不采集或展示服务器状态。';
+  if(!enabled){statusDirty=false;$('statusGrafanaToken').value='';$('statusSaved').textContent='';return}
   const live=x.live||{},bot=x.bot||{},net=x.network||{},cfg=x.config||{},gf=x.grafana||{};
+  if(!statusDirty){
   $('statusGrafanaEnabled').value=gf.enabled?'true':'false';
   $('statusGrafanaUrl').value=gf.url||'';
   $('statusGrafanaUid').value=gf.datasource_uid||'';
@@ -618,6 +666,7 @@ async function loadStatus(){
   $('statusClusterNodes').value=(cl.node_filter||[]).join(',');
   $('statusClusterTemp').value=cl.show_temperature===false?'false':'true';
   $('statusClusterResult').textContent='';
+  }
   const stamp=live.collected_at?new Date(live.collected_at*1000).toLocaleTimeString():'—';
   $('statusStamp').textContent=`实时采集于 ${stamp} · 采样 ${(x.counts&&x.counts.resource_samples)||0} 条 · 数据 ${x.stores&&x.stores.ready?'就绪':'未就绪'}`;
   const box=$('statusMetrics');box.replaceChildren();
@@ -647,6 +696,7 @@ async function loadStatus(){
   statusRow(delivery,'日报开关',`${cfg.report&&cfg.report.enabled?'开':'关'} · ${(cfg.report&&cfg.report.time)||'--'}`);
   statusRow(delivery,'告警开关',`${cfg.alerts&&cfg.alerts.enabled?'开':'关'} · 目标 ${((cfg.alerts&&cfg.alerts.targets)||[]).length} 个`);
   statusRow(delivery,'监测条目',`已配置 ${((cfg.monitors&&cfg.monitors.items)||[]).length} 项`);
+  if(!statusDirty){
   const redact=$('statusRedact');redact.replaceChildren();
   const chosen=(cfg.display&&cfg.display.redact)||[];
   const labels={hostname:'主机名',process:'进程信息',network:'网络数据',qq_stats:'QQ 统计'};
@@ -655,12 +705,37 @@ async function loadStatus(){
   $('statusReportEnabled').value=cfg.report&&cfg.report.enabled?'true':'false';
   $('statusReportTime').value=(cfg.report&&cfg.report.time)||'21:00';
   $('statusTargets').value=((cfg.alerts&&cfg.alerts.targets)||[]).join(',');
+  }
+  $('statusDetails').hidden=false;
+}
+async function writeStatusConfig(payload){
+  statusWriting=true;
+  ++statusRevision;
+  lockStatus('正在保存…');
+  $('statusRefresh').disabled=true;
+  try{
+    await api('/api/status/config',payload);
+    statusDirty=false;
+  }finally{
+    statusWriting=false;
+    $('statusRefresh').disabled=false;
+    await loadStatus();
+  }
+}
+async function toggleStatusEnabled(){
+  if(statusWriting || $('statusEnabled').disabled)return;
+  const enabled=$('statusEnabled').checked;
+  if(statusDirty && !confirm('切换总开关会放弃未保存的状态卡设置。继续吗？')){
+    $('statusEnabled').checked=!enabled;return;
+  }
+  await writeStatusConfig({enabled});
 }
 async function saveStatusConfig(){
   run(async()=>{
+    if(statusWriting || $('statusDetails').hidden)return;
     const redact=[...document.querySelectorAll('#statusRedact input:checked')].map(el=>el.dataset.redact);
     const targets=$('statusTargets').value.split(/[,，\s]+/).map(x=>x.trim()).filter(Boolean);
-    await api('/api/status/config',{
+    await writeStatusConfig({
       display:{redact},
       alerts:{enabled:$('statusAlertsEnabled').value==='true',targets},
       report:{enabled:$('statusReportEnabled').value==='true',time:$('statusReportTime').value||'21:00'},
@@ -683,23 +758,25 @@ async function saveStatusConfig(){
       },
     });
     $('statusSaved').textContent='已保存；机器人最多一分钟内热加载';
-    await loadStatus();
   });
 }
 async function loadStatusGrafanaSources(){
   run(async()=>{
+    const revision=statusRevision;
     const x=await api('/api/status/grafana/datasources',{grafana:{
       url:$('statusGrafanaUrl').value.trim(),
       token:$('statusGrafanaToken').value.trim(),
     }});
+    if(revision!==statusRevision)return;
     if(!x.ok){$('statusGrafanaResult').textContent='失败：'+x.error;return}
     const items=x.items||[];
-    if(items.length===1){$('statusGrafanaUid').value=items[0].uid;$('statusGrafanaResult').textContent=`已填入 ${items[0].name}（${items[0].type}，${items[0].uid}）`}
+    if(items.length===1){statusDirty=true;$('statusGrafanaUid').value=items[0].uid;$('statusGrafanaResult').textContent=`已填入 ${items[0].name}（${items[0].type}，${items[0].uid}）`}
     else{$('statusGrafanaResult').textContent=items.map(i=>`${i.name}(${i.type}，${i.uid})`).join(' · ')||'空列表'}
   });
 }
 async function testStatusGrafana(){
   run(async()=>{
+    const revision=statusRevision;
     const x=await api('/api/status/grafana/test',{grafana:{
       url:$('statusGrafanaUrl').value.trim(),
       datasource_uid:$('statusGrafanaUid').value.trim(),
@@ -707,11 +784,13 @@ async function testStatusGrafana(){
       avg_window_minutes:Number($('statusGrafanaWindow').value)||60,
       token:$('statusGrafanaToken').value.trim(),
     }});
+    if(revision!==statusRevision)return;
     $('statusGrafanaResult').textContent=x.ok?`当前 ${x.current_c}℃ · ${x.window_minutes} 分均 ${x.avg_c}℃（${x.samples} 个样本）`:`失败：${x.error}`;
   });
 }
 async function testStatusCluster(){
   run(async()=>{
+    const revision=statusRevision;
     const x=await api('/api/status/cluster/test',{cluster:{
       enabled:$('statusClusterEnabled').value==='true',
       title:$('statusClusterTitle').value.trim(),
@@ -725,6 +804,7 @@ async function testStatusCluster(){
       datasource_uid:$('statusGrafanaUid').value.trim(),
       token:$('statusGrafanaToken').value.trim(),
     }});
+    if(revision!==statusRevision)return;
     $('statusClusterResult').textContent=x.ok?`读取成功：${x.summary.nodes} 个节点 / ${x.summary.guests} 个访客 / ${x.summary.storages} 个存储`:`失败：${x.error}`;
   });
 }
@@ -983,14 +1063,22 @@ async function loadBilibili(){
     group.append(list);box.append(group);
   }
 }
-const sectionLinks = Array.from(document.querySelectorAll('.nav-link[href^="#"]'));
+const basicsNav = $('botBasicsNav');
+const basicsLink = $('botBasicsLink');
+const sectionLinks = Array.from(document.querySelectorAll('.nav-link[href^="#"]:not(#botBasicsLink)'));
+const defaultSection = basicsNav.querySelector('a');
 const sectionLoaders = new Map([
   ['#events', loadEvents], ['#tokens', loadTokens], ['#status', loadStatus],
   ['#superusers', loadSuperusers], ['#game-events', loadGameEvents],
   ['#epic', loadEpic], ['#bilibili', loadBilibili], ['#disaster', loadDisaster],
 ]);
 function showWorkspaceSection(refreshSection) {
-  const selected = sectionLinks.find(link => link.hash === location.hash) || sectionLinks[0];
+  const selected = sectionLinks.find(link => link.hash === location.hash) || defaultSection;
+  const inBasics = basicsNav.contains(selected);
+  basicsNav.hidden = !inBasics;
+  basicsLink.classList.toggle('active', inBasics);
+  if (inBasics) basicsLink.setAttribute('aria-current', 'location');
+  else basicsLink.removeAttribute('aria-current');
   for (const link of sectionLinks) {
     const active = link === selected;
     $(link.hash.slice(1)).hidden = !active;
