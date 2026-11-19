@@ -235,9 +235,12 @@ class Element {
   replaceChildren(...values){this._text='';this.children=[...values]}
   addEventListener(){}
   setAttribute(name,value){this[name]=value}
+  removeAttribute(name){delete this[name]}
+  querySelector(selector){if(selector==='a'){const link=new Element('a');link.hash='#bot-info';return link}return null}
+  contains(){return false}
 }
 const document={getElementById(id){if(!elements.has(id))elements.set(id,new Element());return elements.get(id)},createElement(tag){return new Element(tag)},createTextNode(text){return String(text)},querySelector(){return new Element('a')},querySelectorAll(){return []}};
-const context={document,fetch:async()=>({ok:false}),console,URL,URLSearchParams,setTimeout(){return 1},clearTimeout(){},confirm(){return true}};
+const context={document,location:{hash:''},window:{addEventListener(){}},fetch:async()=>({ok:false}),console,URL,URLSearchParams,setTimeout(){return 1},clearTimeout(){},confirm(){return true}};
 vm.createContext(context);
 const html=fs.readFileSync(process.argv[1],'utf8');
 vm.runInContext(html.match(/<script>([\s\S]*?)<\/script>/)[1],context);
