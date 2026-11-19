@@ -1,4 +1,4 @@
-# Keep this file UTF-8 with BOM: Windows PowerShell 5.1 needs it for Chinese text.
+# ASCII-only: Windows PowerShell 5.1 may misread UTF-8 without a BOM.
 [CmdletBinding()]
 param(
     [string]$Root = (Split-Path -Parent $PSScriptRoot),
@@ -41,45 +41,45 @@ function Stop-Check($Message) {
     Write-Host "  [!!] $Message" -ForegroundColor Red
     if (-not $NoPause -and -not $env:QQBOT_NO_PAUSE -and [Environment]::UserInteractive) {
         Write-Host ''
-        [void](Read-Host '按 Enter 关闭窗口')
+        [void](Read-Host 'Press Enter to close')
     }
     exit 1
 }
 
 function Invoke-PipInstall {
-    Write-Section '安装/补齐 requirements.lock 依赖，完成前不会启动任何服务 ...'
+    Write-Section 'Installing/repairing requirements.lock; no service starts until this completes ...'
     & $python -m pip install --disable-pip-version-check --no-input -r $requirements
     if ($LASTEXITCODE -ne 0) {
-        Stop-Check "pip install 失败（退出码 $LASTEXITCODE），未启动任何服务。"
+        Stop-Check "pip install failed (exit $LASTEXITCODE); no service was started."
     }
     Set-Content -LiteralPath $marker -Value $requirementsHash -NoNewline -Encoding ascii
 }
 
 trap {
-    Write-Host "  [!!] 依赖检查异常: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host "  [!!] Dependency check failed: $($_.Exception.Message)" -ForegroundColor Red
     if (-not $NoPause -and -not $env:QQBOT_NO_PAUSE -and [Environment]::UserInteractive) {
         Write-Host ''
-        [void](Read-Host '按 Enter 关闭窗口')
+        [void](Read-Host 'Press Enter to close')
     }
     exit 1
 }
 
 Write-Host '==========================================' -ForegroundColor Cyan
-Write-Host '  启动前依赖检查' -ForegroundColor Cyan
+Write-Host '  Startup dependency preflight' -ForegroundColor Cyan
 Write-Host '==========================================' -ForegroundColor Cyan
 
 if (-not (Test-Path -LiteralPath (Join-Path $botDir 'bot.py') -PathType Leaf)) {
-    Stop-Check "不是有效检出：缺少 $botDir\bot.py"
+    Stop-Check "Not a valid checkout: missing $botDir\bot.py"
 }
 if (-not (Test-Path -LiteralPath $requirements -PathType Leaf)) {
-    Stop-Check "缺少依赖锁文件：$requirements"
+    Stop-Check "Missing dependency lock: $requirements"
 }
 
 if (-not (Test-Path -LiteralPath $python -PathType Leaf)) {
     if ($CheckOnly) {
-        Stop-Check "NoneBot 虚拟环境不存在：$python"
+        Stop-Check "NoneBot virtual environment is missing: $python"
     }
-    Write-Section 'NoneBot 虚拟环境不存在，尝试用 Python 3.12 创建 ...'
+    Write-Section 'NoneBot venv is missing; trying to create it with Python 3.12 ...'
     $created = $false
     $py = Get-Command py.exe -ErrorAction SilentlyContinue
     if ($py) {
@@ -102,39 +102,39 @@ if (-not (Test-Path -LiteralPath $python -PathType Leaf)) {
         }
     }
     if (-not $created) {
-        Stop-Check '无法创建 NoneBot 虚拟环境。请安装 Python 3.12 后运行 py -3.12 -m venv nonebot\.venv。'
+        Stop-Check 'Could not create the NoneBot venv. Install Python 3.12, then run: py -3.12 -m venv nonebot\.venv'
     }
 }
 if (-not (Test-Path -LiteralPath (Join-Path $venvDir 'pyvenv.cfg') -PathType Leaf)) {
-    Stop-Check "NoneBot 虚拟环境不完整（缺少 pyvenv.cfg）：$venvDir"
+    Stop-Check "NoneBot venv is incomplete (missing pyvenv.cfg): $venvDir"
 }
 Write-Ok "NoneBot Python: $python"
 
 if (-not (Test-Path -LiteralPath $snowNode -PathType Leaf)) {
-    Stop-Check "SnowLuma 运行时缺失：$snowNode"
+    Stop-Check "SnowLuma runtime is missing: $snowNode"
 }
 if (-not (Test-Path -LiteralPath $snowEntry -PathType Leaf)) {
-    Stop-Check "SnowLuma 入口缺失：$snowEntry"
+    Stop-Check "SnowLuma entry point is missing: $snowEntry"
 }
 Write-Ok "SnowLuma runtime: $snowNode"
 
 if ($CheckOnly) {
-    Write-Ok '文件检查通过（CheckOnly，未执行 pip/import）'
+    Write-Ok 'File checks passed (CheckOnly; pip/import were not run)'
     exit 0
 }
 
 & $python -m pip --version *> $null
 if ($LASTEXITCODE -ne 0) {
     if ($SkipInstall) {
-        Stop-Check 'pip 不可用，且当前指定了 -SkipInstall；未启动任何服务。'
+        Stop-Check 'pip is unavailable, and -SkipInstall was requested; no service was started.'
     }
-    Write-Section 'pip 不可用，尝试 ensurepip ...'
+    Write-Section 'pip is unavailable; trying ensurepip ...'
     & $python -m ensurepip --upgrade
     if ($LASTEXITCODE -ne 0) {
-        Stop-Check "pip 不可用（退出码 $LASTEXITCODE），未启动任何服务。"
+        Stop-Check "pip is unavailable (exit $LASTEXITCODE); no service was started."
     }
 }
-Write-Ok 'pip 可用'
+Write-Ok 'pip is available'
 
 $requirementsHash = (Get-FileHash -LiteralPath $requirements -Algorithm SHA256).Hash.ToLowerInvariant()
 $marker = Join-Path $venvDir '.qqbot-requirements.sha256'
@@ -149,7 +149,7 @@ $needsInstall = $markerHash -ne $requirementsHash
 
 if ($needsInstall) {
     if ($SkipInstall) {
-        Write-Warn 'requirements.lock 已变化，但当前指定了 -SkipInstall；继续检查现有环境'
+        Write-Warn 'requirements.lock changed, but -SkipInstall was requested; checking the existing environment'
     } else {
         Invoke-PipInstall
     }
@@ -158,16 +158,16 @@ if ($needsInstall) {
 $pipCheck = & $python -m pip check 2>&1
 if ($LASTEXITCODE -ne 0) {
     if ($SkipInstall) {
-        Stop-Check "pip check 未通过（-SkipInstall 禁止修复）：`n$pipCheck"
+        Stop-Check "pip check failed (-SkipInstall prevents repair):`n$pipCheck"
     }
-    Write-Warn 'pip check 未通过，尝试按 requirements.lock 修复 ...'
+    Write-Warn 'pip check failed; repairing from requirements.lock ...'
     Invoke-PipInstall
     $pipCheck = & $python -m pip check 2>&1
     if ($LASTEXITCODE -ne 0) {
-        Stop-Check "依赖冲突仍存在：`n$pipCheck"
+        Stop-Check "Dependency conflicts remain:`n$pipCheck"
     }
 }
-Write-Ok 'pip check 通过'
+Write-Ok 'pip check passed'
 
 function Invoke-ImportCheck {
     Push-Location -LiteralPath $botDir
@@ -181,25 +181,25 @@ function Invoke-ImportCheck {
 $importCheck = Invoke-ImportCheck
 if ($LASTEXITCODE -ne 0) {
     if ($SkipInstall) {
-        Stop-Check "NoneBot/MuiceBot 导入检查失败（-SkipInstall 禁止修复）：`n$importCheck"
+        Stop-Check "NoneBot/MuiceBot import check failed (-SkipInstall prevents repair):`n$importCheck"
     }
-    Write-Warn 'NoneBot/MuiceBot 导入检查失败，尝试按 requirements.lock 修复 ...'
+    Write-Warn 'NoneBot/MuiceBot import check failed; repairing from requirements.lock ...'
     Invoke-PipInstall
     $importCheck = Invoke-ImportCheck
     if ($LASTEXITCODE -ne 0) {
-        Stop-Check "NoneBot/MuiceBot 仍无法导入：`n$importCheck"
+        Stop-Check "NoneBot/MuiceBot still cannot be imported:`n$importCheck"
     }
 }
-Write-Ok 'nonebot 可导入，muicebot 已安装'
+Write-Ok 'nonebot imports; muicebot is installed'
 
 if (Test-Path -LiteralPath $ragIndex -PathType Leaf) {
     if (Test-Path -LiteralPath $ragPython -PathType Leaf) {
-        Write-Ok 'RAG 可选服务：索引和虚拟环境均已就绪'
+        Write-Ok 'Optional RAG service: index and venv are ready'
     } else {
-        Write-Warn "RAG 索引存在，但虚拟环境缺失：$ragPython（启动时会跳过 RAG）"
+        Write-Warn "RAG index exists but its venv is missing: $ragPython (RAG will be skipped)"
     }
 } else {
-    Write-Warn 'RAG 可选服务未配置（rag\index\vectors.npy 不存在，启动时会跳过）'
+    Write-Warn 'Optional RAG service is not configured (rag\index\vectors.npy is missing; RAG will be skipped)'
 }
 
 $gsuidEnabled = $true
@@ -210,23 +210,23 @@ if (Test-Path -LiteralPath $pluginSettings -PathType Leaf) {
             $gsuidEnabled = $false
         }
     } catch {
-        Write-Warn "无法读取插件开关：$pluginSettings（按 gsuid 启用处理）"
+        Write-Warn "Could not read plugin switches: $pluginSettings (assuming gsuid is enabled)"
     }
 }
 if (-not $gsuidEnabled) {
-    Write-Warn 'gsuid_core 可选服务：已由插件管理关闭'
+    Write-Warn 'Optional gsuid_core is disabled by the plugin manager'
 } elseif (Test-Path -LiteralPath $gsuidPython -PathType Leaf) {
-    Write-Ok 'gsuid_core 可选服务：虚拟环境已就绪'
+    Write-Ok 'Optional gsuid_core: venv is ready'
 } else {
-    Write-Warn "gsuid_core 可选服务未安装：$gsuidPython（启动时会跳过）"
+    Write-Warn "Optional gsuid_core is not installed: $gsuidPython (gsuid will be skipped)"
 }
 
 foreach ($configFile in @((Join-Path $botDir '.env'), (Join-Path $botDir 'configs\models.yml'))) {
     if (-not (Test-Path -LiteralPath $configFile -PathType Leaf)) {
-        Write-Warn "配置缺失：$configFile（机器人可能无法正常启动）"
+        Write-Warn "Missing configuration: $configFile (the bot may fail to start)"
     }
 }
 
 Write-Host ''
-Write-Host '依赖检查完成，开始启动服务。' -ForegroundColor Green
+Write-Host 'Dependency preflight passed; starting services.' -ForegroundColor Green
 exit 0
