@@ -138,7 +138,7 @@ class DashboardTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp, patch.object(master_settings,'PATH',Path(tmp)/'settings.json'):
             d.AUTH_FILE=Path(tmp)/'auth'
             d.set_password('a-strong-test-password')
-            data={'enabled':True,'owner_ids':['123456'],'title':'漂泊者'}
+            data={'owner_ids':['123456'],'title':'漂泊者'}
             with TestClient(d.app) as client:
                 self.assertEqual(client.get('/api/master-aware').status_code,401)
                 login=client.post('/api/login',json={'password':'a-strong-test-password'})
@@ -146,7 +146,7 @@ class DashboardTest(unittest.TestCase):
                 headers={'Origin':'http://testserver','X-CSRF-Token':login.json()['csrf']}
                 self.assertEqual(client.post('/api/master-aware',json=data,headers=headers).status_code,200)
                 self.assertEqual(client.get('/api/master-aware').json(),data)
-                self.assertEqual(client.post('/api/master-aware',json={'enabled':True,'owner_ids':['x'],'title':None},headers=headers).status_code,400)
+                self.assertEqual(client.post('/api/master-aware',json={'owner_ids':['x'],'title':None},headers=headers).status_code,400)
     def test_temporary_password_requires_change_and_revokes_sessions(self):
         with tempfile.TemporaryDirectory() as tmp:
             d.AUTH_FILE = Path(tmp)/'auth'
