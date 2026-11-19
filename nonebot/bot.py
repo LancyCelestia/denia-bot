@@ -2,9 +2,61 @@
 
 import nonebot
 import os
+import re
+import secrets
+import time
 from nonebot.adapters.onebot.v11 import Adapter as OneBotV11Adapter
 from conversation_header import configure
 from private_env import get_private
+
+# Windows 代理软件常把回环 IPv6 写进 NO_PROXY（例如 "localhost,[::1]"）。
+# httpx 0.28 会把 "[::1]" 当普通域名拼成 "all://*[::1]"，解析时抛
+# InvalidURL: Invalid port: ':1]'，让所有出站请求一起失败。
+# 这里只删掉这两个精确条目，其余值保持原样，也不额外添加真实地址。
+_LOOPBACK_NO_PROXY = frozenset({'::1', '[::1]'})
+
+
+def normalize_no_proxy(value: str) -> str:
+    """删掉 NO_PROXY 里的 ::1 / [::1]；没有可删条目时原样返回。"""
+    if not value:
+        return value
+    entries = [entry for entry in re.split(r'[,\s]+', value) if entry]
+    kept = [entry for entry in entries if entry not in _LOOPBACK_NO_PROXY]
+    if len(kept) == len(entries):
+        return value
+    return ','.join(kept)
+
+
+def sanitize_proxy_environment(environ=None) -> list[str]:
+    """就地清理两份大小写形式的 NO_PROXY，返回实际被改动的变量名。"""
+    env = os.environ if environ is None else environ
+    changed = []
+    for name in ('NO_PROXY', 'no_proxy'):
+        if name not in env:
+            continue
+        current = env[name]
+        cleaned = normalize_no_proxy(current)
+        if cleaned != current:
+            env[name] = cleaned
+            changed.append(name)
+    return changed
+
+
+# 必须在 nonebot.init 之前：httpx 的代理表虽然创建客户端时才读取，
+# 但插件导入阶段就可能立刻发起请求。
+sanitize_proxy_environment()
+
+
+# 启动标识：面板重启通过 QQBOT_START_TOKEN 传入新令牌，必须优先采用；
+# 普通启动没有该变量，就生成一次进程级令牌，健康检查不再返回 null。
+def resolve_start_token(environ=None) -> str:
+    env = os.environ if environ is None else environ
+    token = (env.get('QQBOT_START_TOKEN') or '').strip()
+    return token or secrets.token_urlsafe(24)
+
+
+START_TOKEN = resolve_start_token()
+STARTED_AT = time.time()
 
 # SDK clients created during this process share the ID; each restart gets a new one.
 os.environ['OPENAI_CUSTOM_HEADERS'] = configure()
@@ -26,7 +78,8 @@ async def dashboard_health():
         'ready': True,
         'connected': target_id in bots if target_id else bool(bots),
         'pid': os.getpid(),
-        'start_token': os.environ.get('QQBOT_START_TOKEN'),
+        'start_token': START_TOKEN,
+        'started_at': STARTED_AT,
     }
 
 # MuiceBot —— LLM 聊天 + 人格模板
