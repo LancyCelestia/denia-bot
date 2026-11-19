@@ -7,7 +7,6 @@ the builder as a separate process; the request itself only starts the job.
 import json
 import os
 import re
-import shutil
 import subprocess
 import sys
 import tempfile
