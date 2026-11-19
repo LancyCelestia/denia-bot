@@ -490,7 +490,7 @@ def evaluate_offline(
 ) -> dict[str, Any]:
     """Bot 掉线状态机。
 
-    **探测失败不等于掉线**。NapCat 重启期间 `get_status` 必然失败，把失败当掉线
+    **探测失败不等于掉线**。协议端重启期间 `get_status` 必然失败，把失败当掉线
     会在每次重启时误报一条。所以只有明确拿到 `online: false` 才记掉线；
     `None` 只是给探测失败计数，供诊断用。
 

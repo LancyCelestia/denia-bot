@@ -670,7 +670,7 @@ async def check_offline(runtime: Runtime, *, now: float) -> None:
     1. `get_bots()` 里没有 Bot —— 通道本身断了，连续两次确认离线
        （重连瞬间会有空档，一次就报会误伤）
     2. 有 Bot 且 `get_status` 明确回 `online=false` —— 确认离线
-    3. 有 Bot 但状态查询失败 —— 在线。NapCat 重启期间 `get_status` 必然失败，
+    3. 有 Bot 但状态查询失败 —— 在线。协议端重启期间 `get_status` 必然失败，
        但 QQ 侧并没掉线；把失败的探测当成掉线就是一条假警报
 
     查询失败的原因记进状态，`状态卡诊断` 能看到；但不影响判定。

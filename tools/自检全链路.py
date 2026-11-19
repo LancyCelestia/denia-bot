@@ -5,7 +5,8 @@ r"""
   SnowLuma 是「连到 NoneBot 的 ws 客户端」，事件由它推进来。本脚本扮演同一个角色，
   连上 ws://127.0.0.1:8080/onebot/v11/ws 推一条 message 事件，再把 NoneBot 发回来
   的 API 调用（send_msg 等）原样打印 —— 这样能单独验证
-      NoneBot → kb 检索注入 → AxonHub → 人格回复
+      NoneBot → kb 检索注入 → 模型 API（nonebot/configs/models.yml 的 relay，
+      可选 AxonHub 网关或直连）→ 人格回复
   这一段，不必依赖真的有人在 QQ 里 @机器人。
   只走本地回环，且 self_id 用的是假的号，不会给任何真实 QQ 用户发消息。
 
@@ -366,7 +367,8 @@ def main() -> int:
                   "     · 被闸门拦了 —— 群里必须 @ 机器人，且没到当天的上限；"
                   "看 logs/nonebot.out.log 里的 [gate] 拦下 行\n"
                   "     · 没触发 —— 私聊直接可触发，群聊要么 @ 要么昵称开头\n"
-                  "     · 模型不通 —— 看 logs/nonebot.err.log，或先跑 tools/自检AxonHub.ps1\n"
+                  "     · 模型不通 —— 看 nonebot/logs/nonebot.err.log，"
+                  "核对 nonebot/configs/models.yml 的 relay/api_host\n"
                   "     · 超时 —— 加大 --timeout")
             return 1
 
