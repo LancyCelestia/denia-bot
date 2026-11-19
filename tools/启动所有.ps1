@@ -3,7 +3,22 @@
 #  启动顺序：先 NoneBot（WebSocket 服务端），再 SnowLuma（连出去）
 # =====================================================================
 
+[CmdletBinding()]
+param(
+    [switch]$NoPause
+)
+
 $ErrorActionPreference = 'Continue'
+$script:StartupFailed = $false
+
+trap {
+    Write-Host "[!!] 启动异常: $($_.Exception.Message)" -ForegroundColor Red
+    if (-not $NoPause -and -not $env:QQBOT_NO_PAUSE -and [Environment]::UserInteractive) {
+        Write-Host ''
+        [void](Read-Host '按 Enter 关闭窗口')
+    }
+    exit 1
+}
 
 $ROOT       = Split-Path -Parent $PSScriptRoot
 $SNOWLUMA   = "$ROOT\snowluma\node.exe"
@@ -11,6 +26,20 @@ $NONE_LUA   = "$ROOT\nonebot\.venv\Scripts\python.exe"
 $LOG        = "$ROOT\logs"
 $GSUID_CORE = "$ROOT\gsuid\core"
 $GSUID_PY   = "$GSUID_CORE\.venv\Scripts\python.exe"
+
+# 否则 Python 在 Windows 上重定向输出时会用 GBK，日志里的中文会变成乱码
+$env:PYTHONIOENCODING = 'utf-8'
+$env:PYTHONUTF8 = '1'
+
+# 依赖检查必须先完成；失败时不启动任何服务。
+$preflight = Join-Path $PSScriptRoot 'startup-preflight.ps1'
+if (-not (Test-Path -LiteralPath $preflight -PathType Leaf)) {
+    throw "缺少依赖检查脚本：$preflight"
+}
+& $preflight -Root $ROOT -NoPause
+if ($LASTEXITCODE -ne 0) {
+    throw '依赖检查未通过，未启动任何服务。'
+}
 
 function Get-PrivateValue($Key) {
     foreach ($file in @("$ROOT\local\bot.env", "$ROOT\nonebot\.env")) {
@@ -35,10 +64,6 @@ if (Test-Path "$ROOT\rag\.venv-gpu\Scripts\python.exe") {
 
 New-Item -ItemType Directory -Force -Path $LOG | Out-Null
 
-# 否则 Python 在 Windows 上重定向输出时会用 GBK，日志里的中文会变成乱码
-$env:PYTHONIOENCODING = 'utf-8'
-$env:PYTHONUTF8 = '1'
-
 function Test-Listening($port) {
     [bool](Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue)
 }
@@ -55,11 +80,14 @@ Write-Host "==========================================" -ForegroundColor Cyan
 Write-Host ""
 
 # ---------- 1. RAG 检索服务 ----------
+$ragExpected = (Test-Path "$ROOT\rag\index\vectors.npy") -and (Test-Path $RAG_PY)
 Write-Host "[1/5] RAG 检索服务 (8091) ..." -NoNewline
 if (Test-Listening 8091) {
     Write-Host " 已在运行" -ForegroundColor Yellow
 } elseif (-not (Test-Path "$ROOT\rag\index\vectors.npy")) {
-    Write-Host " [!!] 索引不存在，先运行 rag\build_index.py" -ForegroundColor Yellow
+    Write-Host " [--] 索引不存在，跳过（可选）" -ForegroundColor Yellow
+} elseif (-not (Test-Path $RAG_PY)) {
+    Write-Host " [--] 虚拟环境不存在，跳过（可选）" -ForegroundColor Yellow
 } else {
     Start-Process -FilePath $RAG_PY -ArgumentList 'serve.py' `
         -WorkingDirectory "$ROOT\rag" `
@@ -138,10 +166,12 @@ for ($i = 0; $i -lt 30; $i++) {
     if (-not $ok2) { $ok2 = Test-Listening 5099 }
     if (-not $ok3) { $ok3 = Test-Listening 8091 }
     if ($coreExpected -and -not $ok4) { $ok4 = Test-Listening 8765 }
-    if ($ok1 -and $ok2 -and $ok3 -and ($ok4 -or -not $coreExpected)) { break }
+    if ($ok1 -and $ok2 -and ($ok3 -or -not $ragExpected) -and ($ok4 -or -not $coreExpected)) { break }
 }
 Write-Host ""
 Write-Host ""
+
+if (-not $ok1 -or -not $ok2) { $script:StartupFailed = $true }
 
 if ($ok1) { Write-Host "  [OK] NoneBot2          : http://127.0.0.1:8080" -ForegroundColor Green }
 else      { Write-Host "  [!!] NoneBot2 未就绪，看日志: $LOG\nonebot.out.log" -ForegroundColor Red }
@@ -150,6 +180,7 @@ if ($ok2) { Write-Host "  [OK] SnowLuma WebUI    : http://127.0.0.1:5099" -Foreg
 else      { Write-Host "  [!!] SnowLuma 未就绪，看日志: $LOG\snowluma.out.log" -ForegroundColor Red }
 
 if ($ok3) { Write-Host "  [OK] RAG 检索服务      : http://127.0.0.1:8091" -ForegroundColor Green }
+elseif (-not $ragExpected) { Write-Host "  [--] RAG 未启用（可选）" -ForegroundColor Yellow }
 else      { Write-Host "  [!!] RAG 未就绪，看日志: $LOG\rag.out.log" -ForegroundColor Red }
 
 if ($ok4) {
@@ -187,3 +218,12 @@ if ($ok4) {
 }
 Write-Host "  停止服务请运行 : 停止机器人.bat" -ForegroundColor DarkGray
 Write-Host ""
+
+if ($script:StartupFailed) {
+    if (-not $NoPause -and -not $env:QQBOT_NO_PAUSE -and [Environment]::UserInteractive) {
+        Write-Host ''
+        [void](Read-Host '启动未完全成功，按 Enter 关闭窗口')
+    }
+    exit 1
+}
+exit 0

@@ -207,7 +207,7 @@ python serve.py --port 8091
 
 ## Windows 本机（开发）
 
-Windows 上使用 `tools\启动所有.bat` / `tools\停止所有.bat` 启停；根目录的 `启动机器人.bat` / `停止机器人.bat` 只是调用它们的薄入口。脚本按自身位置解析检出目录，启动前检查 8080 是否已有实例，并清理 `NO_PROXY` 中无法识别的 IPv6 回环条目（`::1` / `[::1]`），避免本机回环请求被系统代理或代理例外规则拦住。启动横幅和结尾的 connection info 都会打印管理面板地址（默认 `http://127.0.0.1:8092`，设置了 `DASHBOARD_HOST` / `DASHBOARD_PORT` 就照实显示）；面板是独立进程，仍需按上面的命令单独启动。它们是本机开发/调试入口；生产部署仍走 Linux + systemd。
+Windows 上使用 `tools\启动所有.bat` / `tools\停止所有.bat` 启停；根目录的 `启动机器人.bat` / `停止机器人.bat` 只是调用它们的薄入口。脚本按自身位置解析检出目录，启动前先运行 `tools\startup-preflight.ps1`：检查 `nonebot\.venv` 和 SnowLuma 运行时，必要时用 Python 3.12 创建虚拟环境，并按 `requirements.lock` 安装/校验依赖；依赖检查失败时不会启动任何服务。依赖安装可能耗时，完成后才继续后续启动。启动前还会检查 8080 是否已有实例，并清理 `NO_PROXY` 中无法识别的 IPv6 回环条目（`::1` / `[::1]`），避免本机回环请求被系统代理或代理例外规则拦住。启动横幅和结尾的 connection info 都会打印管理面板地址（默认 `http://127.0.0.1:8092`，设置了 `DASHBOARD_HOST` / `DASHBOARD_PORT` 就照实显示）；面板是独立进程，仍需按上面的命令单独启动。直接运行启动脚本失败时控制台会暂停；根目录入口始终保留控制台。它们是本机开发/调试入口；生产部署仍走 Linux + systemd。
 
 ## 功能说明
 

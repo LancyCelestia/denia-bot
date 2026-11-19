@@ -1,4 +1,15 @@
 @echo off
+if /i "%~1"=="--no-pause" goto :run
+if defined QQBOT_NO_PAUSE goto :run
+cmd /c ""%~f0" --no-pause"
+set "RC=%ERRORLEVEL%"
+if not "%RC%"=="0" (
+    echo.
+    pause
+)
+exit /b %RC%
+
+:run
 setlocal EnableExtensions
 rem QQBOT-ENTRY-START-v1
 rem ---------------------------------------------------------------------
@@ -62,6 +73,14 @@ if not exist "%ROOT%\nonebot\bot.py" goto :not_checkout
 rem Only one NoneBot per machine: if 8080 is listening, exit before starting
 call :is_listening 8080
 if not errorlevel 1 goto :already_running
+
+rem Dependency check/installation must finish before any service starts.
+echo [0/5] Checking startup dependencies ...
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\tools\startup-preflight.ps1" -Root "%ROOT%" -NoPause
+if errorlevel 1 (
+    echo       [!!] dependency check failed; no service was started
+    exit /b 4
+)
 
 if not exist "%LOG%" mkdir "%LOG%" >nul 2>&1
 if not exist "%LOG%" (
