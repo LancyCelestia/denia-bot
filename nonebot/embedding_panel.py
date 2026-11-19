@@ -26,10 +26,13 @@ def _repo(root) -> Path:
 
 def _active_index(root) -> Path | None:
     """Find the index path used by the systemd unit, with a local fallback."""
+    repo = _repo(root)
     configured = os.environ.get('KB_CLOUD_INDEX', '').strip()
     if configured:
         path = Path(configured)
-        return path if path.is_absolute() else _repo(root) / path
+        path = path if path.is_absolute() else repo / path
+        if path == repo or repo in path.parents:
+            return path
     for unit in (Path('/etc/systemd/system/qqbot-rag-cloud.service'), Path('/lib/systemd/system/qqbot-rag-cloud.service')):
         try:
             text = unit.read_text(encoding='utf-8')
@@ -38,8 +41,10 @@ def _active_index(root) -> Path | None:
         match = re.search(r'^\s*Environment\s*=\s*KB_CLOUD_INDEX=(\S+)', text, re.MULTILINE)
         if match:
             path = Path(match.group(1))
-            return path if path.is_absolute() else _repo(root) / path
-    rag = _repo(root) / 'rag'
+            path = path if path.is_absolute() else repo / path
+            if path == repo or repo in path.parents:
+                return path
+    rag = repo / 'rag'
     candidates = sorted(p for p in rag.glob('index-siliconflow*') if p.is_dir() and '.rebuild-' not in p.name)
     return candidates[-1] if candidates else None
 
