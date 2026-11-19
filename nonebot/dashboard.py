@@ -11,6 +11,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, Response
+import appearance_panel
 import app_version
 import bilibili_panel
 import bot_updater
@@ -1028,6 +1029,7 @@ async def set_superusers(req: Request):
 
 app.include_router(game_event_panel.router(authorized, mutate))
 
+appearance_panel.register(app, authorized=authorized, mutate=mutate, root=ROOT)
 bilibili_panel.register(app, authorized=authorized, mutate=mutate, root=ROOT)
 embedding_panel.register(app, authorized=authorized, mutate=mutate, root=ROOT)
 
