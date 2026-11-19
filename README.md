@@ -172,7 +172,7 @@ uvicorn dashboard:app --host 127.0.0.1 --port 8092
 
 ### 发布与打包
 
-推送 `v*` 标签会触发 `.github/workflows/release.yml`：先运行测试，再用 `git archive` 生成只包含 Git 跟踪文件的 `tar.gz`、`zip` 和 `SHA256SUMS`，最后附加到对应 GitHub Release。工作流也会校验标签版本与 `nonebot/app_version.py` 的 `PACKAGE_VERSION` 一致。也可在 Actions 页面手动运行并填写已有标签，例如 `v0.1.0b2`。
+推送 `v*` 标签会触发 `.github/workflows/release.yml`：先校验标签版本与 `nonebot/app_version.py` 的 `PACKAGE_VERSION` 一致并编译应用，再用 `git archive` 生成只包含 Git 跟踪文件的 `tar.gz`、`zip` 和 `SHA256SUMS`，最后附加到对应 GitHub Release。也可在 Actions 页面手动运行并填写已有标签，例如 `v0.1.0b2`。工作流不代替完整测试；发布前应在目标检出上单独运行 `python -m pytest tests -q`。
 
 ```bash
 git tag -a v0.1.0b2 -m 'V0.1 BETA2'
