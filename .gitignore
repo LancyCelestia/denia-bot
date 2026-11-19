@@ -75,6 +75,7 @@ __pycache__/
 .ruff_cache/
 .mypy_cache/
 node_modules/
+docker/playwright-renderer/vendor/
 parser_deps/
 
 # ============================ 运行时数据 ============================
@@ -98,6 +99,9 @@ parser_deps/
 .tw2.py
 # 生产机上历史遗留的部署备份及快照不进仓库
 /.deploy-backup-*/
+/.deploy-*/
+# 统一存放生产部署补丁、旧代码和备份归档
+/deploy-patches/
 *.bak
 *.before-*
 *.pre-*.py
