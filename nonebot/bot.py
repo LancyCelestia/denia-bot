@@ -8,6 +8,7 @@ import time
 from nonebot.adapters.onebot.v11 import Adapter as OneBotV11Adapter
 from conversation_header import configure
 from private_env import get_private
+import plugin_control
 
 # Windows 代理软件常把回环 IPv6 写进 NO_PROXY（例如 "localhost,[::1]"）。
 # httpx 0.28 会把 "[::1]" 当普通域名拼成 "all://*[::1]"，解析时抛
@@ -115,12 +116,17 @@ async def dashboard_health():
         'started_at': STARTED_AT,
     }
 
+# 本地插件由 MuiceBot 在导入时统一扫描。过滤必须在 MuiceBot 导入前安装，
+# 否则被关闭的插件已经进入 NoneBot 插件表；开关文件在 data/，git pull 不会覆盖。
+plugin_control.install_filter()
+
 # MuiceBot —— LLM 聊天 + 人格模板
 nonebot.load_plugin("muicebot")
 
 # gsuid_core 连接器（NoneBot2 侧）：core 是独立后端，默认启用；
-# 未部署 core 时设 GSUID_CORE_ENABLE=0 即可完全不加载。
-if os.getenv("GSUID_CORE_ENABLE", "1").strip().lower() not in {"0", "false", "no"}:
+# 未部署 core 时设 GSUID_CORE_ENABLE=0，或在面板插件管理中关闭 gsuid。
+if (os.getenv("GSUID_CORE_ENABLE", "1").strip().lower() not in {"0", "false", "no"}
+        and plugin_control.is_enabled("GenshinUID")):
     nonebot.load_plugin("GenshinUID")
     # 适配器默认按 NoneBot 的 command_start 剥掉 "." 再转发；core 现在要求
     # 严格的 "." 前缀，所以这里保留点号交给 core 统一剥离。

@@ -29,6 +29,7 @@ import disaster_store as disaster_store_mod
 import master_settings
 import parser_settings
 import persona_settings
+import plugin_control
 import status_collect as status_live
 import status_cluster as status_cluster_mod
 import status_config as status_config_mod
@@ -444,6 +445,24 @@ async def update_bot(req: Request):
     if warnings:
         result['warning'] = '；'.join(warnings)
     return JSONResponse(status_code=202, content=update_view(result))
+
+@app.get('/api/plugins')
+def plugin_settings(req: Request):
+    authorized(req)
+    return plugin_control.view()
+
+@app.post('/api/plugins')
+async def set_plugin_settings(req: Request):
+    mutate(req)
+    body = await req.json()
+    if not isinstance(body, dict):
+        raise HTTPException(400, '请求体必须是对象')
+    try:
+        return plugin_control.save(body.get('disabled'), body.get('onboarded'))
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    except OSError:
+        raise HTTPException(503, '插件设置无法保存')
 
 @app.get('/api/user/{uid}')
 def user(uid: str, req: Request):

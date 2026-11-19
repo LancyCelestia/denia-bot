@@ -25,6 +25,7 @@
 | 服务器状态 | 状态卡、Proxmox VE 集群状态卡、资源及服务告警、日报和周报。 |
 | B站动态订阅 | 主人按会话订阅 UP 主动态，机器人以卡片推送（视频动态带封面）；管理面板展示各会话订阅与投递状态，并可增删接收目标。 |
 | bot基本信息 | 在管理面板设置状态卡、日报、集群卡、灾害卡和指令菜单的显示名，保存后立即生效。 |
+| 插件管理 | 首次登录引导和面板插件开关；关闭的插件在机器人下次启动时不再加载，设置持久化到 `nonebot/data/plugins.json`，普通更新不会覆盖。 |
 | 管理面板 | 管理超级管理员、功能配置、推送目标、图片渲染服务和运行状态。 |
 
 默认命令前缀为 `.`，发送 `.help` 查看当前加载插件的命令。群聊查询通常需要 @ 机器人；各功能的权限、会话范围和配置以帮助菜单及对应文档为准。未知命令和无权限命令按静默策略处理。
@@ -281,6 +282,7 @@ cp configs/templates.yml.example configs/templates.yml
 | 面板加载的当前人格正文 | — | `nonebot/templates/current.jinja2`（Git 忽略，`git pull` 保留；需随数据备份） |
 | 本机私有覆盖值（优先级高于 `.env`） | — | `local/bot.env` |
 | 管理面板保存的功能配置、密钥、状态库和上传图片 | — | `nonebot/data/` |
+| 插件启用状态与首次引导完成标记 | — | `nonebot/data/plugins.json`（Git 忽略，普通 `git pull` 保留） |
 | gsuid_core 的 `WS_TOKEN`、账号绑定和插件配置 | `gsuid/core/.env.example`（安装后生成） | `gsuid/core/data/` |
 | SnowLuma WebUI 密码 | — | `tools/snowluma-webui-pass.txt` |
 
