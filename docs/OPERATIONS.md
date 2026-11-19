@@ -78,6 +78,8 @@ SnowLuma 是**进程级注入**，同一 QQ 客户端里登录的所有号都会
 管理面板「人格模板」使用一个可持久演进的当前正文 `nonebot/templates/current.jinja2`：
 
 - 选择一个预设（`templates/` 下的 `*.jinja2`/`*.j2`，不含 `current`）后点「加载预设到 current.jinja2」：面板原子复制预设字节到 `current.jinja2`（权限 0600），再把 `configs/models.yml` 的 `template` 字段改成 `current`。预设文件本身不被修改。
+- 加载预设后，面板「编辑当前人格正文」可直接修改 `current.jinja2` 并点「保存当前人格」。保存前校验内容非空、UTF-8、不含 NUL、不超过 128 KiB，并通过 Jinja2 语法解析；失败返回错误行且保留旧文件，写入使用原子替换和 0600。该操作只改正文，不修改 `models.yml`、不切换模型或模板。
+- 若当前生效模板不是 `current`，面板会明确提示：此时保存正文不会影响正在使用的人格；需先加载预设或按原有流程把 `template` 指向 `current`。保存成功后正文在下一条回复生效，无需重启。
 - `current.jinja2` 被 Git 忽略，`git pull --ff-only` 不会覆盖它，因此可以直接在面板里反复加载/手改正文；`Denia`/`Shorekeeper` 等跟踪预设随上游更新可能变化，只有主动加载才会复制新内容。
 - `git clean -fdx` 或重新克隆会删除 `current.jinja2`；迁移和备份必须单独带上它（见第 10 节清单）。
 - models.yml 的写入仍走配置发布流程，原子替换并更新摘要，API Key、注释和其他条目保持原样；若 `models.yml` 有未发布的本地改动会拒绝保存。复制/发布失败时会回滚旧的 `current.jinja2`。

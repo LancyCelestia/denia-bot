@@ -28,6 +28,12 @@
   <div class="parser-actions"><button id="personaSave" class="primary" type="button" onclick="run(savePersona)" disabled>加载预设到 current.jinja2</button><button type="button" onclick="run(loadPersona)">刷新</button><span id="personaState" class="hint" role="status"></span></div>
   <p class="hint" id="personaCurrent">—</p>
   <p class="hint" id="personaModels">—</p>
+  <div class="subsection" id="personaEditor">
+    <h3>编辑当前人格正文</h3>
+    <label class="parser-field" for="personaBody"><span>current.jinja2 原始 Jinja2 正文</span><textarea id="personaBody" rows="18" spellcheck="false" wrap="off" oninput="renderPersonaBodyMeta()" aria-describedby="personaBodyHint" placeholder="current.jinja2 尚未创建：请先在上方加载预设。" style="min-height:280px;font:12.5px/1.55 ui-monospace,SFMono-Regular,Consolas,'Courier New',monospace;white-space:pre;overflow:auto;tab-size:2"></textarea><small id="personaBodyMeta">正在读取…</small></label>
+    <div class="parser-actions"><button id="personaBodySave" class="primary" type="button" onclick="run(savePersonaBody)" disabled>保存当前人格</button><button id="personaBodyReload" type="button" onclick="run(loadPersonaBody)" disabled>刷新编辑内容</button><span id="personaBodyState" class="hint" role="status"></span></div>
+    <p class="hint" id="personaBodyHint">保存前会校验空内容、NUL、UTF-8、大小（≤128 KiB）和 Jinja2 语法，失败时保留原文件。正文每次回复都会重新读取，保存后下一条回复生效，无需重启；编辑正文不会修改 models.yml 或切换当前模型。</p>
+  </div>
   <p class="hint"><b>current.jinja2 说明：</b>当前人格正文保存在被 Git 忽略的 <code>nonebot/templates/current.jinja2</code>，<code>git pull</code> 不会覆盖它；它需要随迁移单独备份，<code>git clean -fdx</code> 或重新克隆会删除它。<code>Denia</code>／<code>Shorekeeper</code> 是可读预设，上游更新可能改变内容；加载预设只会复制一份，不会改动预设文件。</p>
   <p class="hint"><b>生效方式：</b>正文文件每次渲染都会重新读取，替换 <code>current.jinja2</code> 无需重启；只有 <code>models.yml</code> 的 <code>template</code> 字段首次从预设切换为 <code>current</code> 时，才需要重启机器人或在主人私聊发送 <code>.model reload</code>。称呼和主人信息仍读 <code>configs/templates.yml</code>。</p>
 </section>
@@ -314,8 +320,9 @@ async function saveMaster(){run(async()=>{let ids=$('masterOwners').value.trim()
 function applyBotName(name){const label=String(name||'达妮娅');$('botBrandName').textContent=label}
 async function loadBotName(){const data=await api('/api/bot-name');$('botNameInput').value=data.name||'';applyBotName(data.name);const labels={file:'面板设置',env:'环境变量',default:'默认名称'};$('botNameState').textContent=`当前：${labels[data.source]||data.source||'未知'}`}
 async function saveBotName(){run(async()=>{const name=$('botNameInput').value.trim();if(!name)throw Error('机器人名称不能为空');const data=await api('/api/bot-name',{name});$('botNameInput').value=data.name;applyBotName(data.name);$('botNameState').textContent='已保存 · 卡片和面板立即生效'})}
-async function loadPersona(){
-  const data=await api('/api/persona');const select=$('personaTemplate');select.replaceChildren();
+let personaEditor={exists:false,safe:false,activeIsCurrent:false,meta:{},loaded:''};
+function applyPersonaView(data){
+  const select=$('personaTemplate');select.replaceChildren();
   for(const item of data.templates){const option=document.createElement('option');option.value=item.name;option.textContent=item.name+' · '+item.file;select.append(option)}
   if(!data.templates.length){const option=document.createElement('option');option.value='';option.textContent='没有可用预设（templates/*.jinja2）';select.append(option)}
   if(data.resolved.template&&data.resolved.template!=='current')select.value=data.resolved.template;
@@ -328,7 +335,72 @@ async function loadPersona(){
   $('personaSave').disabled=!data.templates.length||!data.publication.published;
   $('personaState').textContent=data.publication.published?'当前配置已发布':'配置未发布，保存已锁定：请先核对 models.yml 并重新发布摘要';
 }
-async function savePersona(){run(async()=>{const preset=$('personaTemplate').value;if(!preset)throw Error('没有可用的人格预设');const data=await api('/api/persona',{preset,scope:$('personaScope').value});await loadPersona();$('personaState').textContent='已加载预设 '+preset+' 到 current.jinja2'+(data.restart_required?' · 模板字段已切换为 current，请发送 .model reload 或重启机器人':' · 正文已更新，无需重启')})}
+function renderPersonaBodyMeta(){
+  const body=$('personaBody'),current=personaEditor.meta||{};
+  const text=body.value,chars=Array.from(text).length;
+  let bytes=text.length;try{bytes=new TextEncoder().encode(text).length}catch(e){}
+  const parts=[];
+  if(personaEditor.exists){
+    parts.push(current.path||'current.jinja2',bytes+' 字节 / '+chars+' 字符','sha256 '+(current.sha256?current.sha256.slice(0,12):'—'),'修改于 '+(current.modified||'—'));
+    if(current.mode)parts.push('权限 '+current.mode);
+  }else{
+    parts.push('current.jinja2 尚未创建',bytes+' 字节 / '+chars+' 字符');
+  }
+  if(text!==personaEditor.loaded)parts.push('未保存');
+  $('personaBodyMeta').textContent=parts.join(' · ');
+}
+function applyPersonaBody(data){
+  const current=data.current||{},body=$('personaBody');
+  personaEditor={exists:!!current.exists,safe:!!current.safe,activeIsCurrent:!!data.active_is_current,meta:current,loaded:typeof data.content==='string'?data.content:''};
+  body.value=personaEditor.loaded;
+  body.disabled=!personaEditor.exists;
+  $('personaBodyReload').disabled=!personaEditor.exists;
+  $('personaBodySave').disabled=!personaEditor.exists;
+  renderPersonaBodyMeta();
+  if(!personaEditor.exists){
+    $('personaBodyState').textContent='';
+    $('personaBodyHint').textContent='current.jinja2 尚未创建：请先在上方选择预设并点击「加载预设到 current.jinja2」，创建后才能在此编辑正文。';
+    return;
+  }
+  if(personaEditor.activeIsCurrent){
+    $('personaBodyHint').textContent='保存前会校验空内容、NUL、UTF-8、大小（≤128 KiB）和 Jinja2 语法，失败时保留原文件。正文每次回复都会重新读取，保存后下一条回复生效，无需重启；编辑正文不会修改 models.yml 或切换当前模型。';
+  }else{
+    const active=(data.resolved&&data.resolved.template)||'未设置';
+    $('personaBodyHint').textContent='注意：当前生效模板是 '+active+'，不是 current；保存正文不会影响当前人格。请在上方加载预设，或按原有流程把 models.yml 的 template 指向 current。保存只改 current.jinja2，不会自动切换模型或模板。';
+  }
+}
+async function refreshPersonaView(){applyPersonaView(await api('/api/persona'))}
+async function loadPersona(){
+  if(personaEditor.loaded&&$('personaBody').value!==personaEditor.loaded&&!confirm('放弃尚未保存的人格正文修改并刷新？'))return;
+  applyPersonaView(await api('/api/persona'));
+  applyPersonaBody(await api('/api/persona/current'));
+}
+async function loadPersonaBody(){run(async()=>{
+  if($('personaBody').value!==personaEditor.loaded&&!confirm('放弃尚未保存的修改并重新读取 current.jinja2？'))return;
+  applyPersonaBody(await api('/api/persona/current'));
+  await refreshPersonaView();
+  $('personaBodyState').textContent='已刷新编辑内容';
+})}
+async function savePersona(){run(async()=>{
+  const preset=$('personaTemplate').value;
+  if(!preset)throw Error('没有可用的人格预设');
+  const body=$('personaBody'),dirty=body.value!==personaEditor.loaded;
+  if(((personaEditor.exists&&body.value.trim())||dirty)&&!confirm('current.jinja2 已有正文（或存在未保存的编辑），加载预设会覆盖它。继续？'))return;
+  const data=await api('/api/persona',{preset,scope:$('personaScope').value});
+  applyPersonaView(data);
+  applyPersonaBody(await api('/api/persona/current'));
+  $('personaState').textContent='已加载预设 '+preset+' 到 current.jinja2'+(data.restart_required?' · 模板字段已切换为 current，请发送 .model reload 或重启机器人':' · 正文已更新，无需重启');
+  $('personaBodyState').textContent='编辑内容已同步为预设 '+preset;
+})}
+async function savePersonaBody(){run(async()=>{
+  if(!personaEditor.exists)throw Error('current.jinja2 尚未创建，请先加载预设');
+  const body=$('personaBody');
+  if(!body.value.trim())throw Error('人格正文不能为空');
+  const data=await api('/api/persona/current',{content:body.value});
+  applyPersonaBody(data);
+  await refreshPersonaView();
+  $('personaBodyState').textContent='已保存 · 下一条回复生效，无需重启'+(data.active_is_current?'':'；当前生效模板不是 current，本次修改不会改变正在使用的人格');
+})}
 async function resetBotName(){run(async()=>{if(!confirm('恢复默认机器人名称「达妮娅」？'))return;const data=await api('/api/bot-name',{reset:true});$('botNameInput').value=data.name;applyBotName(data.name);const labels={file:'面板设置',env:'环境变量',default:'默认名称'};$('botNameState').textContent=`已恢复 · ${labels[data.source]||data.source||'未知'}`})}
 let tokenData=null;
 function formatTokens(n){n=Number(n)||0;if(n<1000)return String(n);if(n<1000000)return (n/1000).toFixed(1)+'K';return (n/1000000).toFixed(2)+'M'}

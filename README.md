@@ -258,6 +258,8 @@ cp configs/templates.yml.example configs/templates.yml
 
 机器人名称（`bot-name`）优先使用管理面板「bot基本信息」写入的 `nonebot/data/bot-name.json`；未设置时才读取 `BOT_NAME`／`QQBOT_NAME`，默认「达妮娅」。它只影响卡片显示，不改变唤醒词或人格。
 
+管理面板「人格模板」中还有一个 `current.jinja2` 原始正文编辑器：加载预设后可直接修改正文并点「保存当前人格」。保存前会校验内容非空、UTF-8、不含 NUL、不超过 128 KiB，且 Jinja2 语法有效；失败时返回错误行并保留原文件。保存只写 `nonebot/templates/current.jinja2`，不会修改 `configs/models.yml` 或切换当前模型／模板；正文在下一条回复生效，无需重启。若当前生效模板不是 `current`，面板会提示此时编辑不会影响正在使用的人格。`current.jinja2` 被 Git 忽略，升级、迁移或清理前必须单独备份。
+
 ### 更新已有部署
 
 更新必须发生在 Git 检出里：在部署目录 `git pull --ff-only`，或 `git worktree add` 检出到新目录后再切换。**不要把下载的 zip/tar 解压覆盖到旧检出**——旧检出里已从仓库删除的文件不会消失，`git status`/`git diff` 也会失去可比对的基线，示例配置还可能盖掉真实配置。

@@ -152,3 +152,102 @@ def test_persona_second_load_needs_no_restart(panel):
     assert body['models_changed'] == []
     assert body['restart_required'] is False
     assert (panel['templates'] / 'current.jinja2').read_bytes() == b'denia'
+
+
+def test_persona_current_requires_login_and_csrf(panel):
+    client = panel['client']
+    assert client.get('/api/persona/current').status_code == 401
+    assert client.post('/api/persona/current', json={'content': 'body'}).status_code == 401
+
+    login(client)
+    assert client.post('/api/persona/current', json={'content': 'body'}).status_code == 403
+    assert not (panel['templates'] / 'current.jinja2').exists()
+    assert model_publication.read_published(panel['models']) == panel['models'].read_bytes()
+
+
+def test_persona_current_absent_is_empty(panel):
+    login(panel['client'])
+
+    view = panel['client'].get('/api/persona/current').json()
+
+    assert view['current']['exists'] is False
+    assert view['content'] == ''
+    assert view['active_is_current'] is False
+
+
+def test_persona_current_roundtrip_keeps_models_untouched(panel):
+    client = panel['client']
+    headers = login(client)
+    body = '手写正文\n{{ ai_nickname }} 你好\n'
+    before = panel['models'].read_bytes()
+
+    saved = client.post('/api/persona/current', json={'content': body}, headers=headers)
+
+    assert saved.status_code == 200
+    result = saved.json()
+    assert result['content'] == body
+    assert result['restart_required'] is False
+    assert result['active_is_current'] is False
+    assert result['target_template'] == 'current'
+    assert result['current']['exists'] is True
+    assert result['current']['safe'] is True
+    assert (panel['templates'] / 'current.jinja2').read_text(encoding='utf-8') == body
+    assert panel['models'].read_bytes() == before
+    assert model_publication.read_published(panel['models']) == before
+    assert client.get('/api/persona').json()['resolved']['template'] == 'Denia'
+
+    refreshed = client.get('/api/persona/current').json()
+    assert refreshed['content'] == body
+    assert refreshed['current']['sha256'] == result['current']['sha256']
+
+
+@pytest.mark.parametrize('content', [
+    '', '   ', 'a\x00b', '{{ broken',
+    'x' * (persona_settings.MAX_CURRENT_BYTES + 1),
+])
+def test_persona_current_rejects_invalid_body_and_preserves_previous(panel, content):
+    client = panel['client']
+    headers = login(client)
+    target = panel['templates'] / 'current.jinja2'
+    target.write_text('previous body', encoding='utf-8')
+    before = target.read_bytes()
+    models_before = panel['models'].read_bytes()
+
+    response = client.post('/api/persona/current', json={'content': content}, headers=headers)
+
+    assert response.status_code == 400
+    assert response.json()['detail']
+    assert target.read_bytes() == before
+    assert panel['models'].read_bytes() == models_before
+
+
+def test_persona_current_rejects_non_string_and_non_object(panel):
+    client = panel['client']
+    headers = login(client)
+
+    assert client.post('/api/persona/current', json={'content': 1}, headers=headers).status_code == 400
+    assert client.post('/api/persona/current', json=[], headers=headers).status_code == 400
+    assert not (panel['templates'] / 'current.jinja2').exists()
+
+
+def test_persona_load_preset_refreshes_editor_content(panel):
+    client = panel['client']
+    headers = login(client)
+    client.post('/api/persona', json={'preset': 'Shorekeeper', 'scope': 'all'}, headers=headers)
+
+    view = client.get('/api/persona/current').json()
+
+    assert view['content'] == 'shorekeeper'
+    assert view['active_is_current'] is True
+    assert view['current']['sha256'] == hashlib.sha256(b'shorekeeper').hexdigest()
+
+
+def test_dashboard_html_has_raw_persona_editor():
+    text = Path(d.__file__).with_name('dashboard.html').read_text(encoding='utf-8')
+
+    for marker in ('id="personaBody"', 'id="personaBodySave"', 'id="personaBodyReload"',
+                   '/api/persona/current', '保存当前人格', '刷新编辑内容',
+                   'renderPersonaBodyMeta', 'savePersonaBody', 'loadPersonaBody'):
+        assert marker in text
+
+

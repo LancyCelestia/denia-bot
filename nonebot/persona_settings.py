@@ -24,6 +24,7 @@ import time
 from collections.abc import Mapping
 from pathlib import Path
 
+import jinja2
 import yaml
 from ruamel.yaml import YAML
 
@@ -45,6 +46,7 @@ NAME_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 CURRENT_NAME = "current"
 CURRENT_FILENAME = f"{CURRENT_NAME}.jinja2"
 CURRENT_MODE = 0o600
+MAX_CURRENT_BYTES = 128 * 1024
 
 
 class Unpublished(ValueError):
@@ -235,6 +237,93 @@ def _current_state(templates_dir=None) -> dict:
     state["safe"] = True
     state["reason"] = ""
     return state
+
+
+def _current_path(templates_dir=None) -> Path:
+    """The fixed ``templates/current.jinja2`` path; callers never supply a name."""
+    return _path(templates_dir, TEMPLATES_DIR) / CURRENT_FILENAME
+
+
+def _current_content(templates_dir=None) -> str:
+    """UTF-8 body for the editor; empty when absent or undecodable."""
+    try:
+        return _current_path(templates_dir).read_bytes().decode("utf-8")
+    except (OSError, UnicodeDecodeError):
+        return ""
+
+
+def current_view(models_path=None, templates_dir=None, state_path=None) -> dict:
+    """Panel view plus the editable body and whether ``current`` is really live."""
+    view = public(models_path, templates_dir, state_path)
+    view["content"] = _current_content(templates_dir)
+    view["active_is_current"] = bool(
+        view["resolved"]["template"] == CURRENT_NAME and view["resolved"]["exists"]
+    )
+    return view
+
+
+def validate_current(content) -> bytes:
+    """Reject unusable bodies before anything touches disk; return UTF-8 bytes."""
+    if not isinstance(content, str):
+        raise ValueError("人格正文必须是文本")
+    if not content.strip():
+        raise ValueError("人格正文不能为空")
+    if "\x00" in content:
+        raise ValueError("人格正文不能包含 NUL 字节")
+    try:
+        encoded = content.encode("utf-8")
+    except UnicodeEncodeError as exc:
+        raise ValueError("人格正文不是有效的 UTF-8 文本") from exc
+    if len(encoded) > MAX_CURRENT_BYTES:
+        raise ValueError(
+            f"人格正文不能超过 128 KiB（当前 {len(encoded)} 字节）"
+        )
+    try:
+        jinja2.Environment().parse(content)
+    except jinja2.TemplateSyntaxError as exc:
+        raise ValueError(
+            f"Jinja2 语法错误（第 {exc.lineno} 行）：{exc.message}"
+        ) from exc
+    return encoded
+
+
+def write_current(content, *, templates_dir=None) -> dict:
+    """Validate and atomically replace ``current.jinja2``; return fresh metadata.
+
+    The previous file is untouched when validation fails and is only replaced by
+    ``os.replace`` after the new bytes are fully written and fsynced.  This
+    function never reads or writes ``models.yml``.
+    """
+    encoded = validate_current(content)
+    _current_write(encoded, templates_dir)
+    state = _current_state(templates_dir)
+    if not state["safe"]:
+        raise ValueError(state["reason"] or "current.jinja2 写入后不可用")
+    return state
+
+
+def save_current(content, *, models_path=None, templates_dir=None, state_path=None) -> dict:
+    """Edit the live body without switching models or touching ``models.yml``.
+
+    The view is read before writing so an unreadable ``models.yml`` fails the
+    request while the previous body is still intact.  A body change is observed
+    on the next reply, so this flow never needs a restart.
+    """
+    encoded = validate_current(content)
+    before = public(models_path, templates_dir, state_path)
+    _current_write(encoded, templates_dir)
+
+    view = public(models_path, templates_dir, state_path)
+    view.update({
+        "content": encoded.decode("utf-8"),
+        "active_is_current": bool(
+            view["resolved"]["template"] == CURRENT_NAME and view["resolved"]["exists"]
+        ),
+        "previous_sha256": before["current"]["sha256"],
+        "target_template": CURRENT_NAME,
+        "restart_required": False,
+    })
+    return view
 
 
 # ---------------------------------------------------------------- model config

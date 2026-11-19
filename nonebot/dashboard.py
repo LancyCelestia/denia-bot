@@ -432,6 +432,28 @@ def persona_config(req: Request):
     except (OSError, ValueError, KeyError):
         raise HTTPException(503, '人格模板配置无法读取')
 
+@app.get('/api/persona/current')
+def persona_current(req: Request):
+    authorized(req)
+    try:
+        return persona_settings.current_view()
+    except (OSError, ValueError, KeyError):
+        raise HTTPException(503, '当前人格正文无法读取')
+
+@app.post('/api/persona/current')
+async def set_persona_current(req: Request):
+    mutate(req)
+    body = await req.json()
+    if not isinstance(body, dict):
+        raise HTTPException(400, '请求体必须是对象')
+    try:
+        # Only the body changes: models.yml and the active template stay as-is.
+        return persona_settings.save_current(body.get('content'))
+    except (ValueError, TypeError) as e:
+        raise HTTPException(400, str(e))
+    except OSError:
+        raise HTTPException(503, '当前人格正文无法保存')
+
 @app.post('/api/persona')
 async def set_persona_config(req: Request):
     mutate(req)

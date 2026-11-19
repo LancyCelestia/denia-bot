@@ -399,3 +399,153 @@ def test_current_is_git_ignored_and_presets_remain_tracked():
         tracked = subprocess.run(['git', 'ls-files', '--error-unmatch', '--', preset],
                                  cwd=top, capture_output=True)
         assert tracked.returncode == 0
+
+
+# ---------------------------------------------------------------- body editor
+
+
+def test_current_view_returns_metadata_and_body(tmp_path):
+    templates = make_templates(tmp_path)
+    models = make_models(tmp_path)
+    body = '你好，{{ ai_nickname }}\n'
+    (templates / 'current.jinja2').write_bytes(body.encode('utf-8'))
+
+    view = persona_settings.current_view(models, templates, tmp_path / 'none.json')
+
+    assert view['content'] == body
+    assert view['current']['exists'] is True
+    assert view['active_is_current'] is False
+    assert view['current']['sha256'] == hashlib.sha256(body.encode()).hexdigest()
+
+
+def test_current_view_absent_is_empty_and_not_live(tmp_path):
+    templates = make_templates(tmp_path)
+    models = make_models(tmp_path)
+
+    view = persona_settings.current_view(models, templates, tmp_path / 'none.json')
+
+    assert view['content'] == ''
+    assert view['current']['exists'] is False
+    assert view['active_is_current'] is False
+
+
+@pytest.mark.parametrize('content', [
+    None, 1, ['x'], {}, '', '   \n\t', 'a\x00b', '\ud800',
+    'x' * (persona_settings.MAX_CURRENT_BYTES + 1),
+    '{{ unclosed', '{% if %}',
+])
+def test_validate_current_rejects_unusable_bodies(content):
+    with pytest.raises(ValueError):
+        persona_settings.validate_current(content)
+
+
+def test_validate_current_limits_utf8_bytes_not_characters():
+    content = '你' * (persona_settings.MAX_CURRENT_BYTES // 3 + 1)
+    assert len(content) < persona_settings.MAX_CURRENT_BYTES
+
+    with pytest.raises(ValueError):
+        persona_settings.validate_current(content)
+
+
+def test_validate_current_returns_utf8_bytes():
+    text = '人格正文 {{ ai_nickname }}\n'
+
+    assert persona_settings.validate_current(text) == text.encode('utf-8')
+
+
+def test_write_current_roundtrip_and_mode(tmp_path):
+    templates = make_templates(tmp_path)
+    body = '新的正文\n{% if userinfos %}{{ userinfos[0].name }}{% endif %}\n'
+
+    state = persona_settings.write_current(body, templates_dir=templates)
+
+    target = templates / 'current.jinja2'
+    assert target.read_text(encoding='utf-8') == body
+    assert state['safe'] is True
+    assert state['sha256'] == hashlib.sha256(body.encode('utf-8')).hexdigest()
+    if os.name == 'posix':
+        assert stat.S_IMODE(target.stat().st_mode) == 0o600
+
+
+@pytest.mark.parametrize('bad', ['', '   ', '{{ broken', 'x' * (persona_settings.MAX_CURRENT_BYTES + 1)])
+def test_write_current_keeps_previous_on_validation_error(tmp_path, bad):
+    templates = make_templates(tmp_path)
+    target = templates / 'current.jinja2'
+    target.write_text('previous body', encoding='utf-8')
+    before = target.read_bytes()
+
+    with pytest.raises(ValueError):
+        persona_settings.write_current(bad, templates_dir=templates)
+
+    assert target.read_bytes() == before
+
+
+def test_write_current_keeps_previous_when_replace_fails(tmp_path, monkeypatch):
+    templates = make_templates(tmp_path)
+    target = templates / 'current.jinja2'
+    target.write_text('previous body', encoding='utf-8')
+    before = target.read_bytes()
+
+    def boom(*args, **kwargs):
+        raise OSError('disk full')
+
+    monkeypatch.setattr(persona_settings.os, 'replace', boom)
+
+    with pytest.raises(OSError):
+        persona_settings.write_current('new body', templates_dir=templates)
+
+    assert target.read_bytes() == before
+    assert not list(templates.glob('.persona-*'))
+
+
+def test_save_current_roundtrip_does_not_touch_models(tmp_path):
+    templates = make_templates(tmp_path)
+    models = make_models(tmp_path)
+    before = models.read_bytes()
+
+    view = persona_settings.save_current(
+        '编辑后的正文 {{ ai_nickname }}\n',
+        models_path=models, templates_dir=templates, state_path=tmp_path / 'none.json',
+    )
+
+    assert models.read_bytes() == before
+    assert (templates / 'current.jinja2').read_text(encoding='utf-8').startswith('编辑后的正文')
+    assert view['content'] == '编辑后的正文 {{ ai_nickname }}\n'
+    assert view['target_template'] == 'current'
+    assert view['restart_required'] is False
+    assert view['active_is_current'] is False
+    assert view['current']['safe'] is True
+    assert view['previous_sha256'] == ''
+
+
+def test_save_current_reports_active_current_after_preset_load(tmp_path):
+    templates = make_templates(tmp_path)
+    models = make_models(tmp_path)
+    state = tmp_path / 'none.json'
+    persona_settings.load_preset('Denia', models_path=models,
+                                 templates_dir=templates, state_path=state)
+
+    view = persona_settings.save_current('手改正文\n', models_path=models,
+                                         templates_dir=templates, state_path=state)
+
+    assert view['active_is_current'] is True
+    assert view['content'] == '手改正文\n'
+    assert models.read_bytes().count(b'template: current') == 1
+
+
+def test_save_current_invalid_body_keeps_previous_and_models(tmp_path):
+    templates = make_templates(tmp_path)
+    models = make_models(tmp_path)
+    target = templates / 'current.jinja2'
+    target.write_text('previous body', encoding='utf-8')
+    before_current = target.read_bytes()
+    before_models = models.read_bytes()
+
+    with pytest.raises(ValueError):
+        persona_settings.save_current('{% if %}', models_path=models,
+                                      templates_dir=templates,
+                                      state_path=tmp_path / 'none.json')
+
+    assert target.read_bytes() == before_current
+    assert models.read_bytes() == before_models
+
