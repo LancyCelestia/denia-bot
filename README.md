@@ -170,6 +170,17 @@ uvicorn dashboard:app --host 127.0.0.1 --port 8092
 
 管理面板「运行状态 → Bot 更新」可以检查当前 Git 远端并执行 `git pull --ff-only`。更新只允许在干净的工作区、无本地领先提交时进行，成功后自动重启机器人，不执行 `git clean`，也不会改写被忽略的人格、模型和数据文件。它不会自动执行 `pip install` 或数据库迁移；如果依赖锁或迁移脚本有变化，面板会提示。面板进程本身不会被自动重启，面板代码的新版本需要单独重启面板后生效。
 
+### 发布与打包
+
+推送 `v*` 标签会触发 `.github/workflows/release.yml`：先运行测试，再用 `git archive` 生成只包含 Git 跟踪文件的 `tar.gz`、`zip` 和 `SHA256SUMS`，最后附加到对应 GitHub Release。工作流也会校验标签版本与 `nonebot/app_version.py` 的 `PACKAGE_VERSION` 一致。也可在 Actions 页面手动运行并填写已有标签，例如 `v0.1.0b2`。
+
+```bash
+git tag -a v0.1.0b2 -m 'V0.1 BETA2'
+git push origin v0.1.0b2
+```
+
+发布包是应用源码部署包，不是 Python wheel：本项目依赖 `.env`、本地数据目录、可选 RAG 服务和独立 Playwright 渲染服务，不能仅靠 `pip install` 完成部署。
+
 面板配置、协议端连接、RAG、systemd 和故障排查见 [运维手册](docs/OPERATIONS.md) 与 [常见问题](docs/PITFALLS.md)。远程访问建议使用 SSH 隧道或受保护的 HTTPS 反向代理。
 
 ### 可选：知识库检索（RAG）

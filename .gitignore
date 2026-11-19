@@ -105,6 +105,7 @@ parser_deps/
 /.deploy-*/
 # 统一存放生产部署补丁、旧代码和备份归档
 /deploy-patches/
+/dist/
 *.bak
 *.before-*
 *.pre-*.py
