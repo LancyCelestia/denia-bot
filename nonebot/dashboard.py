@@ -88,6 +88,15 @@ def password_matches(password, saved):
     got = hashlib.scrypt(password.encode(),salt=bytes.fromhex(saved['salt']),n=16384,r=8,p=1).hex()
     return hmac.compare_digest(got,saved['hash'])
 
+
+def must_change_pending():
+    """认证文件是否仍要求首次设置密码；读不到时按「已完成」处理。"""
+    try:
+        saved = json.loads(AUTH_FILE.read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        return False
+    return bool(saved.get('must_change', False)) if isinstance(saved, dict) else False
+
 SESSION_MAX_AGE = 8 * 3600
 """会话有效期（秒）。"""
 
@@ -275,17 +284,48 @@ async def login(req: Request):
 
 @app.get('/api/session')
 def session_info(req: Request):
-    """页面加载时问一句「我还登录着吗」，省得每次刷新都重新输密码。"""
-    token = authorized(req)
+    """页面加载时问一句「我还登录着吗」，省得每次刷新都重新输密码。
+
+    首次设置期间也要能拿到 must_change，否则刷新后会停在登录页而进不了设置页。
+    """
+    token = authorized(req, allow_change=True)
+    return {'csrf': token, 'must_change': must_change_pending()}
+
+@app.post('/api/setup-password')
+async def setup_password(req: Request):
+    """首次登录的一次性密码设置：只对已登录且仍待设置的管理员开放。"""
+    mutate(req, allow_change=True)
     try:
-        must_change = json.loads(AUTH_FILE.read_text(encoding='utf-8')).get('must_change', False)
+        saved = json.loads(AUTH_FILE.read_text(encoding='utf-8'))
     except (OSError, ValueError):
-        must_change = False
-    return {'csrf': token, 'must_change': must_change}
+        raise HTTPException(503, '无法读取管理员配置')
+    if not isinstance(saved, dict) or not saved.get('must_change', False):
+        raise HTTPException(409, '首次设置已完成，请使用修改密码功能')
+    body = await req.json()
+    if not isinstance(body, dict):
+        raise HTTPException(400, '请求内容无效')
+    password = body.get('password')
+    confirm = body.get('confirm')
+    if not isinstance(password, str) or not isinstance(confirm, str) or not 12 <= len(password) <= 256:
+        raise HTTPException(400, '密码长度须为 12 到 256 位')
+    if not hmac.compare_digest(password.encode('utf-8'), confirm.encode('utf-8')):
+        raise HTTPException(400, '两次输入的密码不一致')
+    if password_matches(password, saved):
+        raise HTTPException(400, '新密码不能与原密码相同')
+    set_password(password, must_change=False)
+    sessions.clear()
+    save_sessions(sessions)
+    (AUTH_FILE.parent / INITIAL_PASSWORD_FILE).unlink(missing_ok=True)
+    response = JSONResponse({'ok': True})
+    response.delete_cookie('admin_session', path='/')
+    return response
 
 @app.post('/api/password')
 async def change_password(req: Request):
+    """首次设置完成后的常规改密；设置期间不提供这条路径。"""
     mutate(req, allow_change=True)
+    if must_change_pending():
+        raise HTTPException(409, '请先完成首次密码设置')
     body = await req.json()
     password = body.get('password')
     if not isinstance(password, str) or not 12 <= len(password) <= 256:

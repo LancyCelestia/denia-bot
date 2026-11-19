@@ -150,18 +150,124 @@ class DashboardTest(unittest.TestCase):
     def test_temporary_password_requires_change_and_revokes_sessions(self):
         with tempfile.TemporaryDirectory() as tmp:
             d.AUTH_FILE = Path(tmp)/'auth'
-            d.set_password('temporary-pass-123', must_change=True)
-            with TestClient(d.app) as client:
-                login = client.post('/api/login', json={'password':'temporary-pass-123'})
-                self.assertTrue(login.json()['must_change'])
-                headers = {'Origin':'http://testserver','X-CSRF-Token':login.json()['csrf']}
-                self.assertEqual(client.get('/api/state').status_code, 403)
-                self.assertEqual(client.post('/api/password', json={'password':'too-short'}, headers=headers).status_code, 400)
-                self.assertEqual(client.post('/api/password', json={'password':'temporary-pass-123'}, headers=headers).status_code, 400)
-                self.assertEqual(client.post('/api/password', json={'password':'new-secret-pass-456'}, headers=headers).status_code, 200)
-                self.assertEqual(client.get('/api/state').status_code, 401)
-                self.assertEqual(client.post('/api/login', json={'password':'temporary-pass-123'}).status_code, 401)
-                self.assertFalse(client.post('/api/login', json={'password':'new-secret-pass-456'}).json()['must_change'])
+            with patch.object(d, 'session_store_path', lambda: Path(tmp)/'sessions.json'):
+                d.sessions.clear()
+                d.attempts.clear()
+                d.set_password('temporary-pass-123', must_change=True)
+                with TestClient(d.app) as client:
+                    login = client.post('/api/login', json={'password':'temporary-pass-123'})
+                    self.assertTrue(login.json()['must_change'])
+                    headers = {'Origin':'http://testserver','X-CSRF-Token':login.json()['csrf']}
+                    self.assertEqual(client.get('/api/state').status_code, 403)
+                    self.assertEqual(client.post('/api/password', json={'password':'new-secret-pass-456'}, headers=headers).status_code, 409)
+                    self.assertEqual(client.post('/api/setup-password', json={'password':'too-short','confirm':'too-short'}, headers=headers).status_code, 400)
+                    self.assertEqual(client.post('/api/setup-password', json={'password':'temporary-pass-123','confirm':'temporary-pass-123'}, headers=headers).status_code, 400)
+                    self.assertEqual(client.post('/api/setup-password', json={'password':'new-secret-pass-456','confirm':'new-secret-pass-456'}, headers=headers).status_code, 200)
+                    self.assertEqual(client.get('/api/state').status_code, 401)
+                    self.assertEqual(client.post('/api/login', json={'password':'temporary-pass-123'}).status_code, 401)
+                    self.assertFalse(client.post('/api/login', json={'password':'new-secret-pass-456'}).json()['must_change'])
+
+    def test_first_login_exposes_setup_state_but_blocks_app(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            auth = Path(tmp)/'dashboard-auth.json'
+            with patch.object(d, 'AUTH_FILE', auth), \
+                 patch.object(d, 'session_store_path', lambda: Path(tmp)/'sessions.json'):
+                d.sessions.clear()
+                d.attempts.clear()
+                password = d.initialize_password()
+                with TestClient(d.app) as client:
+                    self.assertEqual(client.get('/api/session').status_code, 401)
+                    self.assertEqual(client.post('/api/setup-password', json={
+                        'password':'new-secret-pass-456', 'confirm':'new-secret-pass-456'}).status_code, 401)
+                    login = client.post('/api/login', json={'password':password})
+                    self.assertEqual(login.status_code, 200)
+                    self.assertTrue(login.json()['must_change'])
+                    headers = {'Origin':'http://testserver','X-CSRF-Token':login.json()['csrf']}
+                    state = client.get('/api/session')
+                    self.assertEqual(state.status_code, 200)
+                    self.assertTrue(state.json()['must_change'])
+                    self.assertEqual(client.get('/api/state').status_code, 403)
+                    self.assertEqual(client.get('/api/bot-status').status_code, 403)
+                    self.assertEqual(client.post('/api/memes/rules', json={}, headers=headers).status_code, 403)
+                    # 常规改密端点不是首次设置的旁路
+                    self.assertEqual(client.post('/api/password', json={
+                        'password':'new-secret-pass-456'}, headers=headers).status_code, 409)
+                    self.assertTrue(json.loads(auth.read_text(encoding='utf-8'))['must_change'])
+
+    def test_setup_password_validates_and_completes_once(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            auth = Path(tmp)/'dashboard-auth.json'
+            with patch.object(d, 'AUTH_FILE', auth), \
+                 patch.object(d, 'session_store_path', lambda: Path(tmp)/'sessions.json'):
+                d.sessions.clear()
+                d.attempts.clear()
+                temporary = d.initialize_password('temporary-pass-123')
+                initial = auth.parent/d.INITIAL_PASSWORD_FILE
+                self.assertTrue(initial.exists())
+                with TestClient(d.app) as client:
+                    login = client.post('/api/login', json={'password':temporary})
+                    headers = {'Origin':'http://testserver','X-CSRF-Token':login.json()['csrf']}
+                    for body in (
+                        {'password':'short','confirm':'short'},
+                        {'password':'new-secret-pass-456','confirm':'different-pass-456'},
+                        {'password':'new-secret-pass-456'},
+                        {'password':temporary,'confirm':temporary},
+                        {'password':'x'*257,'confirm':'x'*257},
+                    ):
+                        with self.subTest(body=body):
+                            self.assertEqual(client.post('/api/setup-password', json=body, headers=headers).status_code, 400)
+                    self.assertEqual(client.post('/api/setup-password', json={
+                        'password':'new-secret-pass-456', 'confirm':'new-secret-pass-456'}).status_code, 403)
+                    self.assertTrue(json.loads(auth.read_text(encoding='utf-8'))['must_change'])
+                    self.assertTrue(initial.exists())
+
+                    response = client.post('/api/setup-password', json={
+                        'password':'new-secret-pass-456', 'confirm':'new-secret-pass-456'}, headers=headers)
+                    self.assertEqual(response.status_code, 200)
+                    saved = json.loads(auth.read_text(encoding='utf-8'))
+                    self.assertFalse(saved['must_change'])
+                    self.assertTrue(d.password_matches('new-secret-pass-456', saved))
+                    self.assertFalse(initial.exists())
+                    # 旧会话已失效，临时密码不可再用
+                    self.assertEqual(client.get('/api/state').status_code, 401)
+                    self.assertEqual(client.post('/api/login', json={'password':temporary}).status_code, 401)
+
+                    fresh = client.post('/api/login', json={'password':'new-secret-pass-456'})
+                    self.assertEqual(fresh.status_code, 200)
+                    self.assertFalse(fresh.json()['must_change'])
+                    fresh_headers = {'Origin':'http://testserver','X-CSRF-Token':fresh.json()['csrf']}
+                    self.assertEqual(client.get('/api/state').status_code, 200)
+                    # 完成后即使持有效会话，设置端点也必须拒绝
+                    self.assertEqual(client.post('/api/setup-password', json={
+                        'password':'another-pass-789', 'confirm':'another-pass-789'}, headers=fresh_headers).status_code, 409)
+                    self.assertTrue(d.password_matches('new-secret-pass-456', json.loads(auth.read_text(encoding='utf-8'))))
+
+    def test_normal_password_change_requires_auth_and_csrf(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            d.AUTH_FILE = Path(tmp)/'auth'
+            with patch.object(d, 'session_store_path', lambda: Path(tmp)/'sessions.json'):
+                d.sessions.clear()
+                d.attempts.clear()
+                d.set_password('a-strong-test-password')
+                with TestClient(d.app) as client:
+                    self.assertEqual(client.post('/api/password', json={
+                        'password':'another-strong-pass'}).status_code, 401)
+                    login = client.post('/api/login', json={'password':'a-strong-test-password'})
+                    headers = {'Origin':'http://testserver','X-CSRF-Token':login.json()['csrf']}
+                    self.assertEqual(client.post('/api/password', json={
+                        'password':'another-strong-pass'}).status_code, 403)
+                    self.assertEqual(client.post('/api/password', json={'password':'another-strong-pass'}, headers={
+                        'Origin':'http://testserver','X-CSRF-Token':'bad'}).status_code, 403)
+                    self.assertEqual(client.post('/api/password', json={
+                        'password':'a-strong-test-password'}, headers=headers).status_code, 400)
+                    self.assertEqual(client.get('/api/state').status_code, 200)
+                    self.assertEqual(client.post('/api/password', json={
+                        'password':'another-strong-pass'}, headers=headers).status_code, 200)
+                    self.assertEqual(client.get('/api/state').status_code, 401)
+                    self.assertEqual(client.post('/api/login', json={'password':'a-strong-test-password'}).status_code, 401)
+                    changed = client.post('/api/login', json={'password':'another-strong-pass'})
+                    self.assertEqual(changed.status_code, 200)
+                    self.assertFalse(changed.json()['must_change'])
 
     def test_login_and_csrf(self):
         with tempfile.TemporaryDirectory() as tmp:
