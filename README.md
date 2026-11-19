@@ -87,7 +87,7 @@ QQ 协议端 ── OneBot v11 反向 WebSocket ──> NoneBot2 + MuiceBot
 2. 启动核心（`cd gsuid/core && uv run core`，或用 compose 服务），首次启动后在控制台完成插件配置。
 3. 适配器已固定在 `requirements.lock`（`nonebot-plugin-genshinuid==6.1.1`），按快速开始安装依赖即可。在 `nonebot/.env` 设置 `GSUID_CORE_HOST`、`GSUID_CORE_PORT=8765` 和 `GSUID_CORE_WS_TOKEN`（与控制台里的一致），再重启机器人；核心未启动时适配器只报连接失败。
 
-上述来源均为 GPL-3.0，代码不随本仓库分发，安装脚本只在部署时拉取。配置与账号数据在 `gsuid/core/data`，需随机器人数据一起备份。生产环境应部署在 Linux bot 服务器（`/opt/qqbot`，systemd）；仓库里的 `tools\启动所有.ps1` / `tools\gsuid-局域网访问.ps1` 只用于 Windows 本机开发，具体见 [gsuid 安装说明](gsuid/README.md) 与 [第三方来源与许可](docs/third-party/gsuid-NOTICE.md)。
+上述来源均为 GPL-3.0，代码不随本仓库分发，安装脚本只在部署时拉取。配置与账号数据在 `gsuid/core/data`，需随机器人数据一起备份。生产环境应部署在 Linux bot 服务器（`/opt/qqbot`，systemd）；仓库里的 `tools\启动所有.bat` / `tools\gsuid-局域网访问.ps1` 只用于 Windows 本机开发，具体见 [gsuid 安装说明](gsuid/README.md) 与 [第三方来源与许可](docs/third-party/gsuid-NOTICE.md)。
 
 ---
 
@@ -131,16 +131,19 @@ cp .env.example .env
 cp configs/models.yml.example configs/models.yml
 # 编辑 .env 和 configs/models.yml 后执行
 python migrate_db.py upgrade
+python dashboard.py --init    # 首次部署：生成面板密码，只写认证文件
 python bot.py
 ```
 
 在 `.env` 中配置 `ONEBOT_ACCESS_TOKEN`、初始 `SUPERUSERS` 和监听地址；在 `configs/models.yml` 中配置模型地址、模型名和密钥。协议端的反向 WebSocket 地址指向 `ws://<机器人地址>:8080/onebot/v11/ws`，并使用相同的 OneBot token。初次运行后，超级管理员可在面板维护。
 
+`dashboard.py --init` 只创建 `nonebot/data/dashboard-auth.json`（0600，只存 scrypt 盐和哈希）并在同目录写一份 0600 的 `dashboard-initial-password`，明文密码只在终端显示这一次；加 `--password` 可指定初始密码（12–256 位），已有认证文件时拒绝覆盖。**没有初始化就启动面板，登录不会成功**：`POST /api/login` 返回 401「密码错误或后台尚未配置」，其他管理接口返回 401「请登录」。首次登录后必须修改密码，改完一次性密码文件和所有会话一起失效。
+
 `configs/models.yml.example` 使用 `Denia` 模板；请根据实际可用的模板调整模型配置。人格内容、语料和账号凭据应自行准备，不要提交私有数据。
 
 需要图片卡片时，按 [渲染服务说明](docker/playwright-renderer/README.md) 启动服务，默认地址为 `http://127.0.0.1:3100`。未配置或服务不可用时，具体功能按各自实现回退文本或原始媒体。
 
-管理面板单独启动，例如在已激活虚拟环境的 `nonebot` 目录运行：
+管理面板单独启动（先完成上面的 `--init`），例如在已激活虚拟环境的 `nonebot` 目录运行：
 
 ```bash
 uvicorn dashboard:app --host 127.0.0.1 --port 8092
@@ -148,7 +151,33 @@ uvicorn dashboard:app --host 127.0.0.1 --port 8092
 
 面板配置、协议端连接、RAG、systemd 和故障排查见 [运维手册](docs/OPERATIONS.md) 与 [常见问题](docs/PITFALLS.md)。远程访问建议使用 SSH 隧道或受保护的 HTTPS 反向代理。
 
+### 可选：知识库检索（RAG）
+
+`knowledge/*.md` 是仓库跟踪的语料，`rag/index/` 是 `rag/build_index.py` 生成的可重建产物，已被 `.gitignore` 忽略；新检出没有索引是正常的，不代表语料缺失。`rag/models/` 里的 bge-m3 ONNX 权重也不进仓库。
+
+RAG 依赖**不在** `requirements.lock` 里，必须在仓库根目录单独建环境：
+
+```bash
+cd rag
+python3.12 -m venv .venv
+. .venv/bin/activate
+pip install onnxruntime jieba tokenizers numpy fastapi uvicorn   # GPU 改为 onnxruntime-gpu
+# 按 core.MODEL_DIR 放置 bge-m3 ONNX 权重（文件清单见 rag/download_model.sh，路径按本机修改）
+python build_index.py --dir ../knowledge
+python serve.py --port 8091
+```
+
+`serve.py` 的本地 `/embed` 模型标识是 `bge-m3-fp16-v1`；`serve_cloud.py`（SiliconFlow）与长期记忆使用 `siliconflow-bge-m3-v1`。两套索引和向量不能混用：切换服务必须重建索引，记忆库里已有的旧向量按用户访问逐步重算。未启动检索服务时知识库插件按「未命中」处理，不影响聊天。详见 [运维手册 §7](docs/OPERATIONS.md#7-知识库rag)。
+
+## Windows 本机（开发）
+
+Windows 上使用 `tools\启动所有.bat` / `tools\停止所有.bat` 启停；根目录的 `启动机器人.bat` / `停止机器人.bat` 只是调用它们的薄入口。脚本按自身位置解析检出目录，启动前检查 8080 是否已有实例，并清理 `NO_PROXY` 中无法识别的 IPv6 回环条目（`::1` / `[::1]`），避免本机回环请求被系统代理或代理例外规则拦住。它们是本机开发/调试入口；生产部署仍走 Linux + systemd。
+
 ## 功能说明
+
+### 模型降级
+
+`MODEL_FAILOVER=1`（`.env.example` 的默认值）只表示允许降级，真正救场还需要先配置次选：私聊机器人发 `.模型 次选 <条目名|上游真模型名>`，再用 `.模型 查看` 确认显示的是具体条目，而不是「次选 未设置 —— 首选报错时不会降级」。没有次选时，首选返回 503 或一直不吐字可能表现为整条消息没有回复。次选必须与首选不同；超时由 `MODEL_FAILOVER_TIMEOUT` 控制，诊断日志按 `[model]` 过滤。详见 [运维手册 §6.1](docs/OPERATIONS.md#61-模型降级model_failover)。
 
 ### 游戏活动
 
@@ -226,16 +255,20 @@ cp configs/templates.yml.example configs/templates.yml
 
 ### 更新已有部署
 
+更新必须发生在 Git 检出里：在部署目录 `git pull --ff-only`，或 `git worktree add` 检出到新目录后再切换。**不要把下载的 zip/tar 解压覆盖到旧检出**——旧检出里已从仓库删除的文件不会消失，`git status`/`git diff` 也会失去可比对的基线，示例配置还可能盖掉真实配置。
+
 ```bash
+cd <检出目录>
 git pull --ff-only
-# 保留现有 .env、models.yml、templates.yml、local/ 和 nonebot/data/
-# 仅在文件不存在时从对应 .example 复制
+# 被 Git 忽略的本地配置与数据必须原样保留，不要复制任何 .example 覆盖：
+# nonebot/.env、configs/models.yml、configs/templates.yml、local/、nonebot/data/、rag/index/
 cd nonebot
 python migrate_db.py upgrade
+python dashboard.py --init     # 已有认证文件时提示并退出，不会重置密码
 python -m pytest tests -q
 ```
 
-重启机器人及面板使代码生效；配置文件的修改方式见上一节。升级前先备份 `nonebot/data/`、`nonebot/.env`、`gsuid/core/data/`（如果启用游戏查询）；不要把备份复制回仓库。
+重启机器人及面板使代码生效；配置文件的修改方式见上一节。升级前先备份 `nonebot/data/`、`nonebot/.env`、`gsuid/core/data/`（如果启用游戏查询）；不要把备份复制回仓库。需要全新目录时用 `git clone` 或 `git worktree add`，再从旧目录只复制上表列出的被忽略文件与数据。
 
 ### 历史与轮换
 

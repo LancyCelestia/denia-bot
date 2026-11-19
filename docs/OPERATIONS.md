@@ -1,6 +1,6 @@
 # 运维手册
 
-面向 Linux 部署。Windows 单机部署的历史记录已归档在最后「附录」里，仅作参考。
+面向 Linux 部署。Windows 单机开发入口的说明在最后「附录」，生产部署仍以 Linux + systemd 为准。
 
 ## 1. 服务清单
 
@@ -8,8 +8,8 @@
 |---|---|---|---|
 | SnowLuma（QQ 协议端） | 5099 WebUI / 6081 noVNC | Docker `qqbot-snowluma` | compose 环境变量 + `/opt/qqbot/snowluma/config` |
 | NoneBot2 + MuiceBot | 8080 | `python bot.py` | `nonebot/.env`、`nonebot/configs/models.yml` |
-| RAG 检索服务 | 8091 | `python rag/serve.py` | 环境变量 `KB_GATE_MODE` 等；见 `rag/core.py` |
-| 管理面板 | 8092 | `uvicorn dashboard:app` | `nonebot/data/dashboard-auth.json` |
+| RAG 检索服务（可选） | 8091 | `rag/.venv/bin/python rag/serve.py` | 独立 venv；环境变量 `KB_GATE_MODE` 等，见 `rag/core.py`；索引 `rag/index/` |
+| 管理面板 | 8092 | `uvicorn dashboard:app` | `nonebot/data/dashboard-auth.json`（0600） |
 | 模型网关 AxonHub（可选） | 8090 | 独立二进制 | `axonhub/config.yml` |
 | gsuid_core（可选） | 8765 | `cd gsuid/core && uv run core`，或 compose 服务 | `gsuid/core/data/config.json` |
 
@@ -20,15 +20,29 @@
 重启机器后：
 
 1. `docker compose up -d`（SnowLuma，需要先有登录态；否则去 6081 扫码）
-2. RAG：`.venv/bin/python rag/serve.py`
+2. RAG（可选，需先按 §7 建独立环境与索引）：`rag/.venv/bin/python rag/serve.py`
 3. gsuid_core（启用游戏账号查询时）：先运行 `gsuid/install.sh` 完成安装；启动时 `cd gsuid/core && uv run core`（或 compose `docker compose up -d`）；**必须先于 NoneBot 启动**，否则适配器首连失败；core 启动后下一条消息会重试，必要时重启机器人
 4. NoneBot：`cd nonebot && ../.venv/bin/python bot.py`
-5. 面板：`systemctl start qqbot-dashboard`（见 `nonebot/qqbot-dashboard.service`）
+5. 面板：首次启动前先在 `nonebot/` 执行 `python dashboard.py --init`（生成认证文件与一次性密码，见 §8.0），再 `systemctl start qqbot-dashboard`（见 `nonebot/qqbot-dashboard.service`）。未初始化时面板可以启动，但登录必然返回 401。
 
 Linux 常驻 gsuid_core：`sudo cp gsuid/qqbot-gsuid-core.service /etc/systemd/system/ && sudo systemctl enable --now qqbot-gsuid-core`；NoneBot 单元用 drop-in 增加 `After=qqbot-gsuid-core.service`。局域网 WebConsole 需要 core `HOST=0.0.0.0` 且只对本子网放行 TCP 8765；Windows 用 `tools\gsuid-局域网访问.ps1`，详见 `gsuid/README.md` §6.1。
 
 SnowLuma 的反向 WS 必须指向 `ws://127.0.0.1:8080/onebot/v11/ws`，且 `accessToken` 与 `.env` 的
 `ONEBOT_ACCESS_TOKEN` 一致；握手还需要 `X-Self-ID` 头（NoneBot 靠它认 Bot，缺了会 403）。
+
+## 2.5 健康检查与重启握手
+
+`GET http://127.0.0.1:8080/dashboard-health` 返回 `service`、`ready`、`connected`、`pid`、`start_token` 和新增的 `started_at`：
+
+| 字段 | 含义 |
+|---|---|
+| `ready` | NoneBot 应用已启动；不代表协议端已连上 |
+| `connected` | 配置的机器人账号（`QQBOT_SELF_ID`）是否已连接；未配置时看是否有任意 Bot |
+| `pid` | 当前进程号；重启后排障用 |
+| `start_token` | 每个进程都有，不会为空：面板重启时通过 `QQBOT_START_TOKEN` 传入新令牌并优先采用；普通启动没有该变量时，进程启动时生成一次。它是重启/进程身份握手令牌，Windows 面板重启用它确认连上新进程，Linux 重启靠 PID 变化；**不是启动时间，不能拿来算 uptime** |
+| `started_at` | 进程启动时刻（Unix 时间戳，`time.time()`），监控运行时长用它，不要用 `start_token` 推算 |
+
+判断标准：`ready=true` 且 `connected=true` 才算服务正常；`ready=true, connected=false` 检查协议端登录态与 `X-Self-ID`。重启卡住时同时看 `pid` 是否变化（Linux）或 `start_token` 是否等于面板这次下发的令牌（Windows），不要只看 HTTP 200。`start_token` 只用于判断「是不是这次重启后的新进程」，与运行了多久无关。
 
 ## 3. 账号隔离
 
@@ -71,6 +85,19 @@ SnowLuma 是**进程级注入**，同一 QQ 客户端里登录的所有号都会
 - 直连：在 `models.yml` 加一条 `provider: openai` 的条目，把它的 `default` 改成 `true`
 - 逃生通道：把 `echo-test`（`provider: _echo`）的 `default` 改成 `true`，机器人会回显请求内容 —— 用来确认链路本身是活的
 - **热重载例外**：`models.yml` 热重载，但插件开关（`.env` 里的 `PROMPT_GUARD` 等）改完必须重启
+
+## 6.1 模型降级（MODEL_FAILOVER）
+
+`MODEL_FAILOVER=1` 只是打开「允许降级」，**不会自动产生次选**。没有配置次选时，首选返回 503 或迟迟不吐字，整条消息可能没有任何回复，日志里也未必有 ERROR。
+
+配置与诊断：
+
+1. 主人私聊机器人发 `.模型 次选 <条目名|上游真模型名>`；不要了发 `.模型 次选 无`。
+2. `.模型 查看` 必须显示具体的次选条目。若显示「次选 未设置 —— 首选报错时不会降级」，就是当前问题的原因；次选与首选指同一个模型时也会被拒绝或清理（同名不算降级）。
+3. 日志按 `[model]` 过滤，能看到降级原因；`MODEL_FAILOVER_TIMEOUT`（默认 45 秒）控制等第一个字的上限，中转站挂住不报错时靠它才会降级。
+4. `MODEL_FAILOVER=0` 表示只保留手动换模型，永不自动降级。
+
+`MODEL_FAILOVER` 与 `MODEL_FAILOVER_TIMEOUT` 都在 `nonebot/.env`，改完重启机器人。首选这一回合已经吐过字时不会重跑，避免同一轮说两遍。
 
 ## 6.5 管理面板的 SnowLuma 状态显示
 
@@ -151,19 +178,47 @@ IMAGE_MAX_COUNT=4     # 一条消息最多带几张图
 knowledge/*.md  ──build_index──▶  rag/index/{chunks,tokens,lexicon,vectors}  ──serve──▶  :8091
 ```
 
+`knowledge/*.md`（`达妮娅.md`、`梗知识.md`、`鸣潮库街区百科.md`）由 Git 跟踪；`rag/index/` 是
+`rag/build_index.py` 生成的可重建产物，已被 `.gitignore` 忽略。新检出没有索引是正常的，
+不是语料缺失。`rag/models/` 的 bge-m3 ONNX 权重同样不进仓库，需要按 `core.MODEL_DIR`
+放置（`rag/download_model.sh` 是要下载的文件清单示例，其中路径按本机修改）。
+
+RAG 依赖**不在** `requirements.lock` 里，必须在仓库根目录单独建环境：
+
+```bash
+cd rag
+python3.12 -m venv .venv
+. .venv/bin/activate
+pip install onnxruntime jieba tokenizers numpy fastapi uvicorn   # GPU 换成 onnxruntime-gpu
+python build_index.py --dir ../knowledge      # 全量几小时，支持断点续跑
+python serve.py --port 8091
+```
+
+两种服务不能混用：
+
+| 模式 | 入口 | `/embed` 模型标识 | 索引要求 |
+|---|---|---|---|
+| 本地 ONNX | `rag/serve.py` | `bge-m3-fp16-v1` | `rag/index/`，`meta.embed_backend` 为 `cpu`/`gpu` |
+| 云端 SiliconFlow | `rag/serve_cloud.py` | `siliconflow-bge-m3-v1` | `KB_CLOUD_INDEX`（默认 `rag/index-siliconflow/`），`meta.embed_backend=siliconflow` 且 `embed_model=BAAI/bge-m3` |
+
+`rag/build_index.py` 只产出本地 ONNX 索引（`embed_backend` 为 `cpu`/`gpu`）；云端索引要用 SiliconFlow 的 `BAAI/bge-m3` 单独离线构建，并让 `meta.json` 带上 `embed_backend=siliconflow`、`embed_model=BAAI/bge-m3`，否则 `serve_cloud.py` 启动时直接报模型不匹配。
+
+长期记忆（`nonebot/memory_logic.py`）把向量按 `siliconflow-bge-m3-v1` 记录，调用的是
+8091 的 `/embed`。因此本地向量和云端向量**不能写进同一个记忆库**，也不能拿本地索引直接
+给云端服务启动；切换服务必须重建索引，旧记忆向量按用户访问逐步重新生成。
+
 - 检索只在判定「相关」时注入 1~2 块，无关一条都不塞
 - 索引里记了 `embed_backend`（`cpu`/`gpu`）和 `dim`，**CPU 与 GPU 版索引不能混用**；fp16 只在 CUDA 上更快
 - 语料改了要重建（几小时，支持断点续跑）；改检索阈值前后都要跑 `rag/eval_gate.py` 做闸门回归
 - 服务挂了或超时（2.5s），插件一律当「没命中」，不影响正常聊天
 
-开发服务器（2026-11-01）：`qqbot-rag-cloud` 提供同一回环地址的 `/health`、
+开发服务器（2026-11-01）的部署采用云端方案：`qqbot-rag-cloud` 提供同一回环地址的 `/health`、
 `/search` 和 `/embed`，使用硅基流动 `BAAI/bge-m3`；管理面板「知识库 Embedding」
 可更新密钥，密钥保存于 `nonebot/data/embedding_secrets.json`（权限 600，不回显）。
 云端索引位于 `rag/index-siliconflow-20261101/`，包括原有语料和角色档案；原索引
 `rag/index/` 保留。原本地模型服务 `qqbot-rag` 已停用且取消开机启动，不要和云端
 服务同时绑定 8091。`/reindex` 在云端服务上返回 409，必须离线构建并验证新索引，
-不能直接用本地模型索引替换云端索引。记忆向量使用不同模型标识，旧向量按用户访问
-逐步重新生成；切换提供商时不能混用不同模型产生的向量。
+不能直接用本地模型索引替换云端索引。
 
 切换部署的原始文件备份在服务器 `/opt/qqbot/.deploy-embedding-siliconflow-20261101/backup/`。
 回退需先停止机器人和云端检索服务，再恢复备份的机器人记忆文件及面板文件、启用
@@ -173,6 +228,30 @@ knowledge/*.md  ──build_index──▶  rag/index/{chunks,tokens,lexicon,vec
 
 `nonebot/dashboard.py` 提供运行状态与配置管理接口：群话题、天气推送、主人设置、解析器配置、B站动态接收目标。
 面板要求密码（`data/dashboard-auth.json`），所有写操作需要二次确认。
+
+## 8.0 首次启动与登录
+
+首次部署先在 `nonebot/` 下执行：
+
+```bash
+python dashboard.py --init
+```
+
+该命令只创建认证文件，不加载 NoneBot、不启动 uvicorn。未指定 `--password` 时随机生成密码，只在终端显示一次，并写入 `data/dashboard-initial-password`。
+
+| 文件/行为 | 说明 |
+|---|---|
+| `data/dashboard-auth.json` | 0600；只存 scrypt 盐和哈希，以及 `must_change` 标记 |
+| `data/dashboard-initial-password` | 0600 的明文一次性密码；首次改密成功后自动删除 |
+| 未初始化就登录 | `POST /api/login` 返回 401「密码错误或后台尚未配置」 |
+| 未登录访问管理接口 | 401「请登录」 |
+| 首次登录后 | 改密前其他接口返回 403「请先修改初始密码」 |
+| 已有认证文件时 `--init` | 拒绝覆盖并以非零退出；重置需先备份并移走该文件，或在面板内改密 |
+| 密码规则 | 12–256 位；新密码不能与原密码相同 |
+| 暴力尝试 | 同一 IP 5 分钟内失败 8 次后返回 429 |
+| 会话 | Cookie `admin_session`，8 小时；面板重启后仍然有效，改密后全部失效 |
+
+两个文件权限必须是 0600；Windows 上至少保证 `nonebot/data/` 不对其他用户共享。不要删除认证文件来「重置」面板——那会让面板回到未初始化状态，所有登录继续 401。
 
 ## 8.1 机器人显示名称
 
@@ -363,11 +442,13 @@ curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8092/api/bilibili   # 
 - [ ] `sysctl kernel.yama.ptrace_scope` ≤ 2（= 3 会直接拒绝注入）
 - [ ] 给容器加 `mem_limit` / `cpus`
 - [ ] 备份：数据库、`gate.json`、`model_pref.json`、`rag/index`、`data/statuscard*`、`gsuid/core/data`（启用 gsuid_core 时含账号绑定与 `config.json`）
+- [ ] 面板已执行 `python dashboard.py --init` 且首次密码已修改；`data/dashboard-auth.json` 权限为 0600，一次性密码文件 `data/dashboard-initial-password` 已删除
+- [ ] 启用 RAG 时：独立 venv 已装 `onnxruntime` 等依赖，索引已构建；本地与云端索引/向量没有混用
 - [ ] 状态卡默认已勾选「主机名」「进程信息」脱敏；公开群再加「网络数据」
 
 ## 10. 部署本地文件与同步排除
 
-以下文件只存在于部署机，仓库里只保留 `*.example` 模板。**从仓库同步代码时必须排除它们**，否则真实配置会被占位值覆盖：
+以下文件只存在于部署机，仓库里只保留 `*.example` 模板。**更新或迁移检出时必须原样保留它们**，否则真实配置会被占位值覆盖：
 
 | 文件 | 仓库对应物 | 说明 |
 |---|---|---|
@@ -375,6 +456,7 @@ curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8092/api/bilibili   # 
 | `nonebot/configs/models.yml` | `nonebot/configs/models.yml.example` | 模型地址与密钥 |
 | `nonebot/configs/templates.yml` | `nonebot/configs/templates.yml.example` | 人格配置；`userinfos` 含主人 QQ |
 | `nonebot/data/` | — | 运行时状态与凭据 |
+| `rag/index/`、`rag/models/` | — | 可重建的索引与模型权重；不随 Git 更新，迁移时复制可省去数小时重建 |
 | `local/bot.env` | — | 被 Git 忽略的本机私有值；`QQBOT_SELF_ID` 优先从这里读取 |
 | `local/private/` | — | 私有交接文档、旧备份和调试快照；不进入版本控制 |
 | `/etc/systemd/system/qqbot-dashboard.service` 及 `.d/` | `nonebot/qqbot-dashboard.service` | 仓库 unit 默认绑 `127.0.0.1`，真实监听地址放 drop-in |
@@ -388,20 +470,28 @@ curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8092/api/bilibili   # 
 - 这些文件随部署机数据一起备份；迁移时复制对应目录并保持 `600`/目录权限，不要复制进 Git。
 - 如果敏感值曾经进入 Git 历史，先轮换凭据，再用 `git filter-repo` 等工具清理历史；只改当前文件不能消除历史泄露。
 
-同步建议：
+### 更新方式（Git 检出）
+
+部署目录必须是 `git clone` 出来的检出，或 `git worktree add` 出来的工作树。更新只在这棵树上做：
 
 ```bash
-rsync -a --exclude '.env' \
-  --exclude 'configs/models.yml' --exclude 'configs/templates.yml' \
-  --exclude 'data/' --exclude '.venv/' --exclude '__pycache__/' \
-  <仓库>/nonebot/ /opt/qqbot/nonebot/
+git -C /opt/qqbot fetch --all --prune
+git -C /opt/qqbot pull --ff-only
+cd /opt/qqbot/nonebot
+../.venv/bin/python migrate_db.py upgrade
+systemctl restart qqbot qqbot-dashboard
 ```
 
-若用 `git pull`，先在部署机执行一次：
+**禁止把下载的 zip/tar 解压覆盖到旧检出。** 覆盖不会删除旧检出里已从仓库移除的文件，`git status` / `git diff` 失去可比对基线，示例配置和旧数据还可能盖掉真实文件。需要全新目录时：
 
 ```bash
-git update-index --skip-worktree nonebot/configs/templates.yml
+git clone <仓库地址> /opt/qqbot-new
+# 或：git -C /opt/qqbot worktree add /opt/qqbot-new <分支>
 ```
+
+然后从旧目录只复制上表列出的被忽略配置与数据，再切换 systemd 的 `WorkingDirectory`。不要用 `git clean -fdx`：它会删掉 `nonebot/data/`、`local/`、`rag/index/` 等未跟踪内容。
+
+`nonebot/configs/models.yml` 与 `templates.yml` 本来就被 Git 忽略、未被跟踪，`git pull` 不会碰它们；不要为了「保险」再从 `.example` 复制一遍。
 
 面板监听地址用 drop-in 覆盖（不要把真实内网地址写进仓库）：
 
@@ -413,11 +503,15 @@ Environment=DASHBOARD_HOST=<部署机内网地址>
 
 改完执行 `systemctl daemon-reload && systemctl restart qqbot-dashboard`，再用 `systemctl show -p ExecStart` 核对实际监听地址。
 
-## 附录：Windows 单机部署（历史）
+## 附录：Windows 单机（本机开发）
 
-早期在 `D:\Software\qqbot` 上用 SnowLuma + NoneBot 双进程跑的方案，入口是
-`启动机器人.bat` / `停止机器人.bat`（内部调 `tools\启动所有.ps1`）。
-关键差异：用 `tools\只注入小号.py` 做账号隔离（探针识别 PID 后只 load 小号），
-且所有 `.ps1` 必须存成带 UTF-8 BOM，否则 PowerShell 5.1 按 GBK 解析中文会报「字符串缺少终止符」。
+Windows 上使用 `tools\启动所有.bat` / `tools\停止所有.bat` 启停；根目录的
+`启动机器人.bat` / `停止机器人.bat` 只是调用它们的薄入口（旧版 `.ps1` 仅保留作兼容）：
 
-这些脚本仍留在 `tools/` 里，但仓库的默认部署路径是 Linux。
+- 脚本按自身所在目录解析检出路径（`%~dp0`），检出放哪个盘都行；不要改回写死的绝对路径。
+- 启动前检查 8080：已有机器人在跑时不会重复拉起第二个 NoneBot 实例，而是提示先停止。
+- 启动前清理 `NO_PROXY` 中的 IPv6 回环条目（`::1` / `[::1]`），其他条目原样保留；机器人进程启动时也会做同样清理，避免本机回环请求被系统代理拦住。
+- 兼容用的 `.ps1` 必须存成带 UTF-8 BOM，否则 PowerShell 5.1 按 GBK 解析中文会报「字符串缺少终止符」。
+- 账号隔离仍用 `tools\只注入小号.py`（探针识别 PID 后只 load 小号）。
+
+这些入口只用于本机开发与调试；生产部署以 Linux + systemd 为准（见 §2、§10），不要把 Windows 上的路径、代理变量或服务脚本搬进服务器。
