@@ -1,3 +1,4 @@
+# Keep this file UTF-8 with BOM: Windows PowerShell 5.1 needs it for Chinese text.
 [CmdletBinding()]
 param(
     [string]$Root = (Split-Path -Parent $PSScriptRoot),
