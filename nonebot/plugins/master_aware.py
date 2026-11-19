@@ -30,8 +30,6 @@ async def inject(request: ModelRequest, event: Event) -> None:
         return
     try:
         settings = master_settings.load()
-        if not settings['enabled']:
-            return
         owners, title = owner_config()
         if settings['owner_ids'] is not None:
             owners = set(settings['owner_ids'])

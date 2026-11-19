@@ -5,7 +5,7 @@ import re
 from pathlib import Path
 
 PATH = Path(__file__).resolve().parent / 'data' / 'master_aware.json'
-DEFAULT = {'enabled': True, 'owner_ids': None, 'title': None}
+DEFAULT = {'owner_ids': None, 'title': None}
 
 def load():
     if not PATH.exists():
@@ -14,8 +14,8 @@ def load():
     return validate(value)
 
 def validate(value):
-    if not isinstance(value, dict) or type(value.get('enabled')) is not bool:
-        raise ValueError('开关配置无效')
+    if not isinstance(value, dict):
+        raise ValueError('配置无效')
     ids = value.get('owner_ids')
     if ids is not None:
         if not isinstance(ids, list) or len(ids) > 20 or any(not isinstance(x,str) or not re.fullmatch(r'[1-9][0-9]{4,19}',x) for x in ids):
@@ -26,7 +26,7 @@ def validate(value):
         if not isinstance(title,str) or not title.strip() or len(title.strip()) > 40 or any(not c.isprintable() for c in title):
             raise ValueError('称呼须为 1 至 40 个字符')
         title = title.strip()
-    return {'enabled':value['enabled'],'owner_ids':ids,'title':title}
+    return {'owner_ids':ids,'title':title}
 
 def save(value):
     data = validate(value)

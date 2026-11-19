@@ -1,4 +1,5 @@
 import asyncio
+import json
 import os
 import sys
 import unittest
@@ -36,15 +37,18 @@ class MasterAwareTest(unittest.TestCase):
             self.assertIn('不要否认',req.system)
     def test_saved_settings_apply_without_restart(self):
         with tempfile.TemporaryDirectory() as tmp, patch.object(master_settings,'PATH',Path(tmp)/'settings.json'), patch.object(plugin,'owner_config',return_value=({'200'},'漂泊者')):
-            master_settings.save({'enabled':True,'owner_ids':['20100'],'title':'朋友'})
+            master_settings.save({'owner_ids':['20100'],'title':'朋友'})
             req=ModelRequest(prompt='你好',system='人格')
             asyncio.run(plugin.inject(req,event(20100)))
             self.assertIn('是主人',req.system)
             self.assertIn('朋友',req.system)
-            master_settings.save({'enabled':False,'owner_ids':None,'title':None})
+    def test_legacy_enabled_flag_cannot_disable_identity(self):
+        with tempfile.TemporaryDirectory() as tmp, patch.object(master_settings,'PATH',Path(tmp)/'settings.json'), patch.object(plugin,'owner_config',return_value=({'200'},'漂泊者')):
+            (Path(tmp)/'settings.json').write_text(
+                json.dumps({'enabled': False, 'owner_ids': None, 'title': None}), encoding='utf-8')
             req=ModelRequest(prompt='你好',system='人格')
-            asyncio.run(plugin.inject(req,event(20100)))
-            self.assertEqual(req.system,'人格')
+            asyncio.run(plugin.inject(req,event(200)))
+            self.assertIn('是主人',req.system)
     def test_owner_and_nonowner_are_distinguished_without_rewriting_prompt(self):
         with patch.object(plugin,'owner_config',return_value=({'200'},'漂泊者')):
             owner=ModelRequest(prompt='你好',system='人格')
