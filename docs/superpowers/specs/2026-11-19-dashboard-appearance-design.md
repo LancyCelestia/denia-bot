@@ -32,9 +32,9 @@
 
 | 属性 | 值 |
 |---|---|
-| `data-theme` | `light` / `dark`（已解析） |
+| `data-theme` | `light` / `dark`（已解析；固定明暗主题会覆盖） |
 | `data-theme-mode` | `system` / `light` / `dark`（用户选择） |
-| `data-skin` | `default` / `macos` / `neumorphism` / `ghibli` / `watercolor` / `photo` |
+| `data-skin` | `default` / `macos` / `neumorphism` / `ghibli` / `watercolor` / `photo` / `korean` / `shader` |
 | `data-style` | `comfortable` / `compact` / `large` |
 | `data-bg` | `none` / `preset` / `url` / `upload` |
 | `data-bg-preset` | `paper` / `dawn` / `forest` / `night` / `grid` |
@@ -77,7 +77,7 @@
 
 ### 3.4 主题预设
 
-默认主题 `default` 保持当前外观；五个 StyleKit 主题每个链接一个，覆盖颜色、表面、阴影、圆角、字体与默认背景。明暗模式保留：macOS/新拟物/吉卜力/水彩各有浅/深两套；沉浸摄影固定为暗色摄影气质。
+默认主题 `default` 保持当前外观；七个 StyleKit 主题每个链接一个，覆盖颜色、表面、阴影、圆角、字体与默认背景。明暗模式保留：macOS/新拟物/吉卜力/水彩各有浅/深两套；沉浸摄影、着色器渐变固定暗色，韩式极简固定浅色。固定明暗的主题会禁用「明暗」单选并显示提示；切回自由主题时恢复用户原先的 system/light/dark 选择。
 
 | 主题 | 来源 | 关键特征 |
 |---|---|---|
@@ -86,9 +86,17 @@
 | 新拟物 `neumorphism` | https://www.stylekit.top/zh/styles/neumorphism#style-prompts | `#e0e5ec` 同色基底、双阴影、无边框、blurple 强调 |
 | 吉卜力 `ghibli` | https://www.stylekit.top/zh/styles/ghibli-style | 奶油/鼠尾草/天青、24px 卡片、胶囊按钮、天空渐变 |
 | 水彩 `watercolor` | https://www.stylekit.top/zh/styles/watercolor-style | 纸白、蓝/蜜桃/水青晕染、衬线斜体标题、无硬边 |
-| 沉浸摄影 `photo` | https://www.stylekit.top/zh/styles/immersive-photo | 全幅照片/电影感渐变、墨色 + 琥珀、玻璃卡片、全大写标签 |
+| 沉浸摄影 `photo` | https://www.stylekit.top/zh/styles/immersive-photo | 全幅照片/电影感渐变、墨色 + 琥珀、玻璃卡片、全大写标签；自定义照片背景带 28s Ken Burns 漂移；固定暗色 |
+| 韩式极简 `korean` | https://www.stylekit.top/zh/styles/korean-minimal | 暖白 + 石板蓝、藕粉/鼠尾草/米沙、24px 大圆角、16px 控件、无全大写/宽字距；固定浅色 |
+| 着色器渐变 `shader` | https://www.stylekit.top/zh/styles/shader-gradient | 近黑画布上的实时 WebGL 虹彩场、24px 玻璃卡片、紫色 UI 强调、全大写小标签；固定深色 |
 
-主题只通过 `<html data-skin>` 覆盖 token 与少量组件规则；样式预设仍控制字号/圆角/间距。主题的背景默认仅在 `data-bg="none"` 时显示，用户选择 preset/URL/upload 后覆盖。
+固定明暗与实现细节：
+
+- `korean` 强制 `data-theme="light"`；`photo`/`shader` 强制 `data-theme="dark"`；`data-theme-mode` 保留用户原始选择，切回自由主题时恢复。
+- `shader` 是一个独立的全屏 WebGL fragment shader 层：DPR 上限 2；页面隐藏或离屏时暂停 `requestAnimationFrame`；`prefers-reduced-motion` 时只渲染一帧；WebGL 不可用时回退为同配色的静态 CSS 渐变；文字与场之间有一层可读性遮罩。
+- `photo` 的自定义 URL/upload 背景使用 28s alternate Ken Burns（`transform` only），`prefers-reduced-motion` 时静止。
+
+主题只通过 `<html data-skin>` 覆盖 token 与少量组件规则；着色器主题额外有一个独立 canvas 渲染层；样式预设仍控制字号/圆角/间距。主题的背景默认仅在 `data-bg="none"` 时显示，用户选择 preset/URL/upload 后覆盖。
 
 ### 3.5 样式预设
 
