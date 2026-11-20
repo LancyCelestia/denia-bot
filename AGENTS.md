@@ -6,6 +6,7 @@
 2. **验证请求，再提交审核。** 逐项核对用户要求，检查差异只包含本任务，运行相关验证。验证失败或无法运行时，如实记录原因，不请求合并。
 3. **通过 Pull Request 请求合并。** 验证满足要求后，只推送工作分支，从该分支向远端主线开 PR，写明变更、验证结果和已知限制，并向用户提供 PR 链接。PR 目标以远端主线为准：使用 `master` 的仓库目标为 `master`；本仓库当前目标为 `main`。不要为此新建或重命名主线。
 4. **等审核，不自行合并。** 由维护者在审核和必需检查通过后合并。不得绕过分支保护、强制推送主线或用本地合并后推送替代 PR。若无权限推送或创建 PR，保留工作分支并报告阻塞。
+5. **正式审查由 bot reviewer 提交。** PR 审查统一通过 `.github/workflows/pr-review.yml` 以 `github-actions[bot]` 身份提交 COMMENT review；维护者仍负责批准与合并。详见 `docs/agents/pr-review.md`。
 
 ## Agent skills
 
@@ -16,6 +17,10 @@ GitHub Issues in `Lkyloveaw/denia-bot`, managed with the `gh` CLI. See `docs/age
 ### Triage labels
 
 Default five roles: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### PR review
+
+Bot reviewer 的触发方式、评审内容要求与已知限制见 `docs/agents/pr-review.md`。
 
 ### Domain docs
 
