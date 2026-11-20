@@ -15,14 +15,14 @@
 | 决策 | 选择 |
 |---|---|
 | 持久化 | 浏览器 `localStorage`，按设备 |
-| 主题 | 默认（当前）+ macOS 毛玻璃 / 新拟物 / 吉卜力 / 水彩 / 沉浸摄影（每个 StyleKit 链接一个）；移除独立配色设置 |
+| 主题 | 默认（当前）+ 十一个 StyleKit 主题（macOS 毛玻璃 / 新拟物 / 吉卜力 / 水彩 / 沉浸摄影 / 韩式极简 / 着色器渐变 / 圣杯布局 / 北欧极简 / 液态玻璃 / 暗黑学院）；移除独立配色设置 |
 | 样式 | 圆角/阴影 + 字号/密度（舒适/紧凑/宽松） |
 | 背景 | 内置渐变/纹理 + 图片 URL + 面板上传；主题可提供默认背景 |
 | 背景范围 | 面板内切换「仅顶部 hero / 全屏」 |
 | 默认 | 跟随系统 `prefers-color-scheme`，可手动覆盖 |
 | 入口 | 侧栏底部按钮 + 移动端顶栏按钮 |
 | 默认外观 | 当前浅色外观原样保留 |
-| 明确不做 | 面板与机器人卡片统一主题；布局级换肤（侧栏位置/栅格重排） |
+| 明确不做 | 面板与机器人卡片统一主题；除圣杯布局主题外，不做布局级换肤（侧栏位置/栅格重排） |
 
 ## 3. 架构
 
@@ -34,7 +34,7 @@
 |---|---|
 | `data-theme` | `light` / `dark`（已解析；固定明暗主题会覆盖） |
 | `data-theme-mode` | `system` / `light` / `dark`（用户选择） |
-| `data-skin` | `default` / `macos` / `neumorphism` / `ghibli` / `watercolor` / `photo` / `korean` / `shader` |
+| `data-skin` | `default` / `macos` / `neumorphism` / `ghibli` / `watercolor` / `photo` / `korean` / `shader` / `holy` / `scandi` / `liquid` / `academia` |
 | `data-style` | `comfortable` / `compact` / `large` |
 | `data-bg` | `none` / `preset` / `url` / `upload` |
 | `data-bg-preset` | `paper` / `dawn` / `forest` / `night` / `grid` |
@@ -77,7 +77,7 @@
 
 ### 3.4 主题预设
 
-默认主题 `default` 保持当前外观；七个 StyleKit 主题每个链接一个，覆盖颜色、表面、阴影、圆角、字体与默认背景。明暗模式保留：macOS/新拟物/吉卜力/水彩各有浅/深两套；沉浸摄影、着色器渐变固定暗色，韩式极简固定浅色。固定明暗的主题会禁用「明暗」单选并显示提示；切回自由主题时恢复用户原先的 system/light/dark 选择。
+默认主题 `default` 保持当前外观；十一个 StyleKit 主题每个链接一个，覆盖颜色、表面、阴影、圆角、字体与默认背景。明暗模式保留：macOS/新拟物/吉卜力/水彩/液态玻璃各有浅/深两套；沉浸摄影、着色器渐变、暗黑学院固定暗色；韩式极简、圣杯布局、北欧极简固定浅色。固定明暗的主题会禁用「明暗」单选并显示提示；切回自由主题时恢复用户原先的 system/light/dark 选择。
 
 | 主题 | 来源 | 关键特征 |
 |---|---|---|
@@ -89,14 +89,21 @@
 | 沉浸摄影 `photo` | https://www.stylekit.top/zh/styles/immersive-photo | 全幅照片/电影感渐变、墨色 + 琥珀、玻璃卡片、全大写标签；自定义照片背景带 28s Ken Burns 漂移；固定暗色 |
 | 韩式极简 `korean` | https://www.stylekit.top/zh/styles/korean-minimal | 暖白 + 石板蓝、藕粉/鼠尾草/米沙、24px 大圆角、16px 控件、无全大写/宽字距；固定浅色 |
 | 着色器渐变 `shader` | https://www.stylekit.top/zh/styles/shader-gradient | 近黑画布上的实时 WebGL 虹彩场、24px 玻璃卡片、紫色 UI 强调、全大写小标签；固定深色 |
+| 圣杯布局 `holy` | https://www.stylekit.top/zh/styles/holy-grail-layout | 240px 左栏 / 弹性主栏 / 280px 右栏、56px sticky header、48px footer、24px 间距、12px 卡片；固定浅色；唯一布局级主题 |
+| 北欧极简 `scandi` | https://www.stylekit.top/zh/styles/scandinavian | 暖灰白 `#f5f0eb`、炭灰/木色/苔绿、2px 圆角、无阴影、700ms 过渡、极细字重；固定浅色 |
+| 液态玻璃 `liquid` | https://www.stylekit.top/zh/styles/liquid-glass | 暖纸实色正文卡 + 玻璃侧栏/顶栏/弹层、SVG 位移边缘折射、按压/回弹；浅深两套 |
+| 暗黑学院 `academia` | https://www.stylekit.top/zh/styles/dark-academia | 深棕/墨绿/暗金、奶白纸面卡、衬线字体、2px 圆角、1s 慢过渡；固定暗色 |
 
 固定明暗与实现细节：
 
-- `korean` 强制 `data-theme="light"`；`photo`/`shader` 强制 `data-theme="dark"`；`data-theme-mode` 保留用户原始选择，切回自由主题时恢复。
+- `holy`/`scandi` 强制 `data-theme="light"`；`photo`/`shader`/`academia` 强制 `data-theme="dark"`；`liquid` 保留明暗切换；`data-theme-mode` 保留用户原始选择，切回自由主题时恢复。
+- `holy` 是唯一布局级主题：`.workspace` 为 240px 左栏 / 弹性主栏 / 280px 右栏，`.topline` sticky 56px，`.holy-footer` 48px；右栏复用主导航链接并同步 active；≤1200px 折叠右栏，≤800px 沿用移动端导航；右栏「外观设置」打开同一弹层。
+- `liquid` 将正文卡保持为 `#fcfcfa` 实色；侧栏、浮动顶栏、外观弹层与确认框使用半透明染色 + 背景模糊。边缘折射通过内联 SVG `feTurbulence + feDisplacementMap` 和 mask 只作用于 12px 边框带；不支持时保留磨砂玻璃。按压约 110ms、释放约 420ms 回弹；`prefers-reduced-motion` / `prefers-reduced-transparency` 有降级。
 - `shader` 是一个独立的全屏 WebGL fragment shader 层：DPR 上限 2；页面隐藏或离屏时暂停 `requestAnimationFrame`；`prefers-reduced-motion` 时只渲染一帧；WebGL 不可用时回退为同配色的静态 CSS 渐变；文字与场之间有一层可读性遮罩。
 - `photo` 的自定义 URL/upload 背景使用 28s alternate Ken Burns（`transform` only），`prefers-reduced-motion` 时静止。
+- `scandi` 使用 2px 圆角、无阴影、仅底边的输入线和 700ms ease-in-out；`academia` 的卡片在局部重定义文字/边框 token 为深棕，页面与侧栏保持深棕/墨绿。
 
-主题只通过 `<html data-skin>` 覆盖 token 与少量组件规则；着色器主题额外有一个独立 canvas 渲染层；样式预设仍控制字号/圆角/间距。主题的背景默认仅在 `data-bg="none"` 时显示，用户选择 preset/URL/upload 后覆盖。
+主题主要覆盖 token 与组件规则；圣杯布局额外调整 `workspace/topline/rail/footer`，着色器额外有 canvas 层，液态玻璃额外有 SVG 边缘滤镜；样式预设仍控制字号/间距/控件高度。主题的背景默认仅在 `data-bg="none"` 时显示，用户选择 preset/URL/upload 后覆盖。
 
 ### 3.5 样式预设
 
@@ -104,11 +111,11 @@
 - `compact`：正文 14px、卡片圆角 12px、卡片内边距 20/22px、控件 34px、导航/栅格间距收紧。
 - `large`：正文 16px、卡片圆角 20px、卡片内边距 32/34px、控件 46px、导航/栅格间距放宽。
 
-只改尺寸 token，不改布局与断点；移动端 800px / 520px 媒体查询保持原结构。
+只改尺寸 token，不改布局与断点；移动端 800px / 520px 媒体查询保持原结构；圣杯布局主题是唯一布局级例外。
 
 ### 3.6 背景
 
-- 新增 `#bgLayer`（`position:fixed`，`z-index:-1`）承载背景；`data-bg="none"` 时默认隐藏，主题可提供默认背景（macOS/Ghibli/Watercolor/Photo），用户选择 preset/URL/upload 后覆盖。
+- 新增 `#bgLayer`（`position:fixed`，`z-index:-1`）承载背景；`data-bg="none"` 时默认隐藏，主题可提供默认背景（macOS/Ghibli/Watercolor/Photo/Korean/Shader/Liquid/Academia），用户选择 preset/URL/upload 后覆盖。
 - `hero`：层高约 620px，底部渐隐；卡片保持不透明。
 - `full`：层铺满视口；卡片/侧栏/登录卡使用 `--paper-translucent` / `--sidebar-translucent` + `backdrop-filter: blur(12px)`。
 - 预设：`paper`、`dawn`、`forest`、`night`、`grid`，各含浅色/深色两套渐变。
@@ -119,6 +126,7 @@
 ### 3.7 入口与交互
 
 - 桌面：侧栏 `.side-bottom` 的「◐ 外观」按钮。
+- 圣杯布局：右栏「外观设置」按钮；右栏导航复用主导航链接。
 - 移动端（≤800px）：`.topline` 右侧的「◐」按钮。
 - 弹出面板：明暗、主题、样式、背景四组；关闭按钮、Escape、点击外部关闭；`aria-expanded` 同步。
 - 登录页不提供入口，但已保存的主题/背景会应用。
@@ -126,7 +134,7 @@
 ## 4. 非目标
 
 - 不统一机器人出图卡片（`status_image.py` 等独立渲染管线）。
-- 不做侧栏位置、栅格重排等布局级换肤。
+- 除圣杯布局主题外，不做侧栏位置、栅格重排等布局级换肤。
 - 不做服务端外观设置同步；面板只有一个管理员口令，按设备 localStorage 是本期契约。
 - 不引入 CSS 框架、构建链或 CDN。
 
@@ -135,11 +143,11 @@
 - 更新 `nonebot/tests/test_game_event_panel.py`：从 `id="appScript"` 抽取主脚本，避免新增的 bootstrap `<script>` 被误取；为假 DOM 补 `localStorage` / `matchMedia` / `documentElement` 的缺失保护。
 - 新增 `nonebot/tests/test_appearance_panel.py`：上传成功/格式非法/超限/未登录/无 CSRF/路径穿越。
 - 现有 `test_bilibili_panel.py` 的导航断言不受影响：外观入口是 `<button>`，不新增导航链接或 section。
-- 验收：定向 pytest + 全量 pytest；Playwright 截图覆盖浅色/深色、五个主题 × 明暗、三样式、预设/URL/上传背景、hero/full、移动端 800px；默认浅色与基线截图对比无可见差异。
+- 验收：定向 pytest + 全量 pytest；Playwright 截图覆盖浅色/深色、十一个主题（固定明暗主题按固定方案）、三样式、预设/URL/上传背景、hero/full、移动端 390px、圣杯布局右栏与液态玻璃边缘滤镜；默认浅色与基线截图对比无可见差异。
 
 ## 6. 实施阶段
 
 1. Token 化 + 浅/深色 + 跟随系统 + 侧栏/移动入口 + localStorage。
-2. 五个 StyleKit 主题 + 三档样式（字号/圆角/间距）；移除独立配色设置。
+2. 十一个 StyleKit 主题 + 三档样式（字号/圆角/间距）；移除独立配色设置。
 3. 背景预设/URL/上传 + hero/full + 半透明表面。
 4. 全量验证、分阶段提交、PR（目标 `main`，不自行合并）。
