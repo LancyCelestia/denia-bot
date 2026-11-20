@@ -222,9 +222,23 @@ class ThemePresetStore:
 
     def _read_unlocked(self) -> dict[str, Any]:
         try:
-            raw = self.path.read_text(encoding='utf-8')
+            size = self.path.stat().st_size
         except FileNotFoundError:
             return self._empty()
+        except OSError as exc:
+            raise PresetCorrupt(f'读取主题预设失败: {exc}') from exc
+        if size > MAX_FILE_BYTES:
+            raise PresetCorrupt(
+                f'主题预设文件超过 {MAX_FILE_BYTES // 1024} KB，请修复或删除 data/theme-presets.json'
+            )
+        try:
+            raw = self.path.read_bytes().decode('utf-8')
+        except FileNotFoundError:
+            return self._empty()
+        except UnicodeDecodeError as exc:
+            raise PresetCorrupt(
+                '主题预设文件不是 UTF-8 编码，请修复或删除 data/theme-presets.json'
+            ) from exc
         except OSError as exc:
             raise PresetCorrupt(f'读取主题预设失败: {exc}') from exc
         try:
@@ -274,11 +288,9 @@ class ThemePresetStore:
         raw_user = data['presets']
         presets: list[dict[str, Any]] = []
         invalid: list[str] = []
-        seen: set[str] = set()
 
         for name, config in BUILTIN_PRESETS.items():
             presets.append({'name': name, 'builtin': True, 'config': normalize_config(config)})
-            seen.add(name)
 
         for name in sorted(raw_user):
             if name in BUILTIN_PRESETS:
@@ -290,7 +302,6 @@ class ThemePresetStore:
                 invalid.append(name)
                 continue
             presets.append({'name': name, 'builtin': False, 'config': config})
-            seen.add(name)
 
         names = list(BUILTIN_PRESETS) + sorted(name for name in raw_user if name not in BUILTIN_PRESETS)
         return presets, names, invalid

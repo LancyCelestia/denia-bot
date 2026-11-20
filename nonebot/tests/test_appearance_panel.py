@@ -1,6 +1,9 @@
 import io
+import json
+import os
 import re
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -11,6 +14,7 @@ from PIL import Image
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import appearance_panel
 import dashboard
+import theme_panel
 
 
 TOKEN = 'panel-test-token'
@@ -38,6 +42,22 @@ def make_app(root):
             raise HTTPException(403, '请求来源无效')
 
     appearance_panel.register(app, authorized=authorized, mutate=mutate, root=root)
+    return app
+
+
+def make_preset_app(root):
+    app = FastAPI()
+
+    def authorized(req):
+        if req.headers.get('x-test-auth') != TOKEN:
+            raise HTTPException(401, '请登录')
+
+    def mutate(req):
+        authorized(req)
+        if req.headers.get('x-test-csrf') != TOKEN:
+            raise HTTPException(403, '请求来源无效')
+
+    theme_panel.register(app, authorized=authorized, mutate=mutate, root=root)
     return app
 
 
@@ -128,6 +148,41 @@ def test_store_keeps_only_the_newest_backgrounds(tmp_path):
     assert all(NAME.fullmatch(name) for name in kept)
     for name in kept:
         assert store.read(name)[1] == 'image/png'
+
+
+def test_prune_keeps_upload_referenced_by_theme_preset(tmp_path):
+    store = appearance_panel.BackgroundStore(tmp_path)
+    referenced = store.save(png())[0]
+    old = time.time() - 3600
+    os.utime(store.directory / referenced, (old, old))
+    preset_path = tmp_path / 'data' / 'theme-presets.json'
+    preset_path.write_text(json.dumps({
+        'version': 1,
+        'presets': {'旧图': {'background': {'kind': 'upload', 'value': f'/api/appearance/background/{referenced}'}}},
+    }, ensure_ascii=False), encoding='utf-8')
+
+    for _ in range(appearance_panel.MAX_BACKGROUNDS):
+        store.save(png())
+
+    kept = sorted(path.name for path in store.directory.iterdir())
+    assert referenced in kept
+    assert len(kept) == appearance_panel.MAX_BACKGROUNDS + 1
+    assert store.read(referenced)[1] == 'image/png'
+    with TestClient(make_preset_app(tmp_path)) as client:
+        applied = client.post('/api/theme/presets/apply', json={'name': '旧图'}, headers=MUTATE)
+    assert applied.status_code == 200
+    assert applied.json()['config']['background']['value'] == f'/api/appearance/background/{referenced}'
+
+
+def test_prune_is_skipped_when_preset_file_is_corrupt(tmp_path):
+    preset_path = tmp_path / 'data' / 'theme-presets.json'
+    preset_path.parent.mkdir(parents=True)
+    preset_path.write_text('{not json', encoding='utf-8')
+    store = appearance_panel.BackgroundStore(tmp_path)
+    for _ in range(appearance_panel.MAX_BACKGROUNDS + 2):
+        store.save(png())
+    assert len(list(store.directory.iterdir())) == appearance_panel.MAX_BACKGROUNDS + 2
+    assert preset_path.read_text(encoding='utf-8') == '{not json'
 
 
 def test_dashboard_wires_background_routes():

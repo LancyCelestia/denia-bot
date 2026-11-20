@@ -479,6 +479,7 @@ html[data-bg-scope="full"]:not([data-bg="none"]) .sidebar{background:var(--sideb
 .appearance-swatch[data-swatch=default]{--swatch:linear-gradient(135deg,#faf9f5,#c66e4e)}.appearance-swatch[data-swatch=macos]{--swatch:linear-gradient(135deg,#1c1c1e,#0a84ff)}.appearance-swatch[data-swatch=neumorphism]{--swatch:linear-gradient(135deg,#e0e5ec,#6d5dfc)}.appearance-swatch[data-swatch=ghibli]{--swatch:linear-gradient(135deg,#85cdca,#f4e4bc)}.appearance-swatch[data-swatch=watercolor]{--swatch:linear-gradient(135deg,#4a6fa5,#e8a87c)}.appearance-swatch[data-swatch=photo]{--swatch:linear-gradient(135deg,#0c0d10,#e8b04b)}.appearance-swatch[data-swatch=korean]{--swatch:linear-gradient(135deg,#faf9f7,#d4a5a5 55%,#a8c5b8)}.appearance-swatch[data-swatch=shader]{--swatch:linear-gradient(135deg,#08090d,#7c5cff 45%,#22d3ee 72%,#f472b6)}.appearance-swatch[data-swatch=holy]{--swatch:linear-gradient(135deg,#f1f5f9,#1e293b 58%,#3b82f6)}.appearance-swatch[data-swatch=scandi]{--swatch:linear-gradient(135deg,#f5f0eb,#5a7a6b 58%,#c9a88c)}.appearance-swatch[data-swatch=liquid]{--swatch:linear-gradient(135deg,#f3f2ed,#25414a 55%,#c7e4e5)}.appearance-swatch[data-swatch=academia]{--swatch:linear-gradient(135deg,#3d2b1f,#8b7355 58%,#f5f0e1)}
 .appearance-row{display:flex;gap:6px;align-items:center;margin-top:7px;flex-wrap:wrap}
 .appearance-row input[type=url],.appearance-row select{flex:1;min-width:0;min-height:32px;font-size:var(--fs-12);padding:4px 8px}
+.appearance-row input[type=number]{flex:0 0 96px;min-height:32px;font-size:var(--fs-12);padding:4px 8px}
 .appearance-row input[type=file]{flex:1;min-width:0;font-size:var(--fs-12);border:0;padding:0;min-height:28px}
 .appearance-row button{min-height:32px;padding:4px 10px;font-size:var(--fs-12)}
 .appearance-reset{margin-top:8px;min-height:30px;font-size:var(--fs-12);padding:4px 10px}
@@ -848,10 +849,8 @@ html[data-icon-color="black"] .nav-icon{color:#111}
   </div>
   <div class="appearance-panel" data-appearance-panel="misc" role="tabpanel" hidden>
     <fieldset class="appearance-group"><legend>圆角</legend>
-      <div class="appearance-row"><select id="appearanceRadius" aria-label="圆角">
-        <option value="">跟随主题</option><option value="0">直角 0</option><option value="8">轻圆角 8</option><option value="12">圆角 12</option><option value="16">圆角 16</option><option value="20">大圆角 20</option><option value="24">最大 24</option>
-      </select></div>
-      <small class="appearance-hint">选择后覆盖当前主题与密度的圆角；「跟随主题」恢复主题默认。</small>
+      <div class="appearance-row"><input type="number" id="appearanceRadius" min="0" max="24" step="1" placeholder="跟随主题" aria-label="圆角"></div>
+      <small class="appearance-hint">留空跟随主题；输入 0–24 覆盖当前主题与密度的圆角。</small>
     </fieldset>
     <fieldset class="appearance-group"><legend>侧边栏布局</legend>
       <label><input type="radio" name="appearanceSidebarLayout" value="docked">贴边（默认）</label>
@@ -2041,7 +2040,15 @@ function initAppearance(){
   document.querySelectorAll('input[name="appearanceSidebarLayout"]').forEach(el=>el.addEventListener('change',()=>{if(el.checked)applyState({misc:{sidebarLayout:el.value}})}));
   document.querySelectorAll('input[name="appearanceIconColor"]').forEach(el=>el.addEventListener('change',()=>{if(el.checked)applyState({misc:{iconColor:el.value}})}));
   const radius=$('appearanceRadius');
-  if(radius)radius.addEventListener('change',()=>applyState({misc:{radius:radius.value===''?null:Number(radius.value)}}));
+  if(radius)radius.addEventListener('change',()=>{
+    let value=null;
+    if(radius.value!==''){
+      const parsed=Number(radius.value);
+      if(isFinite(parsed))value=Math.min(24,Math.max(0,Math.round(parsed)));
+      radius.value=value===null?'':String(value);
+    }
+    applyState({misc:{radius:value}});
+  });
   const presetName=$('themePresetName');
   if(presetName)presetName.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();saveThemePreset()}});
   const preset=$('appearanceBackgroundPreset');

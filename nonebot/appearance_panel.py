@@ -2,11 +2,12 @@
 
 背景图只由本面板写入 `data/appearance-backgrounds/`：文件名由服务器生成，
 PIL 校验 PNG / JPEG / GIF / WebP（拒绝 SVG），单张 5 MB 上限，最多保留最近
-20 张。读取需要登录，文件名先按白名单正则校验再落盘，因此不接受任意文件名，
-也不存在路径穿越。
+20 张（被 `data/theme-presets.json` 引用的图片不清理）。读取需要登录，文件名
+先按白名单正则校验再落盘，因此不接受任意文件名，也不存在路径穿越。
 """
 from __future__ import annotations
 
+import json
 import os
 import re
 import secrets
@@ -21,6 +22,7 @@ import meme_logic
 MAX_IMAGE_BYTES = meme_logic.MAX_IMAGE_BYTES
 MAX_BACKGROUNDS = 20
 DIRECTORY = Path('data') / 'appearance-backgrounds'
+PRESET_FILE = Path('data') / 'theme-presets.json'
 _NAME = re.compile(r'^[0-9]{10,16}-[a-f0-9]{8}\.(?:png|jpg|gif|webp)$')
 _SUFFIX_MIME = {'png': 'image/png', 'jpg': 'image/jpeg', 'gif': 'image/gif', 'webp': 'image/webp'}
 _MIME_SUFFIX = {'image/png': 'png', 'image/jpeg': 'jpg', 'image/gif': 'gif', 'image/webp': 'webp'}
@@ -31,6 +33,7 @@ class BackgroundStore:
 
     def __init__(self, root):
         self.directory = Path(root) / DIRECTORY
+        self.preset_file = Path(root) / PRESET_FILE
 
     def save(self, content):
         """校验并落盘一张背景图，返回 `(name, mime)`；内容非法时抛 `ValueError`。"""
@@ -69,14 +72,46 @@ class BackgroundStore:
             raise ValueError('背景图片不存在') from exc
         return content, _SUFFIX_MIME[path.suffix[1:]]
 
+    def _preserve(self):
+        """收集被主题预设引用的上传文件名；预设文件损坏时返回 `None` 以跳过清理。"""
+        try:
+            raw = self.preset_file.read_text(encoding='utf-8')
+        except FileNotFoundError:
+            return set()
+        except (OSError, ValueError):
+            return None
+        try:
+            data = json.loads(raw)
+        except ValueError:
+            return None
+        if not isinstance(data, dict) or not isinstance(data.get('presets'), dict):
+            return None
+        keep = set()
+        for config in data['presets'].values():
+            background = config.get('background') if isinstance(config, dict) else None
+            if not isinstance(background, dict) or background.get('kind') != 'upload':
+                continue
+            value = background.get('value')
+            if not isinstance(value, str):
+                continue
+            name = value.rsplit('/', 1)[-1]
+            if _NAME.fullmatch(name):
+                keep.add(name)
+        return keep
+
     def _prune(self):
-        """只保留最新的 `MAX_BACKGROUNDS` 张；并发或权限问题不影响本次保存。"""
+        """只保留最新的 `MAX_BACKGROUNDS` 张；被主题预设引用的图片始终保留。"""
+        preserved = self._preserve()
+        if preserved is None:
+            return
         try:
             entries = [path for path in self.directory.iterdir() if _NAME.fullmatch(path.name)]
         except OSError:
             return
         entries.sort(key=_recent_key, reverse=True)
         for path in entries[MAX_BACKGROUNDS:]:
+            if path.name in preserved:
+                continue
             try:
                 path.unlink()
             except OSError:
