@@ -33,7 +33,7 @@
 | 属性 | 值 |
 |---|---|
 | `data-theme` | `light` / `dark`（已解析；固定明暗主题会覆盖） |
-| `data-theme-mode` | `system` / `light` / `dark`（用户选择） |
+| `data-theme-mode` | `system` / `light` / `dark`（用户选择；当前仅写入，CSS/JS 不直接消费，实际生效值在 `data-theme`） |
 | `data-skin` | `default` / `macos` / `neumorphism` / `ghibli` / `watercolor` / `photo` / `korean` / `shader` / `holy` / `scandi` / `liquid` / `academia` |
 | `data-style` | `comfortable` / `compact` / `large` |
 | `data-bg` | `none` / `preset` / `url` / `upload` |
@@ -104,7 +104,7 @@
 固定明暗与实现细节：
 
 - `holy`/`scandi` 强制 `data-theme="light"`；`photo`/`shader`/`academia` 强制 `data-theme="dark"`；`liquid` 保留明暗切换；`data-theme-mode` 保留用户原始选择，切回自由主题时恢复。
-- `holy` 是唯一布局级主题：`.workspace` 为 240px 左栏 + 弹性主栏（右侧不再有导航栏），`.topline` sticky 56px，`.holy-footer` 48px；≤800px 沿用移动端导航。
+- `holy` 是唯一布局级**主题**：`.workspace` 为 240px 左栏 + 弹性主栏（右侧不再有导航栏），`.topline` sticky 56px，`.holy-footer` 48px；≤800px 沿用移动端导航。杂项配置的 `sidebarLayout`（docked/floating/line）是独立于主题的用户选项（见 3.8），不属于主题换肤；`holy` 下该选项禁用。
 - `liquid` 将正文卡保持为 `#fcfcfa` 实色；侧栏、浮动顶栏、外观弹层与确认框使用半透明染色 + 背景模糊。边缘折射通过内联 SVG `feTurbulence + feDisplacementMap` 和 mask 只作用于 12px 边框带；不支持时保留磨砂玻璃。按压约 110ms、释放约 420ms 回弹；`prefers-reduced-motion` / `prefers-reduced-transparency` 有降级。
 - `shader` 是一个独立的全屏 WebGL fragment shader 层：DPR 上限 2；页面隐藏或离屏时暂停 `requestAnimationFrame`；`prefers-reduced-motion` 时只渲染一帧；WebGL 不可用时回退为同配色的静态 CSS 渐变；文字与场之间有一层可读性遮罩。
 - `photo` 的自定义 URL/upload 背景使用 28s alternate Ken Burns（`transform` only），`prefers-reduced-motion` 时静止。
@@ -123,7 +123,7 @@
 ### 3.6 背景
 
 - 新增 `#bgLayer`（`position:fixed`，`z-index:-1`）承载背景；`data-bg="none"` 时默认隐藏，主题可提供默认背景（macOS/Ghibli/Watercolor/Photo/Korean/Shader/Liquid/Academia），用户选择 preset/URL/upload 后覆盖。
-- `hero`：层高约 620px，底部渐隐；卡片保持不透明。
+- `hero`：`#bgLayer` 从 `fixed` 切换为 `position:absolute`，高 `min(620px,80vh)`、底部渐隐；卡片保持不透明。
 - `full`：层铺满视口；卡片/侧栏/登录卡使用 `--paper-translucent` / `--sidebar-translucent` + `backdrop-filter: blur(12px)`。
 - 预设：`paper`、`dawn`、`forest`、`night`、`grid`，各含浅色/深色两套渐变。
 - URL：仅 `http(s)`，写入 `--app-bg: url("...")`；加载失败时保留纯色底。
@@ -152,7 +152,7 @@
 ## 4. 非目标
 
 - 不统一机器人出图卡片（`status_image.py` 等独立渲染管线）。
-- 除圣杯布局主题外，不做侧栏位置、栅格重排等布局级换肤。
+- 除圣杯布局主题与杂项侧边栏布局（floating/line）外，不做侧栏位置、栅格重排等布局级换肤。
 - 不做**活动外观**的服务端同步；当前生效外观仍按设备 localStorage。命名预设是服务端快照（见 3.8），不是活动配置同步。
 - 不引入 CSS 框架、构建链或 CDN。
 
