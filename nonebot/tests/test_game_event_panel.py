@@ -243,7 +243,7 @@ const document={getElementById(id){if(!elements.has(id))elements.set(id,new Elem
 const context={document,location:{hash:''},window:{addEventListener(){}},fetch:async()=>({ok:false}),console,URL,URLSearchParams,setTimeout(){return 1},clearTimeout(){},confirm(){return true}};
 vm.createContext(context);
 const html=fs.readFileSync(process.argv[1],'utf8');
-vm.runInContext(html.match(/<script>([\s\S]*?)<\/script>/)[1],context);
+vm.runInContext(html.match(/<script id="appScript">([\s\S]*?)<\/script>/)[1],context);
 context.gameRenderRows(JSON.parse(process.argv[2]));
 context.gameEditSubscription(JSON.parse(process.argv[2]).subscriptions[0]);
 if(!document.getElementById('gameSubBot').disabled||!document.getElementById('gameSubKind').disabled||!document.getElementById('gameSubTarget').disabled)throw Error('Existing subscription identity is editable');
