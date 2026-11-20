@@ -31,12 +31,22 @@ $GSUID_PY   = "$GSUID_CORE\.venv\Scripts\python.exe"
 $env:PYTHONIOENCODING = 'utf-8'
 $env:PYTHONUTF8 = '1'
 
+function Test-Listening($port) {
+    [bool](Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue)
+}
+
 # 依赖检查必须先完成；失败时不启动任何服务。
+# 机器人已在 8080 运行时只做只读检查，不向正在使用的 venv 安装依赖。
 $preflight = Join-Path $PSScriptRoot 'startup-preflight.ps1'
 if (-not (Test-Path -LiteralPath $preflight -PathType Leaf)) {
     throw "缺少依赖检查脚本：$preflight"
 }
-& $preflight -Root $ROOT -NoPause
+if (Test-Listening 8080) {
+    Write-Host '[deps] NoneBot 已在 8080 运行，只做只读依赖检查（-SkipInstall）。' -ForegroundColor Yellow
+    & $preflight -Root $ROOT -NoPause -SkipInstall
+} else {
+    & $preflight -Root $ROOT -NoPause
+}
 if ($LASTEXITCODE -ne 0) {
     throw '依赖检查未通过，未启动任何服务。'
 }
@@ -63,10 +73,6 @@ if (Test-Path "$ROOT\rag\.venv-gpu\Scripts\python.exe") {
 }
 
 New-Item -ItemType Directory -Force -Path $LOG | Out-Null
-
-function Test-Listening($port) {
-    [bool](Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue)
-}
 
 function Get-LanIPv4 {
     Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |

@@ -553,12 +553,12 @@ Windows 上使用 `tools\启动所有.bat` / `tools\停止所有.bat` 启停；�
 `启动机器人.bat` / `停止机器人.bat` 只是调用它们的薄入口（旧版 `.ps1` 仅保留作兼容）：
 
 - 脚本按自身所在目录解析检出路径（`%~dp0`），检出放哪个盘都行；不要改回写死的绝对路径。
-- 启动前先运行 `tools\startup-preflight.ps1`：检查 `nonebot\.venv`、SnowLuma 运行时和 `requirements.lock`，必要时创建虚拟环境并安装/补齐依赖。检查失败时不会启动任何服务；安装耗时期间也不会并行拉起其他服务。
+- 启动前先运行 `tools\startup-preflight.ps1`：检查 `nonebot\.venv`、SnowLuma 运行时和 `requirements.lock`，必要时创建虚拟环境并安装/补齐依赖。检查失败时不会启动任何服务；安装耗时期间也不会并行拉起其他服务。`-CheckOnly` 只做文件检查、不运行 pip；`-SkipInstall` 只读检查、缺依赖时报告而不安装或修复（8080 上已有机器人时启动脚本会自动使用它）。
 - 启动前检查 8080：已有机器人在跑时不会重复拉起第二个 NoneBot 实例，而是提示先停止。
 - 启动前清理 `NO_PROXY` 中的 IPv6 回环条目（`::1` / `[::1]`），其他条目原样保留；机器人进程启动时也会做同样清理，避免本机回环请求被系统代理拦住。
 - 启动横幅和结尾的 connection info 都会打印管理面板地址，默认 `http://127.0.0.1:8092`；设置了 `DASHBOARD_HOST` / `DASHBOARD_PORT` 就照实显示。面板是独立进程，脚本只显示地址、不启动它，按 README 的命令在 `nonebot` 目录单独启动。
 - 含中文的 `.ps1` 必须存成带 UTF-8 BOM，否则 PowerShell 5.1 按 GBK 解析中文会报「字符串缺少终止符」；`tools\startup-preflight.ps1` 保持 ASCII-only，避免依赖 BOM。
-- 直接运行 `tools\启动所有.bat` 或 `tools\启动所有.ps1` 失败时会暂停并等待 Enter；根目录 `启动机器人.bat` 不论成功失败都会保留控制台。需要自动化无人值守时，可设置 `QQBOT_NO_PAUSE=1`（PowerShell 也可传 `-NoPause`）。
+- 直接运行 `tools\启动所有.bat` 或 `tools\启动所有.ps1` 失败时会暂停并等待 Enter；根目录 `启动机器人.bat` 无论成功失败都会暂停。需要无人值守时请直接用 `tools` 入口并设置 `QQBOT_NO_PAUSE=1`（PowerShell 也可传 `-NoPause`），不要走根目录入口。
 - 账号隔离仍用 `tools\只注入小号.py`（探针识别 PID 后只 load 小号）。
 
 这些入口只用于本机开发与调试；生产部署以 Linux + systemd 为准（见 §2、§10），不要把 Windows 上的路径、代理变量或服务脚本搬进服务器。

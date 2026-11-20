@@ -108,6 +108,14 @@ if (-not (Test-Path -LiteralPath $python -PathType Leaf)) {
 if (-not (Test-Path -LiteralPath (Join-Path $venvDir 'pyvenv.cfg') -PathType Leaf)) {
     Stop-Check "NoneBot venv is incomplete (missing pyvenv.cfg): $venvDir"
 }
+$venvVersion = (& $python -c "import sys; print(str(sys.version_info[0]) + '.' + str(sys.version_info[1]))" 2>&1) -join "`n"
+$venvVersion = $venvVersion.Trim()
+if ($LASTEXITCODE -ne 0) {
+    Stop-Check "NoneBot Python cannot run (exit $LASTEXITCODE): $python`n$venvVersion"
+}
+if ($venvVersion -ne '3.12') {
+    Stop-Check "NoneBot venv uses Python $venvVersion (requires 3.12): $venvDir`nRecreate it from the repo root: Remove-Item -Recurse -Force nonebot\.venv; py -3.12 -m venv nonebot\.venv"
+}
 Write-Ok "NoneBot Python: $python"
 
 if (-not (Test-Path -LiteralPath $snowNode -PathType Leaf)) {
