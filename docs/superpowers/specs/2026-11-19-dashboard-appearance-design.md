@@ -125,29 +125,43 @@
 
 ### 3.7 入口与交互
 
-- 桌面：侧栏 `.side-bottom` 的「◐ 外观」按钮。
-- 圣杯布局：沿用侧栏「外观」入口；桌面仅保留左侧导航 + 主内容，右侧不再有导航栏。
+- 桌面：侧栏 `.side-bottom` 的「◐ 主题设置」按钮。
+- 圣杯布局：沿用侧栏「主题设置」入口；桌面仅保留左侧导航 + 主内容，右侧不再有导航栏。
 - 移动端（≤800px）：`.topline` 右侧的「◐」按钮。
-- 弹出面板：明暗、主题、样式、背景四组；关闭按钮、Escape、点击外部关闭；`aria-expanded` 同步。
+- 弹出面板：四个 tab（主题预设 / 外观 / 背景 / 杂项配置），默认「外观」；关闭按钮、Escape、点击外部关闭；`aria-expanded` 同步。
 - 登录页不提供入口，但已保存的主题/背景会应用。
+
+### 3.8 主题设置 v2
+
+在原有「外观」基础上增加命名预设与杂项配置，入口仍是侧栏/移动端弹层，不新增 dashboard section 或导航链接。
+
+- **四个 tab**：`主题预设`（保存/列表/应用/删除）、`外观`（明暗/12 skin/密度）、`背景`（预设/URL/上传/仅顶部/全屏/清除）、`杂项配置`（圆角/侧边栏布局/图标颜色）。
+- **活动外观仍是按设备 localStorage**：key 仍为 `qqbot.dashboard.appearance.v1`，新增向后兼容的 `misc: {radius, sidebarLayout, iconColor}`；旧值缺 `misc` 时补 `null / docked / colored`，视觉不变。活动外观不写服务端。
+- **命名预设是服务端快照**：存 `nonebot/data/theme-presets.json`，单文件 + 锁 + 临时文件 + `os.replace` 原子写；4 个内置预设，用户预设最多 50 个；名称、枚举、范围、URL/上传路径和文件大小均校验。
+- **4 个 API**：`GET /api/theme/presets`（`authorized`）；`POST /api/theme/presets`、`POST /api/theme/presets/apply`、`POST /api/theme/presets/delete`（均 `mutate`，CSRF + Origin）。`apply` 只返回配置并由客户端写入 localStorage，**不写服务端活动状态**。
+- **故意不支持** gsuid_core 的 `language`、`ui_scale`、`shadow_intensity`、卡片透明度/背景模糊、侧栏收起：当前 CSS/布局没有无损对应机制，避免伪功能。
+- **边界**：`holy` 和 ≤800px 时侧边栏布局控件禁用并提示；圆角覆盖 `--r-8..--r-20`/`--radius`，保留 `--r-999`；预设名以 `textContent` 渲染。
 
 ## 4. 非目标
 
 - 不统一机器人出图卡片（`status_image.py` 等独立渲染管线）。
 - 除圣杯布局主题外，不做侧栏位置、栅格重排等布局级换肤。
-- 不做服务端外观设置同步；面板只有一个管理员口令，按设备 localStorage 是本期契约。
+- 不做**活动外观**的服务端同步；当前生效外观仍按设备 localStorage。命名预设是服务端快照（见 3.8），不是活动配置同步。
 - 不引入 CSS 框架、构建链或 CDN。
 
 ## 5. 兼容性与测试
 
 - 更新 `nonebot/tests/test_game_event_panel.py`：从 `id="appScript"` 抽取主脚本，避免新增的 bootstrap `<script>` 被误取；为假 DOM 补 `localStorage` / `matchMedia` / `documentElement` 的缺失保护。
 - 新增 `nonebot/tests/test_appearance_panel.py`：上传成功/格式非法/超限/未登录/无 CSRF/路径穿越。
-- 现有 `test_bilibili_panel.py` 的导航断言不受影响：外观入口是 `<button>`，不新增导航链接或 section。
-- 验收：定向 pytest + 全量 pytest；Playwright 截图覆盖浅色/深色、十一个主题（固定明暗主题按固定方案）、三样式、预设/URL/上传背景、hero/full、移动端 390px、圣杯布局 header/footer 与液态玻璃边缘滤镜；默认浅色与基线截图对比无可见差异。
+- 新增 `nonebot/tests/test_theme_panel.py`：4 个预设 API 的鉴权/CSRF、保存/列表/应用/删除、覆盖、内置保护、非法名称/配置（含畸形 URL）、损坏文件、原子写、数量与体积上限。
+- 现有 `test_bilibili_panel.py` 的导航断言不受影响：入口是 `<button>`，不新增导航链接或 section。
+- 验收：定向 pytest + 全量 pytest；Playwright 截图覆盖浅色/深色、十二个主题（固定明暗主题按固定方案）、三样式、预设/URL/上传背景、hero/full、四 tab、预设 CRUD/当前徽标、杂项圆角/侧栏布局/图标色、`holy` 与移动端约束、圣杯布局 header/footer 与液态玻璃边缘滤镜；默认浅色与基线截图对比无可见差异。
+- 已知环境问题：`test_dashboard.py` 有 2 个既有 `nonebot/data/weather.sqlite3` 权限失败，与外观/主题改动无关；不得据此声称全量通过。
 
 ## 6. 实施阶段
 
 1. Token 化 + 浅/深色 + 跟随系统 + 侧栏/移动入口 + localStorage。
 2. 十一个 StyleKit 主题 + 三档样式（字号/圆角/间距）；移除独立配色设置。
 3. 背景预设/URL/上传 + hero/full + 半透明表面。
-4. 全量验证、分阶段提交、PR（目标 `main`，不自行合并）。
+4. 主题设置 v2：四 tab、服务端命名预设、杂项圆角/侧栏布局/图标色（见 3.8）。
+5. 全量验证、分阶段提交、PR（目标 `main`，不自行合并）。
