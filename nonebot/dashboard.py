@@ -38,6 +38,7 @@ import status_config as status_config_mod
 import status_grafana as status_grafana_mod
 import status_store as status_store_mod
 import superuser_settings
+import theme_panel
 from bot_monitor import Monitor, Restart, RestartController, WindowsRestart  # noqa: F401 - 测试仍按旧名引用
 
 ROOT = Path(__file__).resolve().parent
@@ -1030,6 +1031,7 @@ async def set_superusers(req: Request):
 app.include_router(game_event_panel.router(authorized, mutate))
 
 appearance_panel.register(app, authorized=authorized, mutate=mutate, root=ROOT)
+theme_panel.register(app, authorized=authorized, mutate=mutate, root=ROOT)
 bilibili_panel.register(app, authorized=authorized, mutate=mutate, root=ROOT)
 embedding_panel.register(app, authorized=authorized, mutate=mutate, root=ROOT)
 

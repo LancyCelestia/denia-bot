@@ -466,7 +466,7 @@ html[data-bg-scope="full"]:not([data-bg="none"]) .sidebar{background:var(--sideb
 .side-theme{margin-top:6px;min-height:30px;font-size:var(--fs-12);padding:4px 12px;background:transparent;color:var(--text-8);border-color:var(--line-mid);display:block;width:100%;text-align:left}
 .side-theme:hover{background:var(--surface-active);color:var(--text-5)}
 .topline-theme{display:none;min-height:30px;padding:2px 9px;font-size:var(--fs-13);background:transparent;color:var(--text-8);border-color:var(--line-mid)}
-.appearance-popover{position:fixed;z-index:40;left:18px;bottom:76px;width:min(320px,calc(100vw - 36px));max-height:min(84vh,760px);overflow:auto;background:var(--paper);color:var(--ink);border:1px solid var(--line);border-radius:var(--r-12);box-shadow:0 18px 60px var(--shadow-dialog);padding:16px}
+.appearance-popover{position:fixed;z-index:40;left:18px;bottom:76px;width:min(340px,calc(100vw - 36px));max-height:min(84vh,760px);overflow:auto;background:var(--paper);color:var(--ink);border:1px solid var(--line);border-radius:var(--r-12);box-shadow:0 18px 60px var(--shadow-dialog);padding:16px}
 .appearance-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
 .appearance-head strong{font-size:var(--fs-14)}
 .appearance-close{min-height:28px;padding:0 8px;border:0;background:transparent;color:var(--muted);font-size:var(--fs-18)}
@@ -487,26 +487,54 @@ html[data-bg-scope="full"]:not([data-bg="none"]) .sidebar{background:var(--sideb
 .appearance-hint[hidden]{display:none}
 .appearance-group label:has(input:disabled){opacity:.45;cursor:default}
 @media(max-width:800px){.topline-theme{display:inline-flex}.appearance-popover{left:16px;right:16px;top:58px;bottom:auto;width:auto;max-height:80vh}.side-theme{display:none}}
+.appearance-tabs{display:flex;gap:2px;border-bottom:1px solid var(--line-faint);margin:0 0 8px}
+.appearance-tab{flex:1;min-height:30px;padding:2px 4px;border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;font-size:var(--fs-12);color:var(--muted);box-shadow:none}
+.appearance-tab[aria-selected="true"]{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
+.appearance-tab:hover{background:var(--surface-hover)}
+.appearance-panel[hidden]{display:none}
+.appearance-preset-list{display:grid;gap:6px;max-height:260px;overflow:auto}
+.appearance-preset-item{display:flex;align-items:center;gap:6px;padding:6px 8px;border:1px solid var(--line-soft);border-radius:var(--r-9);background:var(--surface-2)}
+.appearance-preset-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:var(--fs-13);color:var(--text-3)}
+.appearance-preset-badge{font-size:var(--fs-10);padding:1px 4px;border-radius:999px;background:var(--nav-active-bg);color:var(--accent)}
+.appearance-preset-actions{display:flex;gap:4px}
+.appearance-preset-actions button{min-height:26px;padding:2px 7px;font-size:var(--fs-11)}
+.appearance-preset-empty{font-size:var(--fs-12);color:var(--muted);padding:8px 0}
+html[data-icon-color="white"] .nav-icon{color:#fff}
+html[data-icon-color="black"] .nav-icon{color:#111}
+@media (min-width:801px){
+  html[data-sidebar-layout="floating"]:not([data-skin="holy"]) .sidebar{left:12px;top:12px;bottom:12px;width:232px;border:1px solid var(--line);border-radius:var(--r-20);box-shadow:0 12px 40px var(--shadow-card);overflow:hidden}
+  html[data-sidebar-layout="floating"]:not([data-skin="holy"]) .workspace{margin-left:256px}
+  html[data-sidebar-layout="line"]:not([data-skin="holy"]) .sidebar{background:transparent;border-right:1px solid var(--line);box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none}
+}
 </style>
 <script id="appearanceBoot">
 (function(w){
   var KEY='qqbot.dashboard.appearance.v1';
   var SCHEME={photo:'dark',korean:'light',shader:'dark',holy:'light',scandi:'light',academia:'dark'};
-  function defaults(){return {mode:'system',skin:'default',style:'comfortable',background:{kind:'none',preset:'paper',value:'',scope:'hero'}}}
+  function defaults(){return {mode:'system',skin:'default',style:'comfortable',background:{kind:'none',preset:'paper',value:'',scope:'hero'},misc:{radius:null,sidebarLayout:'docked',iconColor:'colored'}}}
+  function normalize(raw){
+    var s=defaults();
+    if(!raw||typeof raw!=='object')return s;
+    if(['system','light','dark'].indexOf(raw.mode)>=0)s.mode=raw.mode;
+    if(['default','macos','neumorphism','ghibli','watercolor','photo','korean','shader','holy','scandi','liquid','academia'].indexOf(raw.skin)>=0)s.skin=raw.skin;
+    if(['comfortable','compact','large'].indexOf(raw.style)>=0)s.style=raw.style;
+    var b=(raw.background&&typeof raw.background==='object')?raw.background:{};
+    if(['none','preset','url','upload'].indexOf(b.kind)>=0)s.background.kind=b.kind;
+    if(['paper','dawn','forest','night','grid'].indexOf(b.preset)>=0)s.background.preset=b.preset;
+    if(typeof b.value==='string')s.background.value=b.value;
+    if(b.scope==='full')s.background.scope='full';
+    if((s.background.kind==='url'||s.background.kind==='upload')&&(!/^(https?:\/\/|\/api\/appearance\/background\/)/.test(s.background.value)||/["\\\r\n]/.test(s.background.value))){s.background.kind='none';s.background.value=''}
+    var m=(raw.misc&&typeof raw.misc==='object')?raw.misc:{};
+    var radius=m.radius;
+    if(radius===null||radius===undefined||radius==='')s.misc.radius=null;
+    else{var n=Number(radius);if(isFinite(n)&&Math.floor(n)===n&&n>=0&&n<=24)s.misc.radius=n}
+    if(['docked','floating','line'].indexOf(m.sidebarLayout)>=0)s.misc.sidebarLayout=m.sidebarLayout;
+    if(['colored','white','black'].indexOf(m.iconColor)>=0)s.misc.iconColor=m.iconColor;
+    return s;
+  }
   function read(){
-    try{
-      var raw=JSON.parse(localStorage.getItem(KEY)||'{}'),b=raw.background||{};
-      var s=defaults();
-      if(['system','light','dark'].indexOf(raw.mode)>=0)s.mode=raw.mode;
-      if(['default','macos','neumorphism','ghibli','watercolor','photo','korean','shader','holy','scandi','liquid','academia'].indexOf(raw.skin)>=0)s.skin=raw.skin;
-      if(['comfortable','compact','large'].indexOf(raw.style)>=0)s.style=raw.style;
-      if(['none','preset','url','upload'].indexOf(b.kind)>=0)s.background.kind=b.kind;
-      if(['paper','dawn','forest','night','grid'].indexOf(b.preset)>=0)s.background.preset=b.preset;
-      if(typeof b.value==='string')s.background.value=b.value;
-      if(b.scope==='full')s.background.scope='full';
-      if((s.background.kind==='url'||s.background.kind==='upload')&&(!/^(https?:\/\/|\/api\/appearance\/background\/)/.test(s.background.value)||/["\\\r\n]/.test(s.background.value))){s.background.kind='none';s.background.value=''}
-      return s;
-    }catch(e){return defaults()}
+    try{return normalize(JSON.parse(localStorage.getItem(KEY)||'{}'))}
+    catch(e){return defaults()}
   }
   function resolve(s){return s.mode==='dark'||(s.mode!=='light'&&w.matchMedia&&w.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light'}
   function apply(s){
@@ -516,10 +544,16 @@ html[data-bg-scope="full"]:not([data-bg="none"]) .sidebar{background:var(--sideb
     if(b.kind==='preset'){d.dataset.bgPreset=b.preset||'paper';d.style.removeProperty('--app-bg')}
     else if((b.kind==='url'||b.kind==='upload')&&b.value){d.removeAttribute('data-bg-preset');d.style.setProperty('--app-bg','url('+JSON.stringify(String(b.value))+')')}
     else{d.removeAttribute('data-bg-preset');d.style.removeProperty('--app-bg')}
+    d.dataset.sidebarLayout=s.misc.sidebarLayout;d.dataset.iconColor=s.misc.iconColor;
+    var radius=s.misc.radius,radiusVars=['--r-8','--r-9','--r-10','--r-11','--r-12','--r-20','--radius'];
+    for(var i=0;i<radiusVars.length;i++){
+      if(radius===null)d.style.removeProperty(radiusVars[i]);
+      else d.style.setProperty(radiusVars[i],radius+'px');
+    }
     try{document.dispatchEvent(new CustomEvent('appearancechange',{detail:s}))}catch(e){}
   }
   var state=read();apply(state);
-  w.Appearance={KEY:KEY,read:read,apply:apply,scheme:function(skin){return SCHEME[skin]||null},save:function(next){state=next;try{localStorage.setItem(KEY,JSON.stringify(next))}catch(e){}apply(next);return next}};
+  w.Appearance={KEY:KEY,read:read,apply:apply,normalize:normalize,scheme:function(skin){return SCHEME[skin]||null},save:function(next){state=normalize(next);try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){}apply(state);return state}};
   if(w.matchMedia){var mq=w.matchMedia('(prefers-color-scheme: dark)'),on=function(){var s=read();if(s.mode==='system')apply(s)};if(mq.addEventListener)mq.addEventListener('change',on);else if(mq.addListener)mq.addListener(on)}
 })(window);
 </script>
@@ -546,8 +580,8 @@ html[data-bg-scope="full"]:not([data-bg="none"]) .sidebar{background:var(--sideb
 <a class="nav-link" href="#monitor"><span class="nav-icon">◌</span>运行状态</a>
 <a class="nav-link" href="#events"><span class="nav-icon">≡</span>解析日志</a>
 <a class="nav-link" href="#account"><span class="nav-icon">⚿</span>管理员密码</a>
-<div class="nav-caption">外部服务</div><a id="gsuidConsoleLink" class="nav-link external" href="http://127.0.0.1:8765/app" target="_blank" rel="noopener noreferrer" title="gsuid_core WebConsole（独立登录，默认端口 8765）" aria-label="打开 gsuid_core 游戏账号控制台（端口 8765）"><span class="nav-icon">⚙</span>游戏账号控制台<span class="nav-ext">↗</span></a></nav><div class="side-bottom"><strong>QQ 机器人</strong>本地管理空间 · {{APP_VERSION}}<button type="button" class="side-logout" onclick="logout()">退出登录</button><button type="button" class="side-theme" id="appearanceButton" aria-expanded="false" aria-controls="appearancePopover">◐ 外观</button></div></aside>
-<main class="workspace"><div class="topline"><span>管理空间 <b> /　控制台</b></span><span>记忆 · 群聊 · 天气</span><button type="button" class="topline-theme" id="appearanceButtonMobile" aria-expanded="false" aria-controls="appearancePopover" aria-label="外观设置">◐</button></div><div class="intro"><div class="eyebrow">YOUR BOT, AT A GLANCE</div><h1>你好，欢迎回来。</h1><p>在这里管理她的记忆、群里的话题与天气提醒。</p></div><div id="appMessage" class="notice-slot" role="status" aria-live="polite"></div>
+<div class="nav-caption">外部服务</div><a id="gsuidConsoleLink" class="nav-link external" href="http://127.0.0.1:8765/app" target="_blank" rel="noopener noreferrer" title="gsuid_core WebConsole（独立登录，默认端口 8765）" aria-label="打开 gsuid_core 游戏账号控制台（端口 8765）"><span class="nav-icon">⚙</span>游戏账号控制台<span class="nav-ext">↗</span></a></nav><div class="side-bottom"><strong>QQ 机器人</strong>本地管理空间 · {{APP_VERSION}}<button type="button" class="side-logout" onclick="logout()">退出登录</button><button type="button" class="side-theme" id="appearanceButton" aria-expanded="false" aria-controls="appearancePopover">◐ 主题设置</button></div></aside>
+<main class="workspace"><div class="topline"><span>管理空间 <b> /　控制台</b></span><span>记忆 · 群聊 · 天气</span><button type="button" class="topline-theme" id="appearanceButtonMobile" aria-expanded="false" aria-controls="appearancePopover" aria-label="主题设置">◐</button></div><div class="intro"><div class="eyebrow">YOUR BOT, AT A GLANCE</div><h1>你好，欢迎回来。</h1><p>在这里管理她的记忆、群里的话题与天气提醒。</p></div><div id="appMessage" class="notice-slot" role="status" aria-live="polite"></div>
 <nav id="botBasicsNav" class="basics-nav" aria-label="Bot 基本情况">
 <a class="nav-link" href="#bot-info"><span class="nav-icon">◈</span>基本信息</a>
 <a class="nav-link" href="#persona"><span class="nav-icon">✎</span>人格模板</a>
@@ -751,44 +785,84 @@ html[data-bg-scope="full"]:not([data-bg="none"]) .sidebar{background:var(--sideb
 <div class="weather-actions"><button class="primary" onclick="saveDisaster()">保存灾害预警配置</button><button onclick="run(loadDisaster)">重新加载</button><span id="disasterState" class="hint" role="status"></span></div>
 <p class="hint">保存到 <code>nonebot/data/disaster_warning.json</code>；令牌不会回显。配置保存后由机器人侧读取；数据源接入前不会推送。</p></section>
 <section id="parser" class="card"><div class="card-head"><div class="card-icon" aria-hidden="true">↗</div><div><h2>链接解析</h2><p class="section-description">管理触发规则、媒体处理和各平台解析器。保存后重启机器人生效。</p></div></div><p class="hint">群聊默认自动解析链接；白名单与黑名单每行填写 group:群号 或 private:QQ号。Cookie 和令牌留空时保持原值。</p><div class="parser-overview"><span id="parserCount" class="parser-count">—</span><span id="parserDirty" class="parser-dirty" hidden></span><span class="parser-overview-actions"><button type="button" onclick="parserSetAll(true)">全部开启</button><button type="button" onclick="parserSetAll(false)">全部关闭</button></span></div><div class="parser-toolbar"><input id="parserSearch" type="search" placeholder="搜索设置项，如 cookies、超时、代理" aria-label="搜索设置项" oninput="parserFilter()"><label class="parser-toggle"><input id="parserOnlyEnabled" type="checkbox" onchange="parserFilter()">只看已启用平台</label><label class="parser-toggle"><input id="parserOnlyChanged" type="checkbox" onchange="parserFilter()">只看已改动</label><span id="parserFilterState" class="hint" role="status"></span></div><div class="subsection"><h3>解析仲裁</h3><p class="section-description">群内多个机器人参与时，通过表情协调由谁解析；关闭后可能重复发送。修改后保存并重启机器人生效。</p><div id="parserArbiter" class="parser-grid"></div></div><h3>通用设置</h3><div id="parserGeneral" class="parser-grid"></div><div id="parserNoGeneral" class="parser-empty" hidden>通用设置里没有匹配项。</div><div class="subsection"><h3>平台设置 <span id="parserPlatformCount" class="hint"></span></h3><p class="section-description">展开平台设置启用状态、Cookie 和专属选项。改动过的字段左侧有标记。</p><div id="parserPlatforms" class="parser-platforms"></div><div id="parserNoPlatform" class="parser-empty" hidden>没有匹配的平台。</div></div><div class="parser-actions"><button class="primary" onclick="saveParser()">保存解析设置</button><button onclick="run(loadParser)">重新加载</button><span id="parserSaved" class="hint" role="status"></span></div></section><section id="events" class="card"><div class="card-head"><div class="card-icon" aria-hidden="true">≡</div><div><h2>解析日志</h2><p class="section-description">插件报错、视频时长或资源大小超出阈值时记录在这里，最近的在前。</p></div></div><div class="parser-overview"><span id="eventStats" class="parser-count">—</span><span class="parser-overview-actions"><button type="button" onclick="run(loadEvents)">刷新</button><button type="button" onclick="confirmClearEvents()">清空日志</button></span></div><div class="parser-toolbar"><input id="eventSearch" type="search" placeholder="搜索平台、原因或详情" aria-label="搜索日志" oninput="renderEvents()"><label class="parser-toggle"><input id="eventOnlyLimit" type="checkbox" onchange="renderEvents()">只看超出阈值</label><span id="eventFilterState" class="hint"></span></div><p id="eventEmpty" class="parser-empty" hidden>暂时没有记录 —— 说明一切正常。</p><ul id="eventList" class="topic-ranking event-list"></ul></section>
-<div id="appearancePopover" class="appearance-popover" role="dialog" aria-label="外观设置" hidden>
-  <div class="appearance-head"><strong>外观</strong><button type="button" class="appearance-close" aria-label="关闭" onclick="closeAppearance()">×</button></div>
-  <fieldset class="appearance-group"><legend>明暗</legend>
-    <label><input type="radio" name="appearanceMode" value="system">跟随系统</label>
-    <label><input type="radio" name="appearanceMode" value="light">浅色</label>
-    <label><input type="radio" name="appearanceMode" value="dark">深色</label>
-    <small id="appearanceSchemeHint" class="appearance-hint" hidden></small>
-  </fieldset>
-  <fieldset class="appearance-group"><legend>主题</legend>
-    <div class="appearance-swatches">
-      <label class="appearance-swatch" data-swatch="default"><input type="radio" name="appearanceSkin" value="default"><i></i>默认</label>
-      <label class="appearance-swatch" data-swatch="macos"><input type="radio" name="appearanceSkin" value="macos"><i></i>macOS 毛玻璃</label>
-      <label class="appearance-swatch" data-swatch="neumorphism"><input type="radio" name="appearanceSkin" value="neumorphism"><i></i>新拟物</label>
-      <label class="appearance-swatch" data-swatch="ghibli"><input type="radio" name="appearanceSkin" value="ghibli"><i></i>吉卜力</label>
-      <label class="appearance-swatch" data-swatch="watercolor"><input type="radio" name="appearanceSkin" value="watercolor"><i></i>水彩</label>
-      <label class="appearance-swatch" data-swatch="photo"><input type="radio" name="appearanceSkin" value="photo"><i></i>沉浸摄影</label>
-      <label class="appearance-swatch" data-swatch="korean"><input type="radio" name="appearanceSkin" value="korean"><i></i>韩式极简</label>
-      <label class="appearance-swatch" data-swatch="shader"><input type="radio" name="appearanceSkin" value="shader"><i></i>着色器渐变</label>
-      <label class="appearance-swatch" data-swatch="holy"><input type="radio" name="appearanceSkin" value="holy"><i></i>圣杯布局</label>
-      <label class="appearance-swatch" data-swatch="scandi"><input type="radio" name="appearanceSkin" value="scandi"><i></i>北欧极简</label>
-      <label class="appearance-swatch" data-swatch="liquid"><input type="radio" name="appearanceSkin" value="liquid"><i></i>液态玻璃</label>
-      <label class="appearance-swatch" data-swatch="academia"><input type="radio" name="appearanceSkin" value="academia"><i></i>暗黑学院</label>
+<div id="appearancePopover" class="appearance-popover" role="dialog" aria-label="主题设置" hidden>
+  <div class="appearance-head"><strong>主题设置</strong><button type="button" class="appearance-close" aria-label="关闭" onclick="closeAppearance()">×</button></div>
+  <div class="appearance-tabs" role="tablist" aria-label="主题设置分类">
+    <button type="button" class="appearance-tab" role="tab" data-appearance-tab="presets" aria-selected="false">主题预设</button>
+    <button type="button" class="appearance-tab" role="tab" data-appearance-tab="appearance" aria-selected="true">外观</button>
+    <button type="button" class="appearance-tab" role="tab" data-appearance-tab="background" aria-selected="false">背景</button>
+    <button type="button" class="appearance-tab" role="tab" data-appearance-tab="misc" aria-selected="false">杂项配置</button>
+  </div>
+  <div class="appearance-panel" data-appearance-panel="presets" role="tabpanel" hidden>
+    <div class="appearance-group"><span class="appearance-label">保存当前搭配</span>
+      <div class="appearance-row"><input id="themePresetName" maxlength="32" placeholder="预设名称" aria-label="预设名称"></div>
+      <label class="appearance-hint"><input id="themePresetOverwrite" type="checkbox"> 覆盖同名预设</label>
+      <div class="appearance-row"><button type="button" class="primary" onclick="saveThemePreset()">保存为预设</button><button type="button" onclick="loadThemePresets(true)">刷新</button></div>
+      <small id="themePresetState" class="appearance-state"></small>
     </div>
-  </fieldset>
-  <fieldset class="appearance-group"><legend>样式</legend>
-    <label><input type="radio" name="appearanceStyle" value="comfortable">舒适</label>
-    <label><input type="radio" name="appearanceStyle" value="compact">紧凑</label>
-    <label><input type="radio" name="appearanceStyle" value="large">宽松</label>
-  </fieldset>
-  <div class="appearance-group"><span class="appearance-label">背景</span>
-    <div class="appearance-row"><select id="appearanceBackgroundPreset" aria-label="背景预设">
-      <option value="none">主题默认</option><option value="paper">纸张</option><option value="dawn">晨光</option><option value="forest">森林</option><option value="night">夜航</option><option value="grid">网格</option>
-    </select></div>
-    <div class="appearance-row"><input id="appearanceBackgroundUrl" type="url" placeholder="图片 URL（https://…）" aria-label="背景图片 URL"><button type="button" onclick="applyAppearanceUrl()">应用</button></div>
-    <div class="appearance-row"><input id="appearanceBackgroundFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif" aria-label="上传背景图片"><button type="button" onclick="uploadAppearanceBackground()">上传</button></div>
-    <div class="appearance-row"><label><input type="radio" name="appearanceBgScope" value="hero">仅顶部</label><label><input type="radio" name="appearanceBgScope" value="full">全屏</label></div>
-    <button type="button" class="appearance-reset" onclick="resetAppearanceBackground()">清除背景</button>
-    <span id="appearanceBgState" class="appearance-state"></span>
+    <div class="appearance-group"><span class="appearance-label">已保存预设</span>
+      <div id="themePresetList" class="appearance-preset-list"></div>
+    </div>
+  </div>
+  <div class="appearance-panel" data-appearance-panel="appearance" role="tabpanel">
+    <fieldset class="appearance-group"><legend>明暗</legend>
+      <label><input type="radio" name="appearanceMode" value="system">跟随系统</label>
+      <label><input type="radio" name="appearanceMode" value="light">浅色</label>
+      <label><input type="radio" name="appearanceMode" value="dark">深色</label>
+      <small id="appearanceSchemeHint" class="appearance-hint" hidden></small>
+    </fieldset>
+    <fieldset class="appearance-group"><legend>主题风格</legend>
+      <div class="appearance-swatches">
+        <label class="appearance-swatch" data-swatch="default"><input type="radio" name="appearanceSkin" value="default"><i></i>默认</label>
+        <label class="appearance-swatch" data-swatch="macos"><input type="radio" name="appearanceSkin" value="macos"><i></i>macOS 毛玻璃</label>
+        <label class="appearance-swatch" data-swatch="neumorphism"><input type="radio" name="appearanceSkin" value="neumorphism"><i></i>新拟物</label>
+        <label class="appearance-swatch" data-swatch="ghibli"><input type="radio" name="appearanceSkin" value="ghibli"><i></i>吉卜力</label>
+        <label class="appearance-swatch" data-swatch="watercolor"><input type="radio" name="appearanceSkin" value="watercolor"><i></i>水彩</label>
+        <label class="appearance-swatch" data-swatch="photo"><input type="radio" name="appearanceSkin" value="photo"><i></i>沉浸摄影</label>
+        <label class="appearance-swatch" data-swatch="korean"><input type="radio" name="appearanceSkin" value="korean"><i></i>韩式极简</label>
+        <label class="appearance-swatch" data-swatch="shader"><input type="radio" name="appearanceSkin" value="shader"><i></i>着色器渐变</label>
+        <label class="appearance-swatch" data-swatch="holy"><input type="radio" name="appearanceSkin" value="holy"><i></i>圣杯布局</label>
+        <label class="appearance-swatch" data-swatch="scandi"><input type="radio" name="appearanceSkin" value="scandi"><i></i>北欧极简</label>
+        <label class="appearance-swatch" data-swatch="liquid"><input type="radio" name="appearanceSkin" value="liquid"><i></i>液态玻璃</label>
+        <label class="appearance-swatch" data-swatch="academia"><input type="radio" name="appearanceSkin" value="academia"><i></i>暗黑学院</label>
+      </div>
+    </fieldset>
+    <fieldset class="appearance-group"><legend>样式</legend>
+      <label><input type="radio" name="appearanceStyle" value="comfortable">舒适</label>
+      <label><input type="radio" name="appearanceStyle" value="compact">紧凑</label>
+      <label><input type="radio" name="appearanceStyle" value="large">宽松</label>
+    </fieldset>
+  </div>
+  <div class="appearance-panel" data-appearance-panel="background" role="tabpanel" hidden>
+    <div class="appearance-group"><span class="appearance-label">背景</span>
+      <div class="appearance-row"><select id="appearanceBackgroundPreset" aria-label="背景预设">
+        <option value="none">主题默认</option><option value="paper">纸张</option><option value="dawn">晨光</option><option value="forest">森林</option><option value="night">夜航</option><option value="grid">网格</option>
+      </select></div>
+      <div class="appearance-row"><input id="appearanceBackgroundUrl" type="url" placeholder="图片 URL（https://…）" aria-label="背景图片 URL"><button type="button" onclick="applyAppearanceUrl()">应用</button></div>
+      <div class="appearance-row"><input id="appearanceBackgroundFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif" aria-label="上传背景图片"><button type="button" onclick="uploadAppearanceBackground()">上传</button></div>
+      <div class="appearance-row"><label><input type="radio" name="appearanceBgScope" value="hero">仅顶部</label><label><input type="radio" name="appearanceBgScope" value="full">全屏</label></div>
+      <button type="button" class="appearance-reset" onclick="resetAppearanceBackground()">清除背景</button>
+      <span id="appearanceBgState" class="appearance-state"></span>
+    </div>
+  </div>
+  <div class="appearance-panel" data-appearance-panel="misc" role="tabpanel" hidden>
+    <fieldset class="appearance-group"><legend>圆角</legend>
+      <div class="appearance-row"><select id="appearanceRadius" aria-label="圆角">
+        <option value="">跟随主题</option><option value="0">直角 0</option><option value="8">轻圆角 8</option><option value="12">圆角 12</option><option value="16">圆角 16</option><option value="20">大圆角 20</option><option value="24">最大 24</option>
+      </select></div>
+      <small class="appearance-hint">选择后覆盖当前主题与密度的圆角；「跟随主题」恢复主题默认。</small>
+    </fieldset>
+    <fieldset class="appearance-group"><legend>侧边栏布局</legend>
+      <label><input type="radio" name="appearanceSidebarLayout" value="docked">贴边（默认）</label>
+      <label><input type="radio" name="appearanceSidebarLayout" value="floating">悬浮卡片</label>
+      <label><input type="radio" name="appearanceSidebarLayout" value="line">仅分割线</label>
+      <small id="appearanceSidebarHint" class="appearance-hint" hidden></small>
+    </fieldset>
+    <fieldset class="appearance-group"><legend>图标颜色</legend>
+      <label><input type="radio" name="appearanceIconColor" value="colored">跟随主题</label>
+      <label><input type="radio" name="appearanceIconColor" value="white">白色</label>
+      <label><input type="radio" name="appearanceIconColor" value="black">黑色</label>
+    </fieldset>
   </div>
 </div>
 <footer class="holy-footer"><span>达妮娅控制台 · {{APP_VERSION}}</span><span>本地管理空间 · 仅管理员</span></footer></main></div>
@@ -1772,21 +1846,37 @@ for (const link of sectionLinks) {
 showWorkspaceSection(false);
 async function logout(){if(gameJobTimer){clearTimeout(gameJobTimer);gameJobTimer=null}try{await api('/api/logout',{})}catch(e){}csrf='';if(statusTimer){clearInterval(statusTimer);statusTimer=null}$('app').hidden=true;$('auth').hidden=false;$('login').hidden=false;$('firstRun').hidden=true;notice('')}
 resumeSession();
+let appearanceTab='appearance';
+let themePresetsLoaded=false,themePresetsLoading=false;
+let themePresetNames=[],themePresetBuiltins=[];
 function appearanceState(){
-  const base=window.Appearance.read(),b=base.background||{};
-  return {mode:base.mode,skin:base.skin,style:base.style,background:{kind:b.kind||'none',preset:b.preset||'paper',value:b.value||'',scope:b.scope==='full'?'full':'hero'}};
+  if(!window.Appearance)return {mode:'system',skin:'default',style:'comfortable',background:{kind:'none',preset:'paper',value:'',scope:'hero'},misc:{radius:null,sidebarLayout:'docked',iconColor:'colored'}};
+  return window.Appearance.normalize(window.Appearance.read());
 }
 function setAppearanceOpen(open){
   const popover=$('appearancePopover');
   if(popover)popover.hidden=!open;
-  if(open)syncAppearanceControls();
+  if(open){syncAppearanceControls();if(appearanceTab==='presets')loadThemePresets(false)}
   for(const id of ['appearanceButton','appearanceButtonMobile']){const button=$(id);if(button)button.setAttribute('aria-expanded',String(open))}
 }
 function closeAppearance(){setAppearanceOpen(false)}
 function appearanceBgMessage(text){const el=$('appearanceBgState');if(el)el.textContent=text}
+function themePresetMessage(text,isError){
+  const el=$('themePresetState');
+  if(!el)return;
+  el.textContent=text||'';
+  el.style.color=isError?'var(--danger)':'';
+}
+function selectAppearanceTab(name){
+  if(['presets','appearance','background','misc'].indexOf(name)<0)return;
+  appearanceTab=name;
+  document.querySelectorAll('[data-appearance-tab]').forEach(el=>{const active=el.getAttribute('data-appearance-tab')===name;el.setAttribute('aria-selected',String(active));el.tabIndex=active?0:-1});
+  document.querySelectorAll('[data-appearance-panel]').forEach(el=>{el.hidden=el.getAttribute('data-appearance-panel')!==name});
+  if(name==='presets')loadThemePresets(false);
+}
 function syncAppearanceControls(){
   if(!window.Appearance)return;
-  const state=window.Appearance.read(),b=state.background||{};
+  const state=appearanceState(),b=state.background||{},m=state.misc||{};
   const fixedScheme=window.Appearance.scheme?window.Appearance.scheme(state.skin):null;
   document.querySelectorAll('input[name="appearanceMode"]').forEach(el=>{el.disabled=!!fixedScheme;el.checked=el.value===(fixedScheme||state.mode)});
   const schemeHint=$('appearanceSchemeHint');
@@ -1796,6 +1886,15 @@ function syncAppearanceControls(){
   document.querySelectorAll('input[name="appearanceBgScope"]').forEach(el=>{el.checked=el.value===(b.scope==='full'?'full':'hero')});
   const preset=$('appearanceBackgroundPreset');if(preset)preset.value=b.kind==='preset'?b.preset:'none';
   const url=$('appearanceBackgroundUrl');if(url&&document.activeElement!==url)url.value=b.kind==='url'?b.value:'';
+  const radius=$('appearanceRadius');if(radius)radius.value=m.radius==null?'':String(m.radius);
+  const narrow=typeof window.innerWidth==='number'&&window.innerWidth<=800;
+  document.querySelectorAll('input[name="appearanceSidebarLayout"]').forEach(el=>{el.checked=el.value===m.sidebarLayout;el.disabled=state.skin==='holy'||narrow});
+  document.querySelectorAll('input[name="appearanceIconColor"]').forEach(el=>{el.checked=el.value===m.iconColor});
+  const sidebarHint=$('appearanceSidebarHint');
+  if(sidebarHint){
+    const message=state.skin==='holy'?'圣杯布局固定侧栏，此设置暂不生效':(narrow?'窄屏下侧边栏布局不生效':'');
+    sidebarHint.hidden=!message;sidebarHint.textContent=message;
+  }
   const names={none:'主题默认',preset:'预设背景',url:'图片链接背景',upload:'本地上传背景'};
   appearanceBgMessage(names[b.kind]||'主题默认');
   const popover=$('appearancePopover'),open=!!popover&&!popover.hidden;
@@ -1803,7 +1902,10 @@ function syncAppearanceControls(){
 }
 function applyState(patch){
   const next=appearanceState();
-  Object.assign(next,patch);
+  patch=patch||{};
+  if(patch.background)next.background=Object.assign({},next.background,patch.background);
+  if(patch.misc)next.misc=Object.assign({},next.misc,patch.misc);
+  for(const key of ['mode','skin','style'])if(key in patch)next[key]=patch[key];
   window.Appearance.save(next);
   syncAppearanceControls();
   return next;
@@ -1844,6 +1946,84 @@ function resetAppearanceBackground(){
   applyState({background:{kind:'none',preset:'paper',value:'',scope:background.scope}});
   appearanceBgMessage('已恢复主题默认');
 }
+async function loadThemePresets(force){
+  if(!window.Appearance||themePresetsLoading)return;
+  if(themePresetsLoaded&&!force)return;
+  themePresetsLoading=true;
+  themePresetMessage('正在加载…');
+  try{
+    const response=await fetch('/api/theme/presets');
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok)throw Error(response.status===401?'登录状态已失效，请重新登录':(data.detail||'加载主题预设失败'));
+    themePresetsLoaded=true;
+    themePresetNames=Array.isArray(data.names)?data.names:[];
+    themePresetBuiltins=(Array.isArray(data.presets)?data.presets:[]).filter(p=>p&&p.builtin).map(p=>p.name);
+    renderThemePresets(data);
+    const invalid=Array.isArray(data.invalid)?data.invalid:[];
+    themePresetMessage(invalid.length?('有 '+invalid.length+' 个预设无法解析：'+invalid.join('、')):'',invalid.length>0);
+  }catch(error){
+    themePresetMessage(error.message||'加载主题预设失败',true);
+  }finally{
+    themePresetsLoading=false;
+  }
+}
+function renderThemePresets(data){
+  const list=$('themePresetList');
+  if(!list)return;
+  list.replaceChildren();
+  const presets=Array.isArray(data.presets)?data.presets:[];
+  if(!presets.length){
+    const empty=document.createElement('div');empty.className='appearance-preset-empty';empty.textContent='还没有保存任何主题预设';list.append(empty);return;
+  }
+  const current=JSON.stringify(appearanceState());
+  for(const preset of presets){
+    if(!preset||typeof preset.name!=='string')continue;
+    const item=document.createElement('div');item.className='appearance-preset-item';
+    const name=document.createElement('span');name.className='appearance-preset-name';name.textContent=preset.name;name.title=preset.name;item.append(name);
+    if(preset.builtin){const badge=document.createElement('span');badge.className='appearance-preset-badge';badge.textContent='内置';item.append(badge)}
+    let active=false;
+    try{active=JSON.stringify(window.Appearance.normalize(preset.config))===current}catch(e){}
+    if(active){const badge=document.createElement('span');badge.className='appearance-preset-badge';badge.textContent='当前';item.append(badge)}
+    const actions=document.createElement('span');actions.className='appearance-preset-actions';
+    const apply=document.createElement('button');apply.type='button';apply.textContent='应用';apply.addEventListener('click',()=>applyThemePreset(preset.name));actions.append(apply);
+    if(!preset.builtin){const remove=document.createElement('button');remove.type='button';remove.textContent='删除';remove.addEventListener('click',()=>deleteThemePreset(preset.name));actions.append(remove)}
+    item.append(actions);list.append(item);
+  }
+}
+async function saveThemePreset(){
+  const input=$('themePresetName'),overwrite=$('themePresetOverwrite');
+  const name=input?input.value.trim():'';
+  if(!name){themePresetMessage('请输入预设名称',true);return}
+  if(themePresetBuiltins.indexOf(name)>=0){themePresetMessage('内置预设名保留，请换一个名称',true);return}
+  if(themePresetNames.indexOf(name)>=0&&!(overwrite&&overwrite.checked)){themePresetMessage('同名预设已存在，勾选覆盖后再保存',true);return}
+  themePresetMessage('正在保存…');
+  try{
+    await api('/api/theme/presets',{name,config:appearanceState(),overwrite:!!(overwrite&&overwrite.checked)});
+    if(input)input.value='';if(overwrite)overwrite.checked=false;
+    themePresetsLoaded=false;
+    await loadThemePresets(true);
+    themePresetMessage('已保存「'+name+'」');
+  }catch(error){themePresetMessage(error.message||'保存主题预设失败',true)}
+}
+async function applyThemePreset(name){
+  try{
+    const result=await api('/api/theme/presets/apply',{name});
+    window.Appearance.save(result.config);
+    syncAppearanceControls();
+    themePresetsLoaded=false;
+    await loadThemePresets(true);
+    themePresetMessage('已应用「'+name+'」');
+  }catch(error){themePresetMessage(error.message||'应用主题预设失败',true)}
+}
+async function deleteThemePreset(name){
+  if(typeof window.confirm==='function'&&!window.confirm('删除预设「'+name+'」？'))return;
+  try{
+    await api('/api/theme/presets/delete',{name});
+    themePresetsLoaded=false;
+    await loadThemePresets(true);
+    themePresetMessage('已删除「'+name+'」');
+  }catch(error){themePresetMessage(error.message||'删除主题预设失败',true)}
+}
 function initAppearance(){
   if(initAppearance.ready)return;
   if(typeof window==='undefined'||!window.Appearance||typeof document==='undefined'||!document.documentElement)return;
@@ -1852,10 +2032,17 @@ function initAppearance(){
   for(const id of ['appearanceButton','appearanceButtonMobile']){
     const button=$(id);if(button)button.addEventListener('click',event=>{event.stopPropagation();setAppearanceOpen(!popover||popover.hidden)});
   }
+  document.querySelectorAll('[data-appearance-tab]').forEach(el=>el.addEventListener('click',()=>selectAppearanceTab(el.getAttribute('data-appearance-tab'))));
   document.querySelectorAll('input[name="appearanceMode"]').forEach(el=>el.addEventListener('change',()=>{if(el.checked)applyState({mode:el.value})}));
   document.querySelectorAll('input[name="appearanceSkin"]').forEach(el=>el.addEventListener('change',()=>{if(el.checked)applyState({skin:el.value})}));
   document.querySelectorAll('input[name="appearanceStyle"]').forEach(el=>el.addEventListener('change',()=>{if(el.checked)applyState({style:el.value})}));
   document.querySelectorAll('input[name="appearanceBgScope"]').forEach(el=>el.addEventListener('change',()=>{if(el.checked){const background=appearanceState().background;background.scope=el.value;applyState({background})}}));
+  document.querySelectorAll('input[name="appearanceSidebarLayout"]').forEach(el=>el.addEventListener('change',()=>{if(el.checked)applyState({misc:{sidebarLayout:el.value}})}));
+  document.querySelectorAll('input[name="appearanceIconColor"]').forEach(el=>el.addEventListener('change',()=>{if(el.checked)applyState({misc:{iconColor:el.value}})}));
+  const radius=$('appearanceRadius');
+  if(radius)radius.addEventListener('change',()=>applyState({misc:{radius:radius.value===''?null:Number(radius.value)}}));
+  const presetName=$('themePresetName');
+  if(presetName)presetName.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();saveThemePreset()}});
   const preset=$('appearanceBackgroundPreset');
   if(preset)preset.addEventListener('change',()=>{const background=appearanceState().background;if(preset.value==='none'){background.kind='none';background.preset='paper';background.value=''}else{background.kind='preset';background.preset=preset.value;background.value=''}applyState({background})});
   if(popover)popover.addEventListener('click',event=>event.stopPropagation());
@@ -1869,6 +2056,7 @@ function initAppearance(){
     document.addEventListener('keydown',event=>{if(event.key==='Escape')closeAppearance()});
     document.addEventListener('appearancechange',refreshStatusChartColors);
   }
+  selectAppearanceTab(appearanceTab);
   setAppearanceOpen(false);
   syncAppearanceControls();
 }
