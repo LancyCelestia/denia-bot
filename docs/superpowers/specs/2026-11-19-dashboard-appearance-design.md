@@ -15,9 +15,9 @@
 | 决策 | 选择 |
 |---|---|
 | 持久化 | 浏览器 `localStorage`，按设备 |
-| 配色 | 暖橙（当前）+ 青绿 + 蓝紫 + 高对比 |
+| 主题 | 默认（当前）+ macOS 毛玻璃 / 新拟物 / 吉卜力 / 水彩 / 沉浸摄影（每个 StyleKit 链接一个）；移除独立配色设置 |
 | 样式 | 圆角/阴影 + 字号/密度（舒适/紧凑/宽松） |
-| 背景 | 内置渐变/纹理 + 图片 URL + 面板上传 |
+| 背景 | 内置渐变/纹理 + 图片 URL + 面板上传；主题可提供默认背景 |
 | 背景范围 | 面板内切换「仅顶部 hero / 全屏」 |
 | 默认 | 跟随系统 `prefers-color-scheme`，可手动覆盖 |
 | 入口 | 侧栏底部按钮 + 移动端顶栏按钮 |
@@ -34,7 +34,7 @@
 |---|---|
 | `data-theme` | `light` / `dark`（已解析） |
 | `data-theme-mode` | `system` / `light` / `dark`（用户选择） |
-| `data-palette` | `warm` / `teal` / `blue` / `contrast` |
+| `data-skin` | `default` / `macos` / `neumorphism` / `ghibli` / `watercolor` / `photo` |
 | `data-style` | `comfortable` / `compact` / `large` |
 | `data-bg` | `none` / `preset` / `url` / `upload` |
 | `data-bg-preset` | `paper` / `dawn` / `forest` / `night` / `grid` |
@@ -45,7 +45,7 @@
 ```json
 {
   "mode": "system",
-  "palette": "warm",
+  "skin": "default",
   "style": "comfortable",
   "background": {
     "kind": "none",
@@ -71,20 +71,24 @@
 - 文字：`--ink`、`--ink-soft`、`--text-2..12`、`--muted`、`--text-topic*`、`--nav-icon`、`--dot`
 - 强调/状态：`--accent`、`--accent-dark`、`--accent-soft`、`--on-accent`、`--danger*`、`--success`、`--warn*`、`--neutral-*`、`--focus`
 - 图表/背景：`--chart-fill`、`--topic-fill`、`--track`、`--shadow-card`、`--shadow-dialog`、`--backdrop`、`--paper-translucent`、`--sidebar-translucent`
-- 样式：`--fs-10..--fs-37`、`--r-8/9/10/12/16/20/999`、`--pad-card`、`--pad-workspace`、`--control-h`、`--nav-pad`、`--gap-card`、`--gap-grid`
+- 样式：`--fs-10..--fs-37`、`--r-8/9/10/11/12/20/999`、`--pad-card`、`--pad-workspace`、`--control-h`、`--nav-pad`、`--gap-card`、`--gap-grid`
 
 浅色 token 值取当前 CSS 的原色；深色值采用暖炭黑表面 + 提亮文字/强调色。`--on-accent` 在浅色为 `#fff`，深色为 `#1b1310`，保证按钮文字对比度。
 
-### 3.4 配色预设
+### 3.4 主题预设
 
-| 预设 | 浅色强调 | 深色强调 |
+默认主题 `default` 保持当前外观；五个 StyleKit 主题每个链接一个，覆盖颜色、表面、阴影、圆角、字体与默认背景。明暗模式保留：macOS/新拟物/吉卜力/水彩各有浅/深两套；沉浸摄影固定为暗色摄影气质。
+
+| 主题 | 来源 | 关键特征 |
 |---|---|---|
-| warm（默认） | `#c66e4e` / `#a9563c` / `#f7eae2` | `#e08a68` / `#f0a184` / `#3a2620` |
-| teal | `#2f7f6f` / `#236456` / `#e3f1ec` | `#5fb8a2` / `#8fd8c5` / `#1e3a33` |
-| blue | `#5668a8` / `#435387` / `#e8ebf6` | `#9aa9e8` / `#b6c2f5` / `#252a45` |
-| contrast | `#b34417` / `#8f3412` / `#fdeee7` | `#ff9a6b` / `#ffb694` / `#3a1d12` |
+| 默认 `default` | 当前面板 | 暖纸底、暖橙强调；零视觉回归 |
+| macOS 毛玻璃 `macos` | https://www.stylekit.top/zh/styles/macos-vibrancy | 三层深灰、80% 侧栏 + backdrop-blur、system blue、Georgia 标题 |
+| 新拟物 `neumorphism` | https://www.stylekit.top/zh/styles/neumorphism#style-prompts | `#e0e5ec` 同色基底、双阴影、无边框、blurple 强调 |
+| 吉卜力 `ghibli` | https://www.stylekit.top/zh/styles/ghibli-style | 奶油/鼠尾草/天青、24px 卡片、胶囊按钮、天空渐变 |
+| 水彩 `watercolor` | https://www.stylekit.top/zh/styles/watercolor-style | 纸白、蓝/蜜桃/水青晕染、衬线斜体标题、无硬边 |
+| 沉浸摄影 `photo` | https://www.stylekit.top/zh/styles/immersive-photo | 全幅照片/电影感渐变、墨色 + 琥珀、玻璃卡片、全大写标签 |
 
-`contrast` 额外覆盖中性色：浅色 `--ink:#111`、`--muted:#4b4b4b`、`--line:#b8b8b8`；深色 `--bg:#000`、`--paper:#0d0d0d`、`--ink:#fff`、`--muted:#c9c9c9`、`--line:#5a5a5a`。
+主题只通过 `<html data-skin>` 覆盖 token 与少量组件规则；样式预设仍控制字号/圆角/间距。主题的背景默认仅在 `data-bg="none"` 时显示，用户选择 preset/URL/upload 后覆盖。
 
 ### 3.5 样式预设
 
@@ -96,7 +100,7 @@
 
 ### 3.6 背景
 
-- 新增 `#bgLayer`（`position:fixed`，`z-index:-1`）承载背景；`data-bg="none"` 时隐藏。
+- 新增 `#bgLayer`（`position:fixed`，`z-index:-1`）承载背景；`data-bg="none"` 时默认隐藏，主题可提供默认背景（macOS/Ghibli/Watercolor/Photo），用户选择 preset/URL/upload 后覆盖。
 - `hero`：层高约 620px，底部渐隐；卡片保持不透明。
 - `full`：层铺满视口；卡片/侧栏/登录卡使用 `--paper-translucent` / `--sidebar-translucent` + `backdrop-filter: blur(12px)`。
 - 预设：`paper`、`dawn`、`forest`、`night`、`grid`，各含浅色/深色两套渐变。
@@ -108,7 +112,7 @@
 
 - 桌面：侧栏 `.side-bottom` 的「◐ 外观」按钮。
 - 移动端（≤800px）：`.topline` 右侧的「◐」按钮。
-- 弹出面板：主题模式、配色、样式、背景四组；关闭按钮、Escape、点击外部关闭；`aria-expanded` 同步。
+- 弹出面板：明暗、主题、样式、背景四组；关闭按钮、Escape、点击外部关闭；`aria-expanded` 同步。
 - 登录页不提供入口，但已保存的主题/背景会应用。
 
 ## 4. 非目标
@@ -123,11 +127,11 @@
 - 更新 `nonebot/tests/test_game_event_panel.py`：从 `id="appScript"` 抽取主脚本，避免新增的 bootstrap `<script>` 被误取；为假 DOM 补 `localStorage` / `matchMedia` / `documentElement` 的缺失保护。
 - 新增 `nonebot/tests/test_appearance_panel.py`：上传成功/格式非法/超限/未登录/无 CSRF/路径穿越。
 - 现有 `test_bilibili_panel.py` 的导航断言不受影响：外观入口是 `<button>`，不新增导航链接或 section。
-- 验收：定向 pytest + 全量 pytest；Playwright 截图覆盖浅色/深色、四配色、三样式、预设/URL/上传背景、hero/full、移动端 800px；默认浅色与基线截图对比无可见差异。
+- 验收：定向 pytest + 全量 pytest；Playwright 截图覆盖浅色/深色、五个主题 × 明暗、三样式、预设/URL/上传背景、hero/full、移动端 800px；默认浅色与基线截图对比无可见差异。
 
 ## 6. 实施阶段
 
 1. Token 化 + 浅/深色 + 跟随系统 + 侧栏/移动入口 + localStorage。
-2. 四套配色 + 三档样式（字号/圆角/间距）。
+2. 五个 StyleKit 主题 + 三档样式（字号/圆角/间距）；移除独立配色设置。
 3. 背景预设/URL/上传 + hero/full + 半透明表面。
 4. 全量验证、分阶段提交、PR（目标 `main`，不自行合并）。
