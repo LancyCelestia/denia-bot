@@ -484,7 +484,7 @@ curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8092/api/bilibili   # 
 - [ ] 数据卷 `qqbot-qq-config` / `qqbot-qq-data` **绝对不能删**，删了要重新扫码
 - [ ] `sysctl kernel.yama.ptrace_scope` ≤ 2（= 3 会直接拒绝注入）
 - [ ] 给容器加 `mem_limit` / `cpus`
-- [ ] 备份：数据库、`gate.json`、`model_pref.json`、`nonebot/templates/current.jinja2`、`rag/index`、`data/statuscard*`、`gsuid/core/data`（启用 gsuid_core 时含账号绑定与 `config.json`）
+- [ ] 备份：数据库、`gate.json`、`model_pref.json`、`nonebot/templates/current.jinja2`、`rag/index`、`data/statuscard*`、`data/theme-presets.json`、`data/appearance-backgrounds/`、`gsuid/core/data`（启用 gsuid_core 时含账号绑定与 `config.json`）
 - [ ] 面板已执行 `python dashboard.py --init` 且首次密码已修改；`data/dashboard-auth.json` 权限为 0600，一次性密码文件 `data/dashboard-initial-password` 已删除
 - [ ] 启用 RAG 时：独立 venv 已装 `onnxruntime` 等依赖，索引已构建；本地与云端索引/向量没有混用
 - [ ] 状态卡默认已勾选「主机名」「进程信息」脱敏；公开群再加「网络数据」
