@@ -215,8 +215,8 @@ html[data-skin="shader"][data-bg="none"] #bgLayer{display:block;background-image
 html[data-skin="shader"][data-bg="none"] #bgLayer::after{content:none}
 html[data-skin="shader"][data-bg="none"]{background:var(--bg)}
 html[data-skin="shader"][data-bg="none"] body{background:transparent}
-/* Holy Grail Layout: the only layout-level theme. 240px rail, fluid main, 280px right rail, sticky header, footer. */
-.holy-rail,.holy-footer{display:none}
+/* Holy Grail Layout: the only layout-level theme. 240px left nav, fluid main, sticky header, footer. */
+.holy-footer{display:none}
 html[data-skin="holy"]{
   color-scheme:light;--bg:#f1f5f9;--paper:#fff;--sidebar:#fff;--ink:#1e293b;--muted:#64748b;
   --line:#f1f5f9;--line-strong:#e2e8f0;--line-soft:#f1f5f9;--line-faint:#f8fafc;--line-mid:#e2e8f0;--line-hover:#cbd5e1;--sidebar-border:#e2e8f0;
@@ -242,7 +242,7 @@ html[data-skin="holy"] .nav-link:hover{background:var(--surface-hover)}
 html[data-skin="holy"] .nav-link.active{background:rgba(59,130,246,.08);color:#2563eb;font-weight:500}
 html[data-skin="holy"] .side-bottom{border-top:1px solid var(--line-strong);padding:14px 6px 0;font-size:12px}
 html[data-skin="holy"] .side-theme,html[data-skin="holy"] .side-logout{min-height:30px;border-radius:8px;font-size:12px;padding:4px 10px}
-html[data-skin="holy"] .workspace{margin-left:240px;margin-right:304px;max-width:1440px;padding:0 24px 32px}
+html[data-skin="holy"] .workspace{margin-left:240px;margin-right:0;max-width:1440px;padding:0 24px 32px}
 html[data-skin="holy"] .topline{position:sticky;top:0;z-index:30;align-items:center;min-height:56px;margin:0 -24px;padding:0 24px;background:#fff;border-bottom:1px solid var(--line-strong);box-shadow:0 1px 2px rgba(15,23,42,.04);font-size:13px;color:var(--muted)}
 html[data-skin="holy"] .intro{padding:34px 0 22px}
 html[data-skin="holy"] .intro h1{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI','Microsoft YaHei',sans-serif;font-size:28px;font-weight:600;line-height:1.2;letter-spacing:-.01em}
@@ -255,18 +255,8 @@ html[data-skin="holy"] .card{padding:var(--pad-card);scroll-margin-top:72px}
 html[data-skin="holy"] .card:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(15,23,42,.08)}
 html[data-skin="holy"] .appearance-popover{border-color:#e2e8f0;box-shadow:0 16px 40px rgba(15,23,42,.18);padding:16px}
 html[data-skin="holy"] .nav-caption,html[data-skin="holy"] .auth-label,html[data-skin="holy"] .appearance-label,html[data-skin="holy"] .appearance-group legend{font-size:12px;font-weight:500;letter-spacing:.04em;text-transform:uppercase}
-html[data-skin="holy"] .holy-rail{display:block;position:fixed;top:56px;right:0;bottom:0;width:280px;padding:24px;background:var(--bg);border-left:1px solid var(--line-strong);overflow:auto;z-index:20}
-html[data-skin="holy"] .holy-rail-panel{background:#fff;border-radius:12px;padding:16px;box-shadow:0 1px 2px rgba(15,23,42,.04)}
-html[data-skin="holy"] .holy-rail-label{font-size:12px;font-weight:500;letter-spacing:.04em;text-transform:uppercase;color:#94a3b8;margin:4px 0 8px}
-html[data-skin="holy"] .holy-rail-links{display:flex;flex-direction:column;gap:2px;margin-bottom:18px}
-html[data-skin="holy"] .holy-rail-link{display:flex;align-items:center;min-height:32px;padding:6px 9px;border-radius:8px;color:#475569;font-size:13px;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;transition:background .15s ease,color .15s ease}
-html[data-skin="holy"] .holy-rail-link:hover{background:#f1f5f9;color:#1e293b}
-html[data-skin="holy"] .holy-rail-link.active{background:rgba(59,130,246,.08);color:#2563eb}
-html[data-skin="holy"] .holy-rail-action{display:block;width:100%;min-height:32px;margin-top:6px;padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;color:#334155;font-size:13px;text-align:left}
-html[data-skin="holy"] .holy-rail-action:hover{background:#f8fafc;border-color:#cbd5e1}
 html[data-skin="holy"] .holy-footer{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:48px;margin-top:24px;padding:12px 0;border-top:1px solid var(--line-strong);color:var(--muted);font-size:12px}
 html[data-skin="holy"] .holy-footer a{color:#2563eb;text-decoration:none}
-@media(max-width:1200px){html[data-skin="holy"] .holy-rail{display:none}html[data-skin="holy"] .workspace{margin-right:0}}
 @media(max-width:800px){html[data-skin="holy"] .workspace{margin-left:0;padding:0 20px 24px}html[data-skin="holy"] .topline{margin:0 -20px;padding:0 20px}html[data-skin="holy"] .sidebar{width:auto;padding:16px;border-right:0;border-bottom:1px solid var(--line-strong)}html[data-skin="holy"] .intro h1{font-size:28px}}
 /* Scandinavian Minimalism: warm white, charcoal, wood, moss, 2px radii, no shadows, 700ms quiet transitions. */
 html[data-skin="scandi"]{
@@ -290,7 +280,7 @@ html[data-skin="scandi"] .card,html[data-skin="scandi"] .auth-card,html[data-ski
 html[data-skin="scandi"] .card:hover{border-color:rgba(201,168,140,.80);background:rgba(255,255,255,.70)}
 html[data-skin="scandi"] .card h2{transition:color .7s ease-in-out}
 html[data-skin="scandi"] .card:hover h2{color:#5a7a6b}
-html[data-skin="scandi"] .appearance-popover{padding:16px}
+html[data-skin="scandi"] .appearance-popover{padding:16px;background:#fbf9f5;border-color:rgba(201,168,140,.40);box-shadow:none}
 html[data-skin="scandi"] .sidebar{background:rgba(255,255,255,.60);border-right:1px solid var(--line);-webkit-backdrop-filter:none;backdrop-filter:none}
 html[data-skin="scandi"] .nav-link{border-radius:2px;color:var(--text-5);transition:color .7s ease-in-out,background .7s ease-in-out}
 html[data-skin="scandi"] .nav-link.active{background:rgba(90,122,107,.10);color:#5a7a6b;font-weight:400}
@@ -801,7 +791,7 @@ html[data-bg-scope="full"]:not([data-bg="none"]) .sidebar{background:var(--sideb
     <span id="appearanceBgState" class="appearance-state"></span>
   </div>
 </div>
-<footer class="holy-footer"><span>达妮娅控制台 · {{APP_VERSION}}</span><span>本地管理空间 · 仅管理员</span></footer></main><aside id="holyRail" class="holy-rail" aria-label="快捷导航"><div class="holy-rail-panel"><div class="holy-rail-label">本页导航</div><div id="holyRailLinks" class="holy-rail-links"></div><div class="holy-rail-label">快捷操作</div><button type="button" class="holy-rail-action" onclick="setAppearanceOpen(true)">外观设置</button><button type="button" class="holy-rail-action" onclick="logout()">退出登录</button></div></aside></div>
+<footer class="holy-footer"><span>达妮娅控制台 · {{APP_VERSION}}</span><span>本地管理空间 · 仅管理员</span></footer></main></div>
 <script id="appScript">
 let csrf='';const $=x=>document.getElementById(x);
 function cssVar(name){try{return getComputedStyle(document.documentElement).getPropertyValue(name).trim()}catch(e){return ''}}
@@ -1873,7 +1863,7 @@ function initAppearance(){
     document.addEventListener('click',event=>{
       if(!popover||popover.hidden)return;
       if(popover.contains(event.target))return;
-      if(event.target&&event.target.closest&&event.target.closest('#appearanceButton,#appearanceButtonMobile,.holy-rail-action'))return;
+      if(event.target&&event.target.closest&&event.target.closest('#appearanceButton,#appearanceButtonMobile'))return;
       closeAppearance();
     });
     document.addEventListener('keydown',event=>{if(event.key==='Escape')closeAppearance()});
@@ -1883,34 +1873,6 @@ function initAppearance(){
   syncAppearanceControls();
 }
 initAppearance();
-/* Holy Grail right rail: reuse the main nav links and their active state. */
-function syncHolyRail(){
-  if(typeof document==='undefined'||typeof document.querySelectorAll!=='function')return;
-  const active=typeof document.querySelector==='function'?document.querySelector('.nav .nav-link.active'):null;
-  const href=active&&active.getAttribute?active.getAttribute('href'):(typeof location!=='undefined'?location.hash:'');
-  document.querySelectorAll('.holy-rail-link').forEach(function(a){if(a&&a.getAttribute&&a.classList)a.classList.toggle('active',a.getAttribute('href')===href)});
-}
-function initHolyRail(){
-  if(typeof document==='undefined'||typeof document.querySelectorAll!=='function')return;
-  const list=$('holyRailLinks');if(!list)return;
-  list.textContent='';
-  document.querySelectorAll('.nav a.nav-link[href^="#"]').forEach(function(link){
-    const href=link.getAttribute?link.getAttribute('href'):'';if(!href)return;
-    const a=document.createElement('a');a.className='holy-rail-link';a.href=href;
-    const clone=link.cloneNode?link.cloneNode(true):null;
-    if(clone&&clone.querySelectorAll)clone.querySelectorAll('.nav-icon,.nav-ext').forEach(function(icon){icon.remove()});
-    a.textContent=(clone?clone.textContent:link.textContent||'').trim();
-    if(a.addEventListener)a.addEventListener('click',function(event){
-      event.preventDefault();
-      const target=typeof document.querySelector==='function'?document.querySelector('.nav a.nav-link[href="'+href+'"]'):null;
-      if(target&&target.click)target.click();else location.hash=href;
-    });
-    if(list.appendChild)list.appendChild(a);
-  });
-  syncHolyRail();
-  if(typeof window!=='undefined'&&typeof window.addEventListener==='function')window.addEventListener('hashchange',syncHolyRail);
-}
-initHolyRail();
 /* Shader Gradient background. Real WebGL field, capped DPR, offscreen pause, reduced-motion single frame, CSS fallback. */
 (function(){
   var field=document.getElementById('shaderField'),canvas=document.getElementById('shaderCanvas');
