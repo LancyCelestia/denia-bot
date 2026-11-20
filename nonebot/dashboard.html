@@ -488,9 +488,9 @@ html[data-bg-scope="full"]:not([data-bg="none"]) .sidebar{background:var(--sideb
 .appearance-group label:has(input:disabled){opacity:.45;cursor:default}
 @media(max-width:800px){.topline-theme{display:inline-flex}.appearance-popover{left:16px;right:16px;top:58px;bottom:auto;width:auto;max-height:80vh}.side-theme{display:none}}
 .appearance-tabs{display:flex;gap:2px;border-bottom:1px solid var(--line-faint);margin:0 0 8px}
-.appearance-tab{flex:1;min-height:30px;padding:2px 4px;border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;font-size:var(--fs-12);color:var(--muted);box-shadow:none}
-.appearance-tab[aria-selected="true"]{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
-.appearance-tab:hover{background:var(--surface-hover)}
+html[data-theme] .appearance-tabs > .appearance-tab{display:flex;align-items:center;justify-content:center;flex:1;min-width:0;height:30px;min-height:30px;padding:0 4px;border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;font:inherit;font-size:var(--fs-12);line-height:1.2;letter-spacing:0;color:var(--muted);box-shadow:none}
+html[data-theme] .appearance-tabs > .appearance-tab[aria-selected="true"]{color:var(--accent);border-bottom-color:var(--accent);font-weight:600;background:transparent;box-shadow:none;border-radius:0}
+html[data-theme] .appearance-tabs > .appearance-tab:hover{background:var(--surface-hover);border-radius:0;box-shadow:none}
 .appearance-panel[hidden]{display:none}
 .appearance-preset-list{display:grid;gap:6px;max-height:260px;overflow:auto}
 .appearance-preset-item{display:flex;align-items:center;gap:6px;padding:6px 8px;border:1px solid var(--line-soft);border-radius:var(--r-9);background:var(--surface-2)}
@@ -538,6 +538,7 @@ html[data-icon-color="black"] .nav-icon{color:#111}
   }
   function resolve(s){return s.mode==='dark'||(s.mode!=='light'&&w.matchMedia&&w.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light'}
   function apply(s){
+    s.misc=s.misc||defaults().misc;
     var d=document.documentElement,b=s.background||{},fixed=SCHEME[s.skin]||null,r=fixed||resolve(s);
     d.dataset.theme=r;d.dataset.themeMode=s.mode;d.dataset.skin=s.skin;d.dataset.style=s.style;
     d.dataset.bg=b.kind||'none';d.dataset.bgScope=b.scope==='full'?'full':'hero';

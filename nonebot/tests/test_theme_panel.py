@@ -77,7 +77,7 @@ def test_save_apply_delete_round_trip_and_atomic_write(tmp_path):
         path = preset_path(tmp_path)
         assert path.is_file()
         raw = path.read_text(encoding='utf-8')
-        assert '我的夜间' in raw and '我的夜间' in raw  # ensure_ascii=False
+        assert '"我的夜间"' in raw  # ensure_ascii=False
         assert json.loads(raw)['presets']['我的夜间']['misc']['radius'] is None
         assert not list(path.parent.glob('*.tmp'))
         if os.name != 'nt':
@@ -113,6 +113,22 @@ def test_write_requires_csrf_and_origin(tmp_path):
         assert client.post('/api/theme/presets', json=body, headers=no_origin).status_code == 403
         assert client.post('/api/theme/presets/apply', json={'name': '暖纸默认'}, headers=AUTH).status_code == 403
         assert client.post('/api/theme/presets/apply', json={'name': '暖纸默认'}, headers=no_origin).status_code == 403
+
+
+def test_delete_requires_csrf_and_origin(tmp_path):
+    with TestClient(make_app(tmp_path)) as client:
+        saved = client.post(
+            '/api/theme/presets',
+            json={'name': '待删除', 'config': valid_config()},
+            headers=MUTATE,
+        )
+        assert saved.status_code == 200, saved.text
+        no_origin = {'x-test-auth': TOKEN, 'x-test-csrf': TOKEN}
+        assert client.post('/api/theme/presets/delete', json={'name': '待删除'}, headers=AUTH).status_code == 403
+        assert client.post('/api/theme/presets/delete', json={'name': '待删除'}, headers=no_origin).status_code == 403
+        deleted = client.post('/api/theme/presets/delete', json={'name': '待删除'}, headers=MUTATE)
+        assert deleted.status_code == 200
+        assert '待删除' not in client.get('/api/theme/presets', headers=AUTH).json()['names']
 
 
 def test_overwrite_is_explicit(tmp_path):

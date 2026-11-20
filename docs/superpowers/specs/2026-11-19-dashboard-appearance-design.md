@@ -1,14 +1,14 @@
 # 管理面板外观系统设计
 
 日期：2026-11-19
-状态：已按用户选择确定，进入实施
-范围：`nonebot/dashboard.html`、`nonebot/dashboard.py`、新增 `nonebot/appearance_panel.py`
+状态：已实施；主题设置 v2 已落地（2026-11-20）
+范围：`nonebot/dashboard.html`、`nonebot/dashboard.py`、新增 `nonebot/appearance_panel.py`、新增 `nonebot/theme_panel.py`、新增 `nonebot/tests/test_theme_panel.py`
 
 ## 1. 背景
 
-管理面板是单文件 `nonebot/dashboard.html`（1215 行、约 168 KB）：一个内嵌 `<style>`（约 16.8 KB / 229 条规则）和一个内嵌 `<script>`。现有 10 个 `:root` 变量、62 处 `var()`，但仍有 113 个硬编码颜色（CSS 102、HTML 内联 4、JS/SVG 6、rgba 1），且没有主题、深色模式或持久化。
+管理面板是单文件 `nonebot/dashboard.html`（当前 2176 行、约 284 KB）：两个内嵌 `<style>`（基础样式 + `appearanceTheme`）和两个内嵌 `<script>`（`appearanceBoot` + `appScript`）。外观/主题/背景/预设状态全部由 token、`data-*` 属性和 `localStorage` 驱动；`dashboard.py` 的 `GET /` 每次请求读取 HTML 并替换 `{{APP_VERSION}}`，无构建链、无 CDN、无 UI 框架。
 
-`dashboard.py` 的 `GET /` 每次请求读取 HTML 并替换 `{{APP_VERSION}}`，无构建链、无 CDN、无 UI 框架。因此主题系统可以直接在单文件内完成，改 HTML/CSS 刷新即生效，改 Python 需重启面板。
+因此主题系统直接在单文件内完成：改 HTML/CSS 刷新即生效，改 Python 需重启面板。
 
 ## 2. 用户决策
 
@@ -39,6 +39,8 @@
 | `data-bg` | `none` / `preset` / `url` / `upload` |
 | `data-bg-preset` | `paper` / `dawn` / `forest` / `night` / `grid` |
 | `data-bg-scope` | `hero` / `full` |
+| `data-sidebar-layout` | `docked` / `floating` / `line` |
+| `data-icon-color` | `colored` / `white` / `black` |
 
 `localStorage` 键：`qqbot.dashboard.appearance.v1`。值为：
 
@@ -52,6 +54,11 @@
     "preset": "paper",
     "value": "",
     "scope": "hero"
+  },
+  "misc": {
+    "radius": null,
+    "sidebarLayout": "docked",
+    "iconColor": "colored"
   }
 }
 ```
@@ -155,8 +162,8 @@
 - 新增 `nonebot/tests/test_appearance_panel.py`：上传成功/格式非法/超限/未登录/无 CSRF/路径穿越。
 - 新增 `nonebot/tests/test_theme_panel.py`：4 个预设 API 的鉴权/CSRF、保存/列表/应用/删除、覆盖、内置保护、非法名称/配置（含畸形 URL）、损坏文件、原子写、数量与体积上限。
 - 现有 `test_bilibili_panel.py` 的导航断言不受影响：入口是 `<button>`，不新增导航链接或 section。
-- 验收：定向 pytest + 全量 pytest；Playwright 截图覆盖浅色/深色、十二个主题（固定明暗主题按固定方案）、三样式、预设/URL/上传背景、hero/full、四 tab、预设 CRUD/当前徽标、杂项圆角/侧栏布局/图标色、`holy` 与移动端约束、圣杯布局 header/footer 与液态玻璃边缘滤镜；默认浅色与基线截图对比无可见差异。
-- 已知环境问题：`test_dashboard.py` 有 2 个既有 `nonebot/data/weather.sqlite3` 权限失败，与外观/主题改动无关；不得据此声称全量通过。
+- 验收：定向 pytest（`test_theme_panel`、`test_appearance_panel`、`test_game_event_panel`、`test_bilibili_panel` 导航断言）；浏览器截图以**手工/隔离 harness** 证据为准（非自动化 Playwright 测试），覆盖浅色/深色、十二个主题（固定明暗主题按固定方案）、三样式、预设/URL/上传背景、hero/full、四 tab、预设 CRUD/当前徽标、杂项圆角/侧栏布局/图标色、`holy` 与移动端约束、圣杯布局 header/footer 与液态玻璃边缘滤镜；默认浅色与基线截图对比无可见差异。
+- 已知环境问题：`test_dashboard.py` 有 2 个既有 `nonebot/data/weather.sqlite3` 权限失败，与外观/主题改动无关；全量 pytest 因此不可声称通过，报告需如实注明。
 
 ## 6. 实施阶段
 
