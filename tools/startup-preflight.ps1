@@ -83,18 +83,32 @@ function Test-Python312([string]$Exe) {
 }
 
 function Find-HostPython312 {
-    $py = Get-Command py.exe -ErrorAction SilentlyContinue
-    if ($py) {
-        $exe = & $py.Source -3.12 -c "import sys; print(sys.executable)" 2>$null
-        if ($LASTEXITCODE -eq 0 -and $exe -and (Test-Path -LiteralPath $exe -PathType Leaf)) {
-            return $exe
+    $previousAutoInstall = $env:PYTHON_MANAGER_AUTOMATIC_INSTALL
+    try {
+        $env:PYTHON_MANAGER_AUTOMATIC_INSTALL = 'false'
+        $py = Get-Command py.exe -ErrorAction SilentlyContinue
+        if ($py) {
+            # JSON keeps the path ASCII on the wire, regardless of the console code page.
+            $pathJson = & $py.Source -3.12 -c "import json,sys; print(json.dumps(sys.executable))" 2>$null
+            if ($LASTEXITCODE -eq 0 -and $pathJson) {
+                $exe = ConvertFrom-Json -InputObject (($pathJson -join "`n").Trim())
+                if ($exe -and (Test-Path -LiteralPath $exe -PathType Leaf)) {
+                    return $exe
+                }
+            }
+        }
+        $pythonCmd = Get-Command python.exe -ErrorAction SilentlyContinue
+        if ($pythonCmd -and (Test-Python312 $pythonCmd.Source)) {
+            return $pythonCmd.Source
+        }
+        return $null
+    } finally {
+        if ($null -eq $previousAutoInstall) {
+            Remove-Item Env:\PYTHON_MANAGER_AUTOMATIC_INSTALL
+        } else {
+            $env:PYTHON_MANAGER_AUTOMATIC_INSTALL = $previousAutoInstall
         }
     }
-    $pythonCmd = Get-Command python.exe -ErrorAction SilentlyContinue
-    if ($pythonCmd -and (Test-Python312 $pythonCmd.Source)) {
-        return $pythonCmd.Source
-    }
-    return $null
 }
 
 function Get-BundledPython {
