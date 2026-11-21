@@ -82,9 +82,20 @@ function Test-Python312([string]$Exe) {
     }
 }
 
+function Test-X64Windows {
+    $arch = $env:PROCESSOR_ARCHITECTURE
+    if ($env:PROCESSOR_ARCHITEW6432) {
+        $arch = $env:PROCESSOR_ARCHITEW6432
+    }
+    return ([Environment]::Is64BitOperatingSystem -and $arch -eq 'AMD64')
+}
+
 function Get-BundledPython {
     if (-not (Test-Path -LiteralPath $bundledPythonExe)) {
         return $null
+    }
+    if (-not (Test-X64Windows)) {
+        Stop-Check 'The pinned Python runtime requires x64 Windows; ARM64 and 32-bit Windows are unsupported.'
     }
     if (-not (Test-Python312 $bundledPythonExe)) {
         Stop-Check "Bundled Python runtime is invalid: $bundledPythonExe`nDelete runtime\python312 and retry."
@@ -93,8 +104,8 @@ function Get-BundledPython {
 }
 
 function Install-BundledPython {
-    if (-not [Environment]::Is64BitOperatingSystem) {
-        Stop-Check 'The pinned Python runtime requires 64-bit Windows.'
+    if (-not (Test-X64Windows)) {
+        Stop-Check 'The pinned Python runtime requires x64 Windows; ARM64 and 32-bit Windows are unsupported.'
     }
     $tarExe = Join-Path $env:SystemRoot 'System32\tar.exe'
     if (-not (Test-Path -LiteralPath $tarExe -PathType Leaf)) {
@@ -120,7 +131,11 @@ function Install-BundledPython {
                 $request.Proxy = $env:HTTP_PROXY
             }
             Write-Section "Downloading Python $bundledPythonVersion ..."
-            Invoke-WebRequest -Uri $bundledPythonUrl -UseBasicParsing -OutFile $archive @request -ErrorAction Stop
+            try {
+                Invoke-WebRequest -Uri $bundledPythonUrl -UseBasicParsing -OutFile $archive @request -ErrorAction Stop
+            } catch {
+                throw "Failed to download the pinned Python 3.12 runtime.`nURL: $bundledPythonUrl`n$($_.Exception.Message)`nCheck network or proxy access to GitHub and retry."
+            }
             $hash = (Get-FileHash -LiteralPath $archive -Algorithm SHA256 -ErrorAction Stop).Hash.ToLowerInvariant()
             if ($hash -ne $bundledPythonSha256) {
                 throw "Python runtime SHA256 mismatch: expected $bundledPythonSha256, got $hash."
@@ -134,10 +149,18 @@ function Install-BundledPython {
             if (-not (Test-Python312 (Join-Path $extractDir 'python.exe'))) {
                 throw 'Extracted runtime does not provide a working Python 3.12.'
             }
-            if (Test-Path -LiteralPath $bundledPythonDir) {
-                throw "Bundled Python directory already exists but is not usable: $bundledPythonDir`nDelete it and retry."
+            try {
+                [IO.Directory]::Move($extractDir, $bundledPythonDir)
+            } catch {
+                if (-not (Test-Python312 $bundledPythonExe)) {
+                    throw "Bundled Python directory already exists but is not usable: $bundledPythonDir`nDelete it and retry."
+                }
+                Write-Ok "Reusing Python runtime published by another launch: $bundledPythonExe"
+                return $bundledPythonExe
             }
-            Move-Item -LiteralPath $extractDir -Destination $bundledPythonDir -ErrorAction Stop
+            if (-not (Test-Python312 $bundledPythonExe)) {
+                throw "Bundled Python runtime is invalid: $bundledPythonExe`nDelete runtime\python312 and retry."
+            }
         } finally {
             if (Test-Path -LiteralPath $tempDir) {
                 Remove-Item -LiteralPath $tempDir -Recurse -Force -ErrorAction Stop
