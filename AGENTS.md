@@ -8,6 +8,15 @@
 4. **等审核，不自行合并。** 由维护者在审核和必需检查通过后合并。不得绕过分支保护、强制推送主线或用本地合并后推送替代 PR。若无权限推送或创建 PR，保留工作分支并报告阻塞。
 5. **正式审查由 bot reviewer 提交。** PR 审查统一通过 `.github/workflows/pr-review.yml` 以 `github-actions[bot]` 身份提交 COMMENT review；维护者仍负责批准与合并。详见 `docs/agents/pr-review.md`。
 
+## 管理面板布局
+
+管理面板的布局是固定契约，详见 `docs/agents/dashboard-layout.md`。后续所有 Agent 改动必须保持「概览 + 每个侧栏一级栏目一页 + Bot 基本情况二级页」：
+
+- 概览只放 page-head / hero / KPI；栏目卡片只能在 `#panelGrid`；不得把多个栏目重新堆叠成单页长滚动。
+- 不得恢复 12 栏概览 grid、`grid-column` / span 类、滚动 spy，或把页面主标题移回卡片 h2。
+- 新增或重排一级、二级页面时，同步更新 `nonebot/tests/test_dashboard_layout.py` 和 `nonebot/tests/test_bilibili_panel.py::test_sidebar_keeps_primary_order_and_groups_bot_settings`，并在 PR 中记录布局影响与桌面 / 移动 / 主题验证结果。
+- 布局契约测试不得删除或弱化；只有明确批准的布局变更才能修改断言，并同时更新契约文档和设计说明。
+
 ## Agent skills
 
 ### Issue tracker

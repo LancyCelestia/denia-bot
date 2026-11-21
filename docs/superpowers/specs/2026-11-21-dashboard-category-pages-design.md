@@ -39,3 +39,14 @@
 2. 内联脚本 `node --check`，DOM 无重复 ID。
 3. Playwright/Chromium：1440×1000、1024×768、390×844；概览、栏目切换、深链接、Bot 二级页、移动抽屉、12 套主题无横向溢出和 JS console error。
 4. 确认概览页高度不再随全部栏目增长；栏目页只显示对应 section。
+
+## 布局契约
+
+自本变更起，「概览 + 每个侧栏一级栏目一页 + Bot 基本情况二级页」固化为仓库布局契约；完整约束、允许/禁止改动、页面新增流程和验证清单见 `docs/agents/dashboard-layout.md`。
+
+后续修改必须保持：
+
+- 概览不显示栏目卡片；栏目卡片只能在 `#panelGrid`，且一次只显示当前页一张。
+- page-head 在概览和栏目页都可见，并显示当前页标题/分组；栏目的页面主标题不回退到卡片 h2。
+- 全宽卡片，不恢复 12 栏 grid、`grid-column` / span 类或滚动 spy。
+- 新增或重排页面时，同步更新 `nonebot/tests/test_dashboard_layout.py` 和 `test_bilibili_panel.py::test_sidebar_keeps_primary_order_and_groups_bot_settings`。
