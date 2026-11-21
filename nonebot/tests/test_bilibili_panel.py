@@ -153,7 +153,7 @@ def test_sidebar_keeps_primary_order_and_groups_bot_settings():
     sections = [name for name in re.findall(r'<section id="([^"]+)"', text)
                 if name not in {'login', 'firstRun', 'changePassword'}]
     assert links[:6] == ['overview', 'bot-info', 'memes', 'memory', 'group', 'status']
-    assert basics_links == ['bot-info', 'persona', 'tokens', 'master', 'superusers']
+    assert basics_links == ['bot-info', 'persona', 'model-pref', 'tokens', 'master', 'superusers']
     assert 'bilibili' in links
     assert set(links) | set(basics_links) == set(sections) | {'overview'}
 

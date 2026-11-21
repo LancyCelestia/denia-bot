@@ -769,6 +769,7 @@ html[data-skin="academia"] #app .head-right .btn:hover{background:#5c4033;border
 <nav id="botBasicsNav" class="basics-nav" aria-label="Bot 基本情况" hidden>
 <a class="nav-link" href="#bot-info"><span class="nav-icon">◈</span>基本信息</a>
 <a class="nav-link" href="#persona"><span class="nav-icon">✎</span>人格模板</a>
+<a class="nav-link" href="#model-pref"><span class="nav-icon">⇄</span>模型设置</a>
 <a class="nav-link" href="#tokens"><span class="nav-icon">◫</span>Token 消耗</a>
 <a class="nav-link" href="#master"><span class="nav-icon">◇</span>主人识别</a>
 <a class="nav-link" href="#superusers"><span class="nav-icon">⚑</span>超级管理员</a>
@@ -796,6 +797,18 @@ html[data-skin="academia"] #app .head-right .btn:hover{background:#5c4033;border
   </div>
   <p class="hint"><b>current.jinja2 说明：</b>当前人格正文保存在被 Git 忽略的 <code>nonebot/templates/current.jinja2</code>，<code>git pull</code> 不会覆盖它；它需要随迁移单独备份，<code>git clean -fdx</code> 或重新克隆会删除它。<code>Denia</code>／<code>Shorekeeper</code> 是可读预设，上游更新可能改变内容；加载预设只会复制一份，不会改动预设文件。</p>
   <p class="hint"><b>生效方式：</b>正文文件每次渲染都会重新读取，替换 <code>current.jinja2</code> 无需重启；只有 <code>models.yml</code> 的 <code>template</code> 字段首次从预设切换为 <code>current</code> 时，才需要重启机器人或在主人私聊发送 <code>.model reload</code>。称呼和主人信息仍读 <code>configs/templates.yml</code>。</p>
+</section>
+<section id="model-pref" class="card">
+  <div class="card-head"><div class="card-icon" aria-hidden="true">⇄</div><div><h2>模型设置</h2><p class="section-description">选择聊天首选模型和首选失败时的次选模型。保存后下一条回复生效，不需要重启机器人；中转地址、API Key 和人设仍在 <code>configs/models.yml</code> 中维护。</p></div></div>
+  <div class="parser-grid">
+    <label class="parser-field"><span>首选模型</span><select id="modelPrimary" aria-label="首选模型" onchange="updateModelPrefDetails()"></select><small id="modelPrimaryDetail">加载中…</small></label>
+    <label class="parser-field"><span>次选模型</span><select id="modelSecondary" aria-label="次选模型" onchange="updateModelPrefDetails()"></select><small id="modelSecondaryDetail">加载中…</small></label>
+  </div>
+  <div class="parser-actions"><button id="modelSave" class="primary" type="button" onclick="run(saveModelPref)" disabled>保存模型设置</button><button type="button" onclick="run(loadModelPref)">刷新</button><span id="modelPrefState" class="hint" role="status"></span></div>
+  <p class="hint" id="modelPrefCurrent">—</p>
+  <p class="hint" id="modelPrefSwaps">—</p>
+  <p class="hint" id="modelPrefPublication">—</p>
+  <p class="hint">下拉框只列 <code>models.yml</code> 条目；条目后的箭头是它的 <code>model_name</code>。选择条目会同时使用该条目的中转、Key 和人设。任意上游真模型名仍可在主人私聊里用 <code>.模型 首选 &lt;真模型名&gt;</code> 设置；面板保存同一入口时保留已有的真模型覆盖，切换条目则清掉覆盖。</p>
 </section>
 <section id="account" class="card">
   <div class="card-head"><div class="card-icon" aria-hidden="true">⚿</div><div><h2>管理员密码</h2><p class="section-description">首次设置完成后，可在这里修改面板登录密码。保存后所有设备都需要用新密码重新登录；不会影响机器人配置或超级管理员名单。</p></div></div>
@@ -1114,7 +1127,7 @@ async function saveEmbedding(){let key=$('embeddingKey').value.trim();if(!key)th
 async function login(){run(async()=>{let x=await api('/api/login',{password:$('password').value});csrf=x.csrf;$('password').value='';$('login').hidden=true;if(x.must_change){showFirstRun();return}await enterApp()})}
 function showFirstRun(){$('app').hidden=true;$('auth').hidden=false;$('login').hidden=true;$('firstRun').hidden=false;$('setupPassword').focus()}
 async function setupPassword(){run(async()=>{const p=$('setupPassword').value,c=$('setupPasswordConfirm').value;if(p.length<12||p.length>256)throw Error('密码长度须为 12 到 256 位');if(p!==c)throw Error('两次输入的密码不一致');await api('/api/setup-password',{password:p,confirm:c});$('setupPassword').value='';$('setupPasswordConfirm').value='';csrf='';$('firstRun').hidden=true;$('login').hidden=false;notice('密码已设置，请使用新密码登录')})}
-async function enterApp(){$('auth').hidden=true;$('app').hidden=false;await run(loadEmbedding);await run(loadBotName);await run(loadPersona);await loadBotStatus();await loadBotUpdate();await loadPlugins();startStatusPolling();await refresh();await loadMaster();await loadParser();await loadEvents();await loadTokens();await loadStatus();await loadSuperusers();await loadEpic();await run(loadRenderer);await run(loadDisaster);await run(loadGameEvents);await run(loadBilibili);await run(loadMemes)}
+async function enterApp(){$('auth').hidden=true;$('app').hidden=false;await run(loadEmbedding);await run(loadBotName);await run(loadPersona);await run(loadModelPref);await loadBotStatus();await loadBotUpdate();await loadPlugins();startStatusPolling();await refresh();await loadMaster();await loadParser();await loadEvents();await loadTokens();await loadStatus();await loadSuperusers();await loadEpic();await run(loadRenderer);await run(loadDisaster);await run(loadGameEvents);await run(loadBilibili);await run(loadMemes)}
 async function resumeSession(){try{let r=await fetch('/api/session');if(!r.ok)return;let x=await r.json();csrf=x.csrf;if(x.must_change){showFirstRun();return}await enterApp()}catch(e){/* 未登录，停在登录框 */}}
 async function changePassword(){run(async()=>{const p=$('newPassword').value,c=$('confirmPassword').value;if(p.length<12||p.length>256)throw Error('密码长度须为 12 到 256 位');if(p!==c)throw Error('两次输入的密码不一致');await api('/api/password',{password:p});$('newPassword').value='';$('confirmPassword').value='';$('accountMessage').textContent='';csrf='';if(statusTimer){clearInterval(statusTimer);statusTimer=null}$('app').hidden=true;$('auth').hidden=false;$('login').hidden=false;$('firstRun').hidden=true;notice('密码已修改，请使用新密码登录')})}
 function options(id,items){let el=$(id),old=el.value;el.replaceChildren();items.forEach(x=>{let o=document.createElement('option');o.value=x.value;o.textContent=x.label;el.append(o)});if(items.some(x=>x.value===old))el.value=old}
@@ -1410,6 +1423,70 @@ async function savePersonaBody(){run(async()=>{
   applyPersonaBody(data);
   await refreshPersonaView();
   $('personaBodyState').textContent='已保存 · 下一条回复生效，无需重启'+(data.active_is_current?'':'；当前生效模板不是 current，本次修改不会改变正在使用的人格');
+})}
+let modelPrefSnapshot=null;
+function modelPrefEntry(name){
+  if(!name||!modelPrefSnapshot)return null;
+  const wanted=String(name).toLowerCase();
+  return (modelPrefSnapshot.models||[]).find(item=>String(item.name).toLowerCase()===wanted)||null;
+}
+function modelPrefOption(select,name,emptyLabel){
+  select.replaceChildren();
+  const empty=document.createElement('option');empty.value='';empty.textContent=emptyLabel;select.append(empty);
+  for(const item of ((modelPrefSnapshot&&modelPrefSnapshot.models)||[])){
+    const option=document.createElement('option');option.value=item.name;
+    option.textContent=item.name+' → '+(item.model_name||'未配置 model_name')+(item.default?'（默认）':'');
+    select.append(option);
+  }
+  const wanted=String(name||'').toLowerCase();
+  const match=Array.from(select.options).find(option=>option.value&&option.value.toLowerCase()===wanted);
+  if(name&&!match){const stale=document.createElement('option');stale.value=name;stale.textContent=name+'（当前配置中已不存在）';select.append(stale)}
+  select.value=name?((match&&match.value)||name):'';
+}
+function modelPrefDescribe(role,value){
+  const state=(modelPrefSnapshot&&modelPrefSnapshot.state)||{};
+  const entry=modelPrefEntry(value);
+  const override=state[role+'_model'];
+  const same=value&&state[role]&&String(value).toLowerCase()===String(state[role]).toLowerCase();
+  if(!value)return role==='primary'?'跟随默认条目 '+(modelPrefSnapshot?modelPrefSnapshot.default_model||'—':'—'):'未设置 · 首选失败时不会降级';
+  if(!entry)return '当前保存的条目 '+value+' 已不在 models.yml 中；请重新选择。';
+  let text='条目 '+value+' → '+(entry.model_name||'未配置 model_name')+(entry.provider?' · '+entry.provider:'')+(entry.stream?' · 流式':' · 非流式');
+  if(same&&override)text+=' · 当前真模型覆盖 '+override+'（保存不变则保留）';
+  else if(same)text+=' · 当前保存值';
+  else text+=' · 保存后切换条目，会清掉该入口的真模型覆盖';
+  return text;
+}
+function updateModelPrefDetails(){
+  if(!modelPrefSnapshot)return;
+  const state=modelPrefSnapshot.state||{};
+  $('modelPrimaryDetail').textContent=modelPrefDescribe('primary',$('modelPrimary').value);
+  $('modelSecondaryDetail').textContent=modelPrefDescribe('secondary',$('modelSecondary').value);
+  const active=modelPrefSnapshot.active_model||'—';
+  const source=modelPrefSnapshot.active_source==='model_pref'?'模型首选':'默认条目';
+  let current='当前生效：'+active+'（'+source+'）';
+  if(state.primary&&!modelPrefEntry(state.primary))current+='；首选「'+state.primary+'」已不在 models.yml 中，机器人会先跟随默认条目';
+  $('modelPrefCurrent').textContent=current;
+  const swaps=state.swaps||{},names=Object.keys(swaps).sort();
+  $('modelPrefSwaps').textContent='今天顶过班：'+(names.length?names.map(name=>name+' '+swaps[name]+' 次').join('、'):'没有');
+}
+function applyModelPref(data){
+  modelPrefSnapshot=data;
+  const state=data.state||{};
+  modelPrefOption($('modelPrimary'),state.primary||'','默认（'+(data.default_model||'models.yml default')+'）');
+  modelPrefOption($('modelSecondary'),state.secondary||'','无（不降级）');
+  updateModelPrefDetails();
+  const publication=data.publication||{};
+  $('modelPrefPublication').textContent=publication.published?'配置已发布':'配置未发布，保存已锁定：请先核对 models.yml 并重新发布摘要';
+  $('modelSave').disabled=!publication.published;
+  $('modelPrefState').textContent='';
+}
+async function loadModelPref(){applyModelPref(await api('/api/model-pref'))}
+async function saveModelPref(){run(async()=>{
+  const primary=$('modelPrimary').value||null;
+  const secondary=$('modelSecondary').value||null;
+  const data=await api('/api/model-pref',{primary,secondary});
+  applyModelPref(data);
+  $('modelPrefState').textContent='已保存 · 下一条回复生效，无需重启';
 })}
 async function resetBotName(){run(async()=>{if(!confirm('恢复默认机器人名称「达妮娅」？'))return;const data=await api('/api/bot-name',{reset:true});$('botNameInput').value=data.name;applyBotName(data.name);const labels={file:'面板设置',env:'环境变量',default:'默认名称'};$('botNameState').textContent=`已恢复 · ${labels[data.source]||data.source||'未知'}`})}
 let tokenData=null;
@@ -2060,11 +2137,12 @@ const pageSections = Array.from(document.querySelectorAll('#panelGrid > section.
 const defaultSection = overviewLink || basicsNav.querySelector('a');
 const sectionLoaders = new Map([
   ['#events', loadEvents], ['#tokens', loadTokens], ['#status', loadStatus],
+  ['#model-pref', loadModelPref],
   ['#superusers', loadSuperusers], ['#game-events', loadGameEvents],
   ['#epic', loadEpic], ['#bilibili', loadBilibili], ['#disaster', loadDisaster],
 ]);
 function basicsHashSet(){
-  const hashes=new Set(['#bot-info','#persona','#tokens','#master','#superusers']);
+  const hashes=new Set(['#bot-info','#persona','#model-pref','#tokens','#master','#superusers']);
   if(basicsNav&&typeof basicsNav.querySelectorAll==='function'){
     const links=Array.from(basicsNav.querySelectorAll('a'));
     if(links.length){hashes.clear();links.forEach(link=>{if(link.hash)hashes.add(link.hash)})}

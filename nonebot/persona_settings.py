@@ -1,4 +1,7 @@
 """Persona template selection for the management panel.
+            "model_name": str(raw.get("model_name") or ""),
+            "provider": str(raw.get("provider") or ""),
+            "stream": bool(raw.get("stream", True)),
 
 MuiceBot resolves the persona from the ``template`` field of the active entry in
 ``configs/models.yml``; ``DEFAULT_TEMPLATE`` is only a fallback for entries that

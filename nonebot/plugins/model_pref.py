@@ -137,19 +137,36 @@ def _timeout() -> float:
 
 
 _state_cache: dict | None = None
+#: 上次读盘时状态文件的 (mtime, ctime, size)。面板是另一个进程，直接写 JSON 时
+#: 只看跨天会一直用内存里的旧首选/次选；token 变了就重读，但正常回话不做额外解析。
+_state_token_value: tuple[int, int, int] | None = None
+
+
+def _state_token() -> tuple[int, int, int] | None:
+    """状态文件的变更指纹；文件不在时返回 None（也用来看「刚被删除」）。"""
+    try:
+        stat = STATE_PATH.stat()
+    except OSError:
+        return None
+    return (stat.st_mtime_ns, stat.st_ctime_ns, stat.st_size)
 
 
 def state() -> dict:
-    """内存里那份选择。跨天了重读一次盘：顶班次数归零，首选/次选留着。"""
-    global _state_cache
+    """内存里那份选择。跨天、或面板改了状态文件时重读一次盘。"""
+    global _state_cache, _state_token_value
     day = mp.today()
-    if _state_cache is None or _state_cache.get("day") != day:
+    token = _state_token()
+    if (_state_cache is None or _state_cache.get("day") != day
+            or token != _state_token_value):
         _state_cache = mp.load_state(STATE_PATH, day=day)
+        _state_token_value = token
     return _state_cache
 
 
 def _persist() -> None:
+    global _state_token_value
     mp.save_state(STATE_PATH, state())
+    _state_token_value = _state_token()
 
 
 # ---------------------------------------------------------------- 条目表

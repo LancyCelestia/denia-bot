@@ -18,6 +18,7 @@ import bot_updater
 import bot_identity
 import meme_logic
 import memory_logic as memory
+import model_pref_panel
 import group_topics_logic as topics
 import weather_service as weather
 import epic_free_config as epic_config
@@ -516,6 +517,31 @@ async def change_bot_name(req: Request):
         raise HTTPException(400, str(e))
     except OSError:
         raise HTTPException(503, '机器人名称无法保存')
+
+@app.get('/api/model-pref')
+def model_pref_config(req: Request):
+    authorized(req)
+    try:
+        return model_pref_panel.view()
+    except (OSError, ValueError, KeyError):
+        raise HTTPException(503, '模型设置无法读取')
+
+@app.post('/api/model-pref')
+async def set_model_pref_config(req: Request):
+    mutate(req)
+    body = await req.json()
+    if not isinstance(body, dict):
+        raise HTTPException(400, '请求体必须是对象')
+    if 'primary' not in body or 'secondary' not in body:
+        raise HTTPException(400, '必须同时提供 primary 和 secondary')
+    try:
+        return model_pref_panel.save(body.get('primary'), body.get('secondary'))
+    except model_pref_panel.Unpublished:
+        raise HTTPException(409, '模型配置尚未发布：请先核对 configs/models.yml 并重新发布摘要')
+    except (ValueError, TypeError) as e:
+        raise HTTPException(400, str(e))
+    except OSError:
+        raise HTTPException(503, '模型设置无法保存')
 
 @app.get('/api/persona')
 def persona_config(req: Request):
