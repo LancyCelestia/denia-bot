@@ -15,7 +15,7 @@
 
 ### 修复与加固
 
-- Windows 一键启动：首次运行时下载并校验固定版本的 python-build-standalone 3.12.13 到 `runtime\python312`，再创建 `nonebot\.venv`；不复用系统或 uv 的 Python，`-CheckOnly` 和 `-SkipInstall` 都不会下载。
+- Windows 一键启动：仅当 `nonebot\.venv` 缺失且 `runtime\python312` 不存在时，才下载并校验固定版本的 python-build-standalone 3.12.13，解压到 `runtime\python312` 后创建虚拟环境。已有有效虚拟环境或有效运行时缓存时无需下载；不复用系统或 uv 的 Python，preflight 的 `-CheckOnly` 和 `-SkipInstall` 都不会下载。
 
 ## [0.1.0b2] - 2026-11-19
 
