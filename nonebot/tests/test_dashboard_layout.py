@@ -137,3 +137,16 @@ def test_holy_layout_has_no_right_context_rail():
     assert workspace is not None
     assert 'margin-right:0' in workspace.group(1)
     assert 'max-width:1440px' in workspace.group(1)
+
+
+def test_shader_primary_action_uses_readable_theme_colors():
+    styles = _styles(_html())
+    rules = re.findall(
+        r'html\[data-skin="shader"\] #app \.btn-primary(?::hover)?\{([^}]*)\}',
+        styles,
+    )
+    assert rules, 'shader must override the generic .btn-primary ink/paper colors'
+    joined = ' '.join(rules)
+    assert 'background:var(--accent)' in joined
+    assert 'color:var(--on-accent)' in joined
+    assert 'color:var(--paper)' not in joined
