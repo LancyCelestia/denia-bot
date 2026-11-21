@@ -1,4 +1,4 @@
-<!doctype html><html lang="zh-CN" data-skin="default"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>QQ 机器人管理 · {{APP_VERSION}}</title>
+<!doctype html><html lang="zh-CN" data-skin="korean" data-theme="light"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>QQ 机器人管理 · {{APP_VERSION}}</title>
 <style>
 :root{color-scheme:light;--bg:#faf9f5;--paper:#fffefa;--sidebar:#f0eee7;--ink:#292721;--muted:#817e73;--line:#e8e5dc;--accent:#c66e4e;--accent-dark:#a9563c;--accent-soft:#f7eae2;--radius:16px}*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--ink);font:var(--fs-15)/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif}button,input,select{font:inherit}button,input,select{border:1px solid var(--line-strong);border-radius:var(--r-9);min-height:var(--control-h)}button{cursor:pointer;color:var(--text-3);background:var(--paper);padding:8px 14px;transition:background .15s,border-color .15s}button:hover{background:var(--surface-hover);border-color:var(--line-hover)}button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{outline:3px solid var(--focus);outline-offset:2px}input,select{color:var(--ink);background:var(--paper);padding:8px 12px;max-width:100%}input::placeholder{color:var(--text-11)}a{color:inherit;text-decoration:none}[hidden]{display:none!important}.shell{min-height:100vh}.sidebar{position:fixed;inset:0 auto 0 0;width:244px;background:var(--sidebar);border-right:1px solid var(--sidebar-border);padding:27px 18px;display:flex;flex-direction:column}.brand{display:flex;align-items:center;gap:11px;padding:0 7px 30px;font-weight:650;font-size:var(--fs-16);letter-spacing:.02em}.brand-mark{display:grid;place-items:center;width:34px;height:34px;border-radius:var(--r-10);background:var(--accent);color:var(--on-accent);font-size:var(--fs-18)}.nav-caption{font-size:var(--fs-11);letter-spacing:.1em;color:var(--text-10);margin:6px 12px 10px}.nav-link{display:flex;align-items:center;gap:12px;padding:var(--nav-pad);border-radius:var(--r-9);color:var(--text-5);margin:2px 0}.nav-link:hover{background:var(--surface-active)}.nav-link.active{background:var(--nav-active-bg);color:var(--ink-soft);font-weight:600}.nav-icon{width:18px;text-align:center;font-size:var(--fs-17);color:var(--nav-icon)}.nav-ext{margin-left:auto;color:var(--text-10);font-size:var(--fs-12)}.nav-link.external .nav-icon{color:var(--text-8)}.side-bottom{margin-top:auto;border-top:1px solid var(--line-mid);padding:18px 8px 0;color:var(--text-8);font-size:var(--fs-12)}.side-bottom strong{display:block;color:var(--text-4);font-size:var(--fs-13)}.side-logout{margin-top:10px;min-height:30px;font-size:var(--fs-12);padding:4px 12px;background:transparent;color:var(--text-8);border-color:var(--line-mid)}.side-logout:hover{background:var(--surface-active);color:var(--text-5)}.workspace{margin-left:244px;padding:var(--pad-workspace);max-width:1500px}.topline{color:var(--text-9);font-size:var(--fs-13);display:flex;justify-content:space-between;gap:20px}.topline b{color:var(--text-6);font-weight:500}.intro{padding:38px 0 24px}.eyebrow{font-size:var(--fs-12);color:var(--accent-dark);font-weight:600;letter-spacing:.08em}.intro h1{font-family:Georgia,"Songti SC",serif;font-weight:500;letter-spacing:-.035em;font-size:var(--fs-37);line-height:1.2;margin:9px 0 10px}.intro p,.section-description{color:var(--muted);margin:0}.card{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:var(--pad-card);margin:0 0 var(--gap-card);scroll-margin-top:24px}.card-head{display:flex;gap:15px;align-items:flex-start;margin-bottom:23px}.card-icon{width:40px;height:40px;flex:none;display:grid;place-items:center;border-radius:var(--r-12);color:var(--accent-dark);background:var(--accent-soft);font-size:var(--fs-19)}.card h2{font-size:var(--fs-18);letter-spacing:-.02em;margin:0 0 3px}.card h3{font-size:var(--fs-14);margin:26px 0 10px}.card p{margin:10px 0}.section-description{font-size:var(--fs-13)}.controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.controls select,.controls input{min-width:150px}.controls .grow{flex:1}.primary{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}.primary:hover{background:var(--accent-dark);border-color:var(--accent-dark)}.danger{color:var(--danger)}.status{font-size:var(--fs-13);color:var(--muted);margin:12px 0!important}.status:before{content:'';display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--dot);margin-right:8px}.list{list-style:none;padding:0;margin:14px 0 0}.list:empty:after{content:'暂无内容';display:block;color:var(--text-12);font-size:var(--fs-13);padding:15px 0}.list li{display:flex;align-items:center;gap:7px;flex-wrap:wrap;border-top:1px solid var(--line-faint);padding:12px 0;color:var(--text-3)}.list li button{min-height:32px;font-size:var(--fs-12);padding:4px 10px}.list li button:first-of-type{margin-left:auto}.subsection{border-top:1px solid var(--line);margin-top:24px;padding-top:1px}.hint{color:var(--text-9);font-size:var(--fs-12)}.auth-wrap{min-height:100vh;display:grid;place-items:center;padding:24px}.auth-card{width:min(100%,420px);padding:40px;background:var(--paper);border:1px solid var(--line);border-radius:var(--r-20);box-shadow:0 16px 50px var(--shadow-card)}.auth-card .brand-mark{width:42px;height:42px;margin-bottom:28px}.auth-card h1{font:500 var(--fs-29)/1.25 Georgia,"Songti SC",serif;margin:0 0 9px}.auth-card p{color:var(--muted);font-size:var(--fs-14);margin:0 0 24px}.auth-card input{width:100%;margin-bottom:10px}.auth-card button{width:100%;margin-top:6px}.auth-label{display:block;font-size:var(--fs-13);color:var(--text-5);margin-bottom:7px}.auth-foot{font-size:var(--fs-12)!important;color:var(--text-12)!important;text-align:center;margin:24px 0 0!important}#message{color:var(--danger);font-size:var(--fs-13);min-height:20px;margin:12px 0}#message:empty{display:none}.notice-slot{max-width:960px}.separator{height:1px;background:var(--line);margin:24px 0}.weather-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.weather-grid label{font-size:var(--fs-12);color:var(--text-7)}.weather-grid input{display:block;width:100%;margin-top:5px}.weather-actions{margin-top:12px}.mobile-brand{display:none}
 @media(min-width:801px){.nav{min-height:0;overflow-y:auto;overscroll-behavior:contain}}
@@ -508,11 +508,196 @@ html[data-icon-color="black"] .nav-icon{color:#111}
   html[data-sidebar-layout="line"]:not([data-skin="holy"]) .sidebar{background:transparent;border-right:1px solid var(--line);box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none}
 }
 </style>
+<style id="prototypeShell">
+/* PR #46 prototype shell: layout only; colors come from the active theme tokens. */
+:root{
+  --tray: var(--surface-2);
+  --paper-2: var(--surface-3);
+  --font-display: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+  --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+  --font-mono: "Cascadia Mono", Consolas, "Microsoft YaHei", monospace;
+  --r-core: max(0px, calc(var(--r-20) - 4px));
+  --r-hero: calc(var(--r-20) + 6px);
+  --sb-w: 264px;
+}
+html[data-skin="korean"]{
+  --tray:#f4efeb;--paper-2:#f8f3ef;
+  --font-display:"Geist","MiSans","HarmonyOS Sans SC","Microsoft YaHei UI",sans-serif;
+  --font-body:"Geist","MiSans","HarmonyOS Sans SC","Microsoft YaHei UI",sans-serif;
+  --font-mono:"Cascadia Mono","Consolas","MiSans",monospace;
+}
+html[data-skin="holy"]{
+  --tray:#f8fafc;--paper-2:#f1f5f9;
+  --font-display:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif;
+  --font-body:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif;
+}
+body::after{content:"";position:fixed;inset:0;z-index:2;pointer-events:none;opacity:.022;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.82' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='.55'/%3E%3C/svg%3E");background-size:160px 160px}
+svg.liquid-filter-defs{position:absolute;width:0;height:0;overflow:hidden}
+#app.shell{display:block;isolation:isolate}
+#app .sidebar{position:fixed;top:12px;left:12px;bottom:12px;width:var(--sb-w);padding:18px 16px;border:1px solid var(--line);border-radius:22px;background:var(--sidebar-translucent,var(--sidebar));box-shadow:0 30px 76px -54px rgba(74,52,32,.45),inset 0 1px 0 rgba(255,255,255,.75);-webkit-backdrop-filter:blur(16px) saturate(115%);backdrop-filter:blur(16px) saturate(115%);display:flex;flex-direction:column;overflow:hidden;z-index:50}
+#app .brand{padding:2px 4px 14px}
+#app .bot-card{display:flex;align-items:center;gap:10px;min-height:56px;margin:0 0 14px;padding:9px 10px;border:1px solid var(--line);border-radius:14px;background:var(--paper-2)}
+#app .avatar{width:32px;height:32px;flex:none;display:grid;place-items:center;border-radius:999px;background:var(--accent-soft);color:var(--accent-dark);font:600 13px/1 var(--font-body)}
+#app .bot-copy{min-width:0;flex:1}
+#app .bot-name{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;font-weight:600}
+#app .bot-sub{display:block;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font:11.5px var(--font-mono)}
+#app .bot-live{width:6px;height:6px;flex:none;border-radius:999px;background:var(--success)}
+#app .bot-live[data-tone="bad"]{background:var(--danger)}
+#app .bot-live[data-tone="unknown"]{background:var(--text-10)}
+#app .nav-caption{display:block;margin:12px 6px 4px;color:var(--text-8);font:500 11px var(--font-mono);letter-spacing:.08em}
+#app .nav{display:flex;flex-direction:column;flex:1 1 auto;gap:1px;min-height:0;overflow-y:auto}
+#app .nav-link{min-height:34px;margin:0;padding:0 10px;border-radius:12px;font-size:13.5px;color:var(--text-5)}
+#app .nav-link:hover{background:var(--surface-hover);color:var(--ink)}
+#app .nav-link.active{background:var(--nav-active-bg);color:var(--ink);font-weight:500}
+#app .nav-link.active::before{content:"";width:3px;height:16px;border-radius:99px;background:var(--accent);flex:none}
+#app .sb-close{display:none;position:absolute;top:12px;right:12px;z-index:2;align-items:center;justify-content:center;width:30px;height:30px;min-height:30px;padding:0;border:1px solid var(--line);border-radius:9px;background:var(--paper);color:var(--muted);font-size:18px;line-height:1;box-shadow:none}
+#app .side-bottom{display:block;margin-top:auto;padding:12px 6px 0;border-top:1px solid var(--line);font-size:11.5px;color:var(--muted)}
+#app .side-bottom strong{display:block;margin-bottom:2px;color:var(--text-5);font-size:12px}
+#app .side-theme,#app .side-logout{width:100%;min-height:32px;margin-top:6px;padding:4px 10px;border-color:var(--line);border-radius:10px;background:transparent;font-size:12px;box-shadow:none}
+#app .side-theme:hover,#app .side-logout:hover{background:var(--surface-hover);border-color:var(--line-strong)}
+#app .workspace{margin-left:288px;margin-right:0;max-width:1180px;padding:12px 32px 64px}
+.page-head{position:sticky;top:12px;z-index:30;display:flex;align-items:flex-end;justify-content:space-between;gap:20px;min-height:78px;padding:14px 18px;border:1px solid var(--line);border-radius:var(--r-20);background:var(--paper-translucent,var(--paper));box-shadow:0 20px 54px -44px var(--shadow-card),inset 0 1px 0 rgba(255,255,255,.6);-webkit-backdrop-filter:blur(16px) saturate(115%);backdrop-filter:blur(16px) saturate(115%)}
+.head-left{display:flex;align-items:flex-start;gap:12px;min-width:0}
+.head-left h1{margin:4px 0 6px;font:600 34px/1.14 var(--font-display);letter-spacing:-.015em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.head-desc{margin:0;max-width:60ch;color:var(--muted);font-size:12.5px;line-height:1.6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.head-right{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:10px}
+.eyebrow{color:var(--accent-dark);font:500 11px var(--font-mono);letter-spacing:.12em;text-transform:uppercase}
+.live-pill{display:inline-flex;align-items:center;gap:7px;min-height:30px;padding:0 11px;border:1px solid var(--line);border-radius:999px;background:var(--paper-2);color:var(--muted);font-size:12px;white-space:nowrap}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:4px 9px;border:1px solid var(--line);border-radius:999px;background:var(--paper-2);color:var(--text-5);font-size:11px;white-space:nowrap}
+.dot{display:inline-block;width:6px;height:6px;flex:none;border-radius:999px;background:var(--success)}
+.dot[data-tone="warn"],.pill[data-tone="warn"] .dot{background:var(--warn)}
+.dot[data-tone="bad"],.pill[data-tone="bad"] .dot{background:var(--danger)}
+.dot[data-tone="unknown"],.pill[data-tone="unknown"] .dot{background:var(--text-10)}
+#app .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:34px;padding:0 14px;border:1px solid var(--line-strong);border-radius:11px;background:var(--paper);color:var(--text-3);font-size:13px;box-shadow:none;transition:background .2s,border-color .2s}
+#app .btn:hover{background:var(--surface-hover);border-color:var(--line-hover)}
+#app .btn-primary{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+#app .btn-primary:hover{background:var(--ink-soft);border-color:var(--ink-soft);color:var(--paper)}
+#app .btn-quiet{background:transparent}
+#app .link{display:inline-flex;align-items:center;gap:4px;color:var(--accent-dark);font-size:13px;text-decoration:none}
+#app .link:hover{text-decoration:underline}
+#app #appearanceButtonMobile{display:none}
+#appearancePopover{z-index:70}
+.sb-toggle{display:none;align-items:center;justify-content:center;width:34px;height:34px;padding:0;border-radius:10px;border:1px solid var(--line);background:var(--paper);color:var(--text-4);font-size:17px;line-height:1}
+.hero{margin-top:16px;padding:5px;border:1px solid var(--line);border-radius:var(--r-hero);background:var(--tray);box-shadow:0 18px 50px var(--shadow-card)}
+.hero-core{display:grid;grid-template-columns:minmax(0,1.48fr) minmax(0,.82fr);overflow:hidden;border-radius:var(--r-core);background:var(--paper)}
+.hero-main{min-width:0;padding:30px 34px 28px}
+.hero-bot{display:flex;align-items:center;gap:9px;color:var(--muted);font-size:12px}
+.hero-bot .avatar{width:28px;height:28px;font-size:11.5px}
+.verdict-row{margin-top:18px}
+.verdict{font:600 56px/.95 var(--font-display);letter-spacing:-.015em;color:var(--ink)}
+.hero-sub{max-width:58ch;margin:12px 0 0;color:var(--text-2);font-size:14px;line-height:1.7}
+.hero-actions{display:flex;align-items:center;flex-wrap:wrap;gap:14px;margin-top:18px}
+.hero-side{padding:22px 24px;border-left:1px solid var(--line);background:var(--paper-2)}
+.side-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.side-head h2{margin:0;font:600 15px/1.2 var(--font-display)}
+.hb-note{margin-top:6px;color:var(--muted);font:11.5px var(--font-mono)}
+.ruler-plot{display:flex;align-items:flex-end;justify-content:space-between;gap:2px;height:64px;margin-top:10px;border-bottom:1px solid var(--line-soft)}
+.rtick{flex:1;min-width:2px;height:20%;border-radius:2px;background:var(--accent);opacity:.45;transition:height .3s,background .3s,opacity .3s}
+.rtick[data-tone="ok"]{background:var(--success)}
+.rtick[data-tone="warn"]{background:var(--warn)}
+.rtick[data-tone="bad"]{background:var(--danger)}
+.rtick.is-out{opacity:.22;background:var(--line-strong)}
+.ruler-axis{display:flex;justify-content:space-between;margin-top:4px;color:var(--text-10);font:11px var(--font-mono)}
+.side-facts{margin-top:12px;border-top:1px solid var(--line);padding-top:4px}
+.side-facts .row{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid var(--line-faint);font-size:12.5px}
+.side-facts .row span{color:var(--muted)}
+.kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:1px;margin-top:14px;border:1px solid var(--line);border-radius:var(--r-core);background:var(--line);overflow:hidden}
+.kpi{min-width:0;padding:14px 16px;background:var(--paper)}
+.kpi span{display:block;color:var(--text-8);font-size:12px}
+.kpi b{display:block;margin-top:5px;color:var(--ink);font:600 24px/1.05 var(--font-display);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi small{display:block;margin-top:4px;color:var(--muted);font:11.5px/1.35 var(--font-mono);white-space:normal;overflow-wrap:anywhere}
+#botBasicsNav{display:flex;flex-wrap:nowrap;gap:6px;overflow-x:auto;margin:14px 0 0;padding:0 0 2px;scrollbar-width:none}
+#botBasicsNav::-webkit-scrollbar{display:none}
+#botBasicsNav .nav-link{flex:none;min-height:32px;margin:0;padding:0 12px;border:1px solid var(--line);border-radius:999px;background:var(--paper-2);color:var(--muted);font-size:12px;white-space:nowrap}
+#botBasicsNav .nav-link:hover{background:var(--surface-hover);color:var(--ink)}
+#botBasicsNav .nav-link.active{background:var(--paper);border-color:var(--line-strong);color:var(--ink);font-weight:500}
+#botBasicsNav .nav-link.active::before{display:none}
+#panelGrid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:24px;margin-top:18px;align-items:start}
+#panelGrid > .card{grid-column:span 12;min-width:0;margin:0;scroll-margin-top:124px;outline:4px solid var(--tray);outline-offset:0}
+#panelGrid > #master,#panelGrid > #superusers,#panelGrid > #group,#panelGrid > #weather,#panelGrid > #game-events,#panelGrid > #epic,#panelGrid > #bilibili,#panelGrid > #embedding,#panelGrid > #renderer,#panelGrid > #disaster,#panelGrid > #account,#panelGrid > #monitor{grid-column:span 6}
+.context-rail{display:none;position:fixed;top:12px;right:12px;bottom:12px;z-index:40;width:280px;flex-direction:column;gap:12px;overflow-y:auto}
+.rail-card{padding:18px;border:1px solid var(--line);border-radius:18px;background:var(--paper);box-shadow:0 10px 30px var(--shadow-card)}
+.rail-label{color:var(--muted);font:500 10px var(--font-mono);letter-spacing:.12em;text-transform:uppercase}
+.rail-card h2{margin:6px 0;font:500 18px var(--font-display)}
+.rail-desc{margin:0;color:var(--muted);font-size:12.5px;line-height:1.6}
+.rail-meta{display:flex;justify-content:space-between;gap:8px;margin-top:12px;color:var(--text-9);font:11px var(--font-mono)}
+.rail-links{display:flex;flex-direction:column;gap:2px;margin-top:8px}
+.rail-links a{padding:7px 8px;border-radius:8px;color:var(--muted);font-size:12.5px;text-decoration:none}
+.rail-links a:hover,.rail-links a[aria-current="true"]{background:var(--surface-hover);color:var(--ink)}
+.page-footer{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:26px;padding:16px 0;border-top:1px solid var(--line);color:var(--muted);font-size:12px}
+.page-footer a{color:var(--accent-dark);text-decoration:none}
+.nav-overlay{position:fixed;inset:0;z-index:55;background:rgba(20,20,20,.35);-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)}
+html[data-skin="holy"] #app .sidebar{top:0;left:0;bottom:0;background:var(--paper);border:0;border-right:1px solid var(--line);border-radius:0;box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none}
+html[data-skin="holy"] .page-head{background:var(--paper);box-shadow:0 1px 2px var(--shadow-card)}
+@media(min-width:801px){
+  html[data-skin="holy"] #app .sidebar{width:240px;padding-left:14px;padding-right:14px}
+  html[data-skin="holy"] #app .workspace{margin-left:240px;max-width:1100px}
+  html[data-skin="holy"] #panelGrid > .card{scroll-margin-top:124px}
+}
+/* Academia scopes its paper palette on .card; mirror that local palette on the new paper surfaces. */
+html[data-skin="academia"] #app .hero-main,
+html[data-skin="academia"] #app .kpi,
+html[data-skin="academia"] #app #botBasicsNav .nav-link.active,
+html[data-skin="academia"] #app .page-head{
+  --ink:#3d2b1f;--ink-soft:#2a1d15;--muted:#8b7355;
+  --line:rgba(139,115,85,.25);--line-strong:rgba(139,115,85,.45);--line-soft:rgba(139,115,85,.15);--line-faint:rgba(139,115,85,.10);--line-mid:rgba(139,115,85,.30);--line-hover:rgba(139,115,85,.55);
+  --surface-2:rgba(245,240,225,.90);--surface-3:rgba(139,115,85,.08);--surface-hover:rgba(139,115,85,.10);--surface-active:rgba(139,115,85,.16);--nav-active-bg:rgba(139,115,85,.20);
+  --text-2:#3d2b1f;--text-3:#4a3627;--text-4:#574130;--text-5:#644c3a;--text-6:#715745;--text-7:#7e6350;--text-8:#8b7355;--text-9:#94805f;--text-10:#9d8b6a;--text-11:#a69676;--text-12:#b0a184;
+  --accent:#8b7355;--accent-dark:#5c4033;--accent-soft:rgba(139,115,85,.15);--on-accent:#f5f0e1;--focus:#8b7355;
+  --danger:#a45a4a;--danger-bg:rgba(164,90,74,.10);--danger-border:rgba(164,90,74,.28);--success:#647f53;--warn:#8b7355;--warn-text:#8a6a2e;
+  --paper:#f5f0e1;color:var(--ink);
+}
+html[data-skin="academia"] #app .head-right .btn{background:#3d2b1f;border-color:rgba(139,115,85,.45);color:#f5f0e1}
+html[data-skin="academia"] #app .head-right .btn:hover{background:#5c4033;border-color:rgba(139,115,85,.80);color:#f5f0e1}
+@media(max-width:1279px){
+  html[data-skin="holy"] #app .workspace{margin-right:0}
+  .context-rail{display:none!important}
+}
+@media(min-width:1280px){
+  html[data-skin="holy"] .context-rail{display:flex}
+  html[data-skin="holy"] #app .workspace{margin-right:304px;max-width:1100px}
+}
+@media(max-width:1100px){
+  #panelGrid{grid-template-columns:1fr}
+  #panelGrid > .card{grid-column:auto!important}
+  .kpis{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .hero-core{grid-template-columns:1fr}
+  .hero-side{border-left:0;border-top:1px solid var(--line)}
+}
+@media(max-width:800px){
+  #app .sidebar{top:0;left:0;bottom:0;width:min(84vw,300px);border-radius:0 22px 22px 0;transform:translateX(-105%);visibility:hidden;transition:transform .28s var(--ease, ease),visibility 0s linear .28s;z-index:60}
+  body.nav-open #app .sidebar{transform:none;visibility:visible;transition:transform .28s var(--ease, ease),visibility 0s}
+  #app .workspace{margin:0;padding:16px 18px 48px}
+  #app .sb-close{display:inline-flex}
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .sb-toggle{display:inline-flex}
+  #app #appearanceButtonMobile{display:inline-flex}
+  .page-head{top:8px;padding:10px 12px;align-items:flex-start;flex-direction:column;gap:10px}
+  #panelGrid > .card{scroll-margin-top:160px}
+  .head-right{width:100%;justify-content:flex-start}
+  .head-left h1{font-size:28px}
+  #app .nav-link{white-space:normal}
+}
+@media(max-width:640px){
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .hero-main{padding:22px 20px}
+  .hero-side{padding:18px 20px}
+  .verdict{font-size:34px}
+  .hero-actions{gap:10px}
+  .head-left h1{font-size:25px}
+  .rail-meta{flex-direction:column;gap:2px}
+}
+@media(prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  #app .sidebar,.rtick,#app .btn{transition:none!important}
+}
+</style>
 <script id="appearanceBoot">
+
 (function(w){
   var KEY='qqbot.dashboard.appearance.v1';
   var SCHEME={photo:'dark',korean:'light',shader:'dark',holy:'light',scandi:'light',academia:'dark'};
-  function defaults(){return {mode:'system',skin:'default',style:'comfortable',background:{kind:'none',preset:'paper',value:'',scope:'hero'},misc:{radius:null,sidebarLayout:'docked',iconColor:'colored'}}}
+  function defaults(){return {mode:'system',skin:'korean',style:'comfortable',background:{kind:'none',preset:'paper',value:'',scope:'hero'},misc:{radius:null,sidebarLayout:'docked',iconColor:'colored'}}}
   function normalize(raw){
     var s=defaults();
     if(!raw||typeof raw!=='object')return s;
@@ -564,26 +749,35 @@ html[data-icon-color="black"] .nav-icon{color:#111}
 <svg class="liquid-filter-defs" width="0" height="0" aria-hidden="true" focusable="false"><defs><filter id="liquidGlassFilter" x="-10%" y="-10%" width="120%" height="120%" color-interpolation-filters="sRGB"><feTurbulence type="fractalNoise" baseFrequency="0.012 0.018" numOctaves="2" seed="5" result="noise"/><feGaussianBlur in="noise" stdDeviation="1.2" result="soft"/><feDisplacementMap in="SourceGraphic" in2="soft" scale="14" xChannelSelector="R" yChannelSelector="G"/></filter></defs></svg>
 <div id="auth" class="auth-wrap"><div class="auth-card"><div class="brand-mark" aria-hidden="true">✳</div><section id="login"><h1>欢迎回来</h1><p>登录管理控制台，继续照看你的机器人。</p><form onsubmit="login();return false"><label class="auth-label" for="password">管理员密码</label><input id="password" type="password" autocomplete="current-password" placeholder="请输入密码" required><button class="primary" type="submit">登录控制台　→</button></form></section>
 <section id="firstRun" hidden><h1>首次设置密码</h1><p>这是首次登录。请设置新的管理员密码（12 至 256 位），完成后所有设备都需要用新密码重新登录，一次性临时密码文件会被删除。</p><form onsubmit="setupPassword();return false"><label class="auth-label" for="setupPassword">新密码</label><input id="setupPassword" type="password" autocomplete="new-password" minlength="12" maxlength="256" placeholder="至少 12 位" required><label class="auth-label" for="setupPasswordConfirm">确认新密码</label><input id="setupPasswordConfirm" type="password" autocomplete="new-password" minlength="12" maxlength="256" placeholder="再次输入密码" required><button class="primary" type="submit">完成设置并重新登录　→</button></form></section><p id="message" role="status" aria-live="polite"></p><p class="auth-foot">QQ BOT · 管理员控制台 · {{APP_VERSION}}</p></div></div>
-<div id="app" class="shell" hidden><aside class="sidebar"><div class="brand"><span class="brand-mark" aria-hidden="true">✳</span><span><span id="botBrandName">达妮娅</span> <span style="color:var(--text-10);font-weight:400">/</span> 控制台</span></div><div class="nav-caption">管理空间</div><nav class="nav" aria-label="管理导航">
+<div id="app" class="shell" hidden><div id="navOverlay" class="nav-overlay" hidden></div><aside class="sidebar" id="appSidebar"><button type="button" class="sb-close" id="navClose" aria-label="关闭导航">×</button><div class="brand"><span class="brand-mark" aria-hidden="true">✳</span><span><span id="botBrandName">达妮娅</span> <span style="color:var(--text-10);font-weight:400">/</span> 控制台</span></div>
+<div class="bot-card"><span class="avatar" id="shellAvatar">达</span><span class="bot-copy"><strong class="bot-name" id="shellBotName">达妮娅</strong><span class="bot-sub" id="shellBotVersion">OneBot · 本地控制台</span></span><span class="bot-live" id="shellBotLive" data-tone="unknown" aria-hidden="true"></span></div>
+<div class="nav-caption">工作台</div><nav class="nav" aria-label="管理导航">
 <a id="botBasicsLink" class="nav-link active" href="#bot-info"><span class="nav-icon">◈</span>Bot 基本情况</a>
 <a class="nav-link" href="#memes"><span class="nav-icon">☺</span>表情包</a>
 <a class="nav-link" href="#memory"><span class="nav-icon">◈</span>用户记忆</a>
 <a class="nav-link" href="#group"><span class="nav-icon">◉</span>群聊话题</a>
 <a class="nav-link" href="#status"><span class="nav-icon">◧</span>服务器状态</a>
 <a class="nav-link" href="#plugins"><span class="nav-icon">⚙</span>插件管理</a>
+<div class="nav-caption">服务与订阅</div>
 <a class="nav-link" href="#weather"><span class="nav-icon">☼</span>天气助手</a>
 <a class="nav-link" href="#game-events"><span class="nav-icon">▣</span>游戏活动</a>
 <a class="nav-link" href="#epic"><span class="nav-icon">✧</span>Epic 喜加一</a>
 <a class="nav-link" href="#bilibili"><span class="nav-icon">▷</span>B站动态</a>
 <a class="nav-link" href="#disaster"><span class="nav-icon">⚠</span>灾害预警</a>
 <a class="nav-link" href="#parser"><span class="nav-icon">↗</span>链接解析</a>
+<div class="nav-caption">知识与渲染</div>
 <a class="nav-link" href="#embedding"><span class="nav-icon">◈</span>知识库 Embedding</a>
 <a class="nav-link" href="#renderer"><span class="nav-icon">◧</span>图片渲染服务</a>
+<div class="nav-caption">运维</div>
 <a class="nav-link" href="#monitor"><span class="nav-icon">◌</span>运行状态</a>
 <a class="nav-link" href="#events"><span class="nav-icon">≡</span>解析日志</a>
+<div class="nav-caption">安全</div>
 <a class="nav-link" href="#account"><span class="nav-icon">⚿</span>管理员密码</a>
 <div class="nav-caption">外部服务</div><a id="gsuidConsoleLink" class="nav-link external" href="http://127.0.0.1:8765/app" target="_blank" rel="noopener noreferrer" title="gsuid_core WebConsole（独立登录，默认端口 8765）" aria-label="打开 gsuid_core 游戏账号控制台（端口 8765）"><span class="nav-icon">⚙</span>游戏账号控制台<span class="nav-ext">↗</span></a></nav><div class="side-bottom"><strong>QQ 机器人</strong>本地管理空间 · {{APP_VERSION}}<button type="button" class="side-logout" onclick="logout()">退出登录</button><button type="button" class="side-theme" id="appearanceButton" aria-expanded="false" aria-controls="appearancePopover">◐ 主题设置</button></div></aside>
-<main class="workspace"><div class="topline"><span>管理空间 <b> /　控制台</b></span><span>记忆 · 群聊 · 天气</span><button type="button" class="topline-theme" id="appearanceButtonMobile" aria-expanded="false" aria-controls="appearancePopover" aria-label="主题设置">◐</button></div><div class="intro"><div class="eyebrow">YOUR BOT, AT A GLANCE</div><h1>你好，欢迎回来。</h1><p>在这里管理她的记忆、群里的话题与天气提醒。</p></div><div id="appMessage" class="notice-slot" role="status" aria-live="polite"></div>
+<main class="workspace"><header class="page-head"><div class="head-left"><button type="button" class="sb-toggle" id="navToggle" aria-label="打开导航" aria-controls="appSidebar" aria-expanded="false">☰</button><div><div class="eyebrow">YOUR BOT, AT A GLANCE</div><h1 id="pageTitle">你好，<span id="heroBotName">达妮娅</span>。</h1><p class="head-desc" id="pageDesc">在这里管理她的记忆、群里的话题与天气提醒。</p></div></div><div class="head-right"><span class="live-pill" id="shellLive" role="status" aria-live="polite"><span class="dot" id="shellLiveDot" data-tone="unknown"></span><span id="shellLiveText">连接中</span></span><button type="button" class="btn" onclick="refreshShell()">刷新</button><button type="button" class="btn topline-theme" id="appearanceButtonMobile" aria-expanded="false" aria-controls="appearancePopover" aria-label="主题设置">◐ 主题</button></div></header>
+<div id="appMessage" class="notice-slot" role="status" aria-live="polite"></div>
+<section class="hero" aria-labelledby="heroVerdict"><div class="hero-core"><div class="hero-main"><div class="hero-bot"><span class="avatar" id="heroAvatar">达</span><span id="heroBotLine">达妮娅 · OneBot</span><span class="pill" id="heroConnection"><span class="dot" data-tone="unknown"></span>连接中</span></div><div class="verdict-row"><div class="eyebrow" id="heroKicker">CURRENT STATUS</div><h2 class="verdict" id="heroVerdict" aria-live="polite">—</h2><p class="hero-sub" id="heroSub" aria-live="polite">正在读取状态…</p></div><div class="hero-actions"><a class="btn btn-primary" href="#status">查看运行详情 →</a><a class="link" href="#status">状态历史</a></div></div><aside class="hero-side"><div class="side-head"><h2>24h 采样</h2><span class="pill" id="heroHeartbeat"><span class="dot" data-tone="ok"></span>等待</span></div><p class="hb-note" id="heroHbNote">采集于 —</p><div class="ruler-plot" id="heroRuler" role="img" aria-label="过去 24 小时的资源采样"></div><div class="ruler-axis" aria-hidden="true"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div><div class="side-facts"><div class="row"><span>连续运行</span><b id="heroStartedAt">—</b></div><div class="row"><span>最近采集</span><b id="heroLastRefresh">—</b></div><div class="row"><span>当前版本</span><b>{{APP_VERSION}}</b></div></div></aside></div></section>
+<div class="kpis" aria-label="运行概览"><div class="kpi"><span>CPU</span><b id="kpiCpu">—</b><small id="kpiCpuSmall">当前采样</small></div><div class="kpi"><span>内存</span><b id="kpiMem">—</b><small id="kpiMemSmall">已用 / 总量</small></div><div class="kpi"><span>磁盘</span><b id="kpiDisk">—</b><small id="kpiDiskSmall">已用 / 总量</small></div><div class="kpi"><span>今日 Token</span><b id="kpiTokens">—</b><small id="kpiTokensSmall">近 7 天 —</small></div><div class="kpi"><span>p95 延迟</span><b id="kpiP95">—</b><small id="kpiP95Small">暂无数据</small></div><div class="kpi"><span>消息速率</span><b id="kpiRate">—</b><small id="kpiRateSmall">暂无数据</small></div></div>
 <nav id="botBasicsNav" class="basics-nav" aria-label="Bot 基本情况">
 <a class="nav-link" href="#bot-info"><span class="nav-icon">◈</span>基本信息</a>
 <a class="nav-link" href="#persona"><span class="nav-icon">✎</span>人格模板</a>
@@ -591,7 +785,8 @@ html[data-icon-color="black"] .nav-icon{color:#111}
 <a class="nav-link" href="#master"><span class="nav-icon">◇</span>主人识别</a>
 <a class="nav-link" href="#superusers"><span class="nav-icon">⚑</span>超级管理员</a>
 </nav>
-<section id="bot-info" class="card">
+<div id="panelGrid" class="panel-grid">
+<section id="bot-info" class="card" data-rail-title="Bot 基本情况">
   <div class="card-head"><div class="card-icon" aria-hidden="true">◈</div><div><h2>bot基本信息</h2><p class="section-description">设置机器人在状态卡、日报、集群卡、灾害卡和指令菜单中显示的 bot-name。保存后立即生效，不需要重启机器人。</p></div></div>
   <div class="controls"><input id="botNameInput" maxlength="40" placeholder="如：达妮娅" aria-label="机器人名称"><button class="primary" type="button" onclick="run(saveBotName)">保存名称</button><button type="button" onclick="run(resetBotName)">恢复默认</button><span id="botNameState" class="hint" role="status"></span></div>
   <p class="hint">只改显示名称，不改人格、唤醒词或模型设置；默认名称为「达妮娅」。名称最多 40 个字符。</p>
@@ -865,7 +1060,9 @@ html[data-icon-color="black"] .nav-icon{color:#111}
     </fieldset>
   </div>
 </div>
-<footer class="holy-footer"><span>达妮娅控制台 · {{APP_VERSION}}</span><span>本地管理空间 · 仅管理员</span></footer></main></div>
+</div>
+<footer class="page-footer"><span>达妮娅控制台 · {{APP_VERSION}}</span><span>本地管理空间 · 仅管理员</span></footer></main>
+<div id="contextRail" class="context-rail" aria-label="页面信息"><section class="rail-card"><div class="rail-label">CURRENT VIEW</div><h2 id="railTitle">Bot 基本情况</h2><p class="rail-desc" id="railDesc">机器人身份、人格与运行概览。</p><div class="rail-meta"><span>只读概览</span><span id="railUpdated">—</span></div></section><section class="rail-card"><div class="rail-label">ON THIS PAGE</div><nav class="rail-links" id="railLinks" aria-label="本页章节"></nav></section><section class="rail-card"><div class="rail-label">SHELL</div><p class="rail-desc">本地管理空间 · 仅管理员</p><div class="rail-meta"><span>本地时间 <b id="railClock">—</b></span><span>{{APP_VERSION}}</span></div></section></div></div>
 <script id="appScript">
 let csrf='';const $=x=>document.getElementById(x);
 function cssVar(name){try{return getComputedStyle(document.documentElement).getPropertyValue(name).trim()}catch(e){return ''}}
@@ -929,7 +1126,7 @@ async function saveEmbedding(){let key=$('embeddingKey').value.trim();if(!key)th
 async function login(){run(async()=>{let x=await api('/api/login',{password:$('password').value});csrf=x.csrf;$('password').value='';$('login').hidden=true;if(x.must_change){showFirstRun();return}await enterApp()})}
 function showFirstRun(){$('app').hidden=true;$('auth').hidden=false;$('login').hidden=true;$('firstRun').hidden=false;$('setupPassword').focus()}
 async function setupPassword(){run(async()=>{const p=$('setupPassword').value,c=$('setupPasswordConfirm').value;if(p.length<12||p.length>256)throw Error('密码长度须为 12 到 256 位');if(p!==c)throw Error('两次输入的密码不一致');await api('/api/setup-password',{password:p,confirm:c});$('setupPassword').value='';$('setupPasswordConfirm').value='';csrf='';$('firstRun').hidden=true;$('login').hidden=false;notice('密码已设置，请使用新密码登录')})}
-async function enterApp(){$('auth').hidden=true;$('app').hidden=false;await run(loadEmbedding);await run(loadBotName);await run(loadPersona);await loadBotStatus();await loadBotUpdate();await loadPlugins();startStatusPolling();await refresh();await loadMaster();await loadParser();await loadEvents();await loadTokens();await loadStatus();await loadSuperusers();await loadEpic();await run(loadRenderer);await run(loadDisaster);await run(loadGameEvents);await run(loadBilibili);await run(loadMemes)}
+async function enterApp(){$('auth').hidden=true;$('app').hidden=false;if(shellSyncActive)shellSyncActive();await run(loadEmbedding);await run(loadBotName);await run(loadPersona);await loadBotStatus();await loadBotUpdate();await loadPlugins();startStatusPolling();await refresh();await loadMaster();await loadParser();await loadEvents();await loadTokens();await loadStatus();await loadSuperusers();await loadEpic();await run(loadRenderer);await run(loadDisaster);await run(loadGameEvents);await run(loadBilibili);await run(loadMemes)}
 async function resumeSession(){try{let r=await fetch('/api/session');if(!r.ok)return;let x=await r.json();csrf=x.csrf;if(x.must_change){showFirstRun();return}await enterApp()}catch(e){/* 未登录，停在登录框 */}}
 async function changePassword(){run(async()=>{const p=$('newPassword').value,c=$('confirmPassword').value;if(p.length<12||p.length>256)throw Error('密码长度须为 12 到 256 位');if(p!==c)throw Error('两次输入的密码不一致');await api('/api/password',{password:p});$('newPassword').value='';$('confirmPassword').value='';$('accountMessage').textContent='';csrf='';if(statusTimer){clearInterval(statusTimer);statusTimer=null}$('app').hidden=true;$('auth').hidden=false;$('login').hidden=false;$('firstRun').hidden=true;notice('密码已修改，请使用新密码登录')})}
 function options(id,items){let el=$(id),old=el.value;el.replaceChildren();items.forEach(x=>{let o=document.createElement('option');o.value=x.value;o.textContent=x.label;el.append(o)});if(items.some(x=>x.value===old))el.value=old}
@@ -945,7 +1142,8 @@ async function loadBotStatus(){let seq=++statusRequest;try{let s=await api('/api
   if(s.cache){let c=s.cache,mb=c.bytes/1024/1024;$('botCache').textContent=`${formatSize(c.bytes)} · ${c.files} 个文件`;$('botCache').dataset.state=mb>2048?'bad':mb>512?'unknown':'ok';$('botCache').title=c.files?`最旧 ${c.oldest}｜最新 ${c.newest}`:'缓存为空';}
   $('restartBot').disabled=restartPending||r.running||!r.available;$('restartBot').textContent=r.running?'启动中…':'重启机器人';
   $('botDetails').textContent=r.error||(!r.available?'当前运行环境不支持自动重启':r.running?'正在等待新进程启动完成':l.detail?`SnowLuma：${l.detail}`:l.state==='online'&&l.injected===null?'SnowLuma 已运行，但无法确认目标账号的注入状态。':'状态更新于 '+new Date().toLocaleTimeString());
-}catch(e){if(seq!==statusRequest)return;$('restartBot').disabled=true;$('botDetails').textContent='状态读取失败：'+e.message}}
+  updateShellStatus(s);
+}catch(e){if(seq!==statusRequest)return;$('restartBot').disabled=true;$('botDetails').textContent='状态读取失败：'+e.message;$('shellLiveText').textContent='状态读取失败';$('shellLiveDot').dataset.tone='bad';$('shellBotLive').dataset.tone='unknown';$('heroVerdict').textContent='状态未知';$('heroSub').textContent='无法读取机器人连接状态；请检查面板 API 与浏览器控制台。';setShellPill('heroConnection','状态未知','unknown')}}
 function startStatusPolling(){if(!statusTimer)statusTimer=setInterval(loadBotStatus,5000)}
 function confirmRestart(){if(!$('restartBot').disabled)$('restartDialog').showModal()}
 async function restartBotNow(){$('restartDialog').close();restartPending=true;$('restartBot').disabled=true;$('restartBot').textContent='启动中…';$('botDetails').textContent='正在提交重启请求…';try{await api('/api/bot-restart',{});notice('')}catch(e){notice(e.message)}finally{restartPending=false;await loadBotStatus()}}
@@ -1089,7 +1287,62 @@ async function epicImmediate(){if(!confirm('立即向所有推送目标发送当
 
 async function loadMaster(){let v=await api('/api/master-aware');$('masterOwners').value=(v.owner_ids||[]).join(', ');$('masterTitle').value=v.title||''}
 async function saveMaster(){run(async()=>{let ids=$('masterOwners').value.trim(),title=$('masterTitle').value.trim();await api('/api/master-aware',{owner_ids:ids?ids.split(/[,，\s]+/):null,title:title||null});$('masterSaved').textContent='已保存';await loadMaster()})}
-function applyBotName(name){const label=String(name||'达妮娅');$('botBrandName').textContent=label}
+function applyBotName(name){const label=String(name||'达妮娅').trim()||'达妮娅',initial=Array.from(label)[0]||'达';for(const id of ['botBrandName','shellBotName','heroBotName']){const el=$(id);if(el)el.textContent=label}for(const id of ['shellAvatar','heroAvatar']){const el=$(id);if(el)el.textContent=initial}const line=$('heroBotLine');if(line){const current=line.textContent||'',mark=current.indexOf(' · ');line.textContent=label+(mark>=0?current.slice(mark):' · OneBot')}}
+function setShellPill(id,text,tone){const el=$(id);if(!el)return;const dot=document.createElement('span');dot.className='dot';dot.dataset.tone=tone||'unknown';el.replaceChildren(dot,document.createTextNode(' '+(text||'')))}
+function updateShellStatus(status){
+  const b=(status&&status.bot)||{};
+  const connected=b.connected===true,offline=b.connected===false||b.state==='offline',tone=connected?'ok':offline?'bad':'unknown';
+  $('shellLiveDot').dataset.tone=tone;
+  $('shellBotLive').dataset.tone=tone;
+  $('shellLiveText').textContent=connected?'运行正常':offline?'未连接':'状态未知';
+  setShellPill('heroConnection',connected?'已连接':offline?'未连接':'状态未知',tone);
+  $('heroVerdict').textContent=connected?'连接正常':offline?'等待连接':'状态未知';
+  $('heroSub').textContent=connected?'OneBot 已连接，可以在左侧管理记忆、群聊与天气。':offline?'OneBot 未连接；请检查机器人进程和端口。':'无法确认 OneBot 连接状态；请检查机器人进程与健康探测。';
+  const label=$('shellBotName').textContent||'达妮娅';$('heroBotLine').textContent=label+' · '+(b.protocol||'OneBot');
+  $('railUpdated').textContent='更新于 '+new Date().toLocaleTimeString();
+}
+function shellRuler(points,now){
+  const ruler=$('heroRuler');if(!ruler)return;
+  const end=Number(now)||Date.now()/1000,start=end-86400,bins=new Array(24).fill(null);
+  for(const point of points||[]){
+    const t=Number(point.t),cpu=Number(point.c);
+    if(!isFinite(t)||!isFinite(cpu)||t<start||t>end)continue;
+    const index=Math.max(0,Math.min(23,Math.floor((t-start)/3600)));
+    if(bins[index]===null||cpu>bins[index])bins[index]=cpu;
+  }
+  const ticks=[];
+  for(let i=0;i<24;i++){
+    const tick=document.createElement('span'),cpu=bins[i];tick.className='rtick';
+    if(cpu===null){tick.classList.add('is-out')}
+    else{
+      tick.dataset.tone=cpu>=85?'bad':cpu>=60?'warn':'ok';
+      tick.style.height=Math.max(10,Math.min(100,cpu))+'%';tick.title=`CPU 峰值 ${cpu.toFixed(1)}%`;
+    }
+    ticks.push(tick);
+  }
+  ruler.replaceChildren(...ticks);
+}
+function updateShellLive(overview){
+  const x=overview||{},live=x.live||{},cfg=x.config||{};
+  const enabled=x.enabled!==false&&cfg.enabled!==false;
+  const stamp=live.collected_at?new Date(live.collected_at*1000).toLocaleTimeString():'—';
+  const collected=Number(live.collected_at)||0,stale=collected>0&&Date.now()/1000-collected>900;
+  const cpu=live.cpu||{},mem=live.memory||{},disk=(live.disks||[])[0];
+  $('heroHbNote').textContent=enabled?(collected?'采集于 '+stamp+(stale?' · 已过期':''):'尚无采样'):'状态采集已关闭';
+  setShellPill('heroHeartbeat',!enabled?'关闭':!collected?'等待':stale?'已过期':'在线',!enabled||!collected?'unknown':stale?'warn':'ok');
+  $('heroStartedAt').textContent=enabled&&live.uptime!=null?statusDuration(live.uptime):'—';
+  $('heroLastRefresh').textContent=enabled?stamp:'—';
+  $('kpiCpu').textContent=enabled&&cpu.percent!=null?statusPct(cpu.percent):'—';
+  $('kpiCpuSmall').textContent=enabled?(cpu.cores?`${cpu.cores} 核 / ${cpu.threads||'?'} 线程`:'当前采样'):'状态采集已关闭';
+  $('kpiMem').textContent=enabled&&mem.percent!=null?statusPct(mem.percent):'—';
+  $('kpiMemSmall').textContent=enabled&&mem.used!=null?`${statusBytes(mem.used)} / ${statusBytes(mem.total)}`:'已用 / 总量';
+  $('kpiDisk').textContent=enabled&&disk&&disk.percent!=null?Math.round(Number(disk.percent))+'%':'—';
+  $('kpiDiskSmall').textContent=enabled&&disk&&disk.used!=null?`${statusBytes(disk.used)} / ${statusBytes(disk.total)}`:'已用 / 总量';
+  shellRuler(enabled?(x.history&&x.history.points)||[]:[],x.now);
+  $('railUpdated').textContent='更新于 '+new Date().toLocaleTimeString();
+}
+async function refreshShell(){notice('');await Promise.allSettled([loadBotStatus(),loadStatus(),loadTokens(),refresh()])}
+let shellSyncActive=null;
 async function loadBotName(){const data=await api('/api/bot-name');$('botNameInput').value=data.name||'';applyBotName(data.name);const labels={file:'面板设置',env:'环境变量',default:'默认名称'};$('botNameState').textContent=`当前：${labels[data.source]||data.source||'未知'}`}
 async function saveBotName(){run(async()=>{const name=$('botNameInput').value.trim();if(!name)throw Error('机器人名称不能为空');const data=await api('/api/bot-name',{name});$('botNameInput').value=data.name;applyBotName(data.name);$('botNameState').textContent='已保存 · 卡片和面板立即生效'})}
 let personaEditor={exists:false,safe:false,activeIsCurrent:false,meta:{},loaded:''};
@@ -1180,6 +1433,8 @@ async function loadTokens(){
   const days=Number($('tokenDays').value)||7;
   const d=await api('/api/token?days='+days);tokenData=d;
   const t=d.totals||{};
+  $('kpiTokens').textContent=formatTokens(t.today);
+  $('kpiTokensSmall').textContent='近 7 天 '+formatTokens(t.week);
   $('tkToday').textContent=formatTokens(t.today);
   $('tkYesterday').textContent=formatTokens(t.yesterday);
   $('tkWeek').textContent=formatTokens(t.week);
@@ -1393,7 +1648,7 @@ async function loadStatus(){
   $('statusEnabled').checked=enabled;
   $('statusEnabled').disabled=false;
   $('statusMode').textContent=enabled?'已开启':'已关闭，不采集或展示服务器状态。';
-  if(!enabled){statusDirty=false;$('statusGrafanaToken').value='';$('statusSaved').textContent='';return}
+  if(!enabled){statusDirty=false;$('statusGrafanaToken').value='';$('statusSaved').textContent='';updateShellLive(x);return}
   const live=x.live||{},bot=x.bot||{},net=x.network||{},cfg=x.config||{},gf=x.grafana||{};
   if(!statusDirty){
   $('statusGrafanaEnabled').value=gf.enabled?'true':'false';
@@ -1454,6 +1709,7 @@ async function loadStatus(){
   $('statusTargets').value=((cfg.alerts&&cfg.alerts.targets)||[]).join(',');
   }
   $('statusDetails').hidden=false;
+  updateShellLive(x);
 }
 async function writeStatusConfig(payload){
   statusWriting=true;
@@ -1819,20 +2075,104 @@ const sectionLoaders = new Map([
   ['#superusers', loadSuperusers], ['#game-events', loadGameEvents],
   ['#epic', loadEpic], ['#bilibili', loadBilibili], ['#disaster', loadDisaster],
 ]);
-function showWorkspaceSection(refreshSection) {
-  const selected = sectionLinks.find(link => link.hash === location.hash) || defaultSection;
-  const inBasics = basicsNav.contains(selected);
-  basicsNav.hidden = !inBasics;
-  basicsLink.classList.toggle('active', inBasics);
-  if (inBasics) basicsLink.setAttribute('aria-current', 'location');
+function markActive(hash){
+  const basicsHashes=new Set(['#bot-info','#persona','#tokens','#master','#superusers']);
+  if(basicsNav&&typeof basicsNav.querySelectorAll==='function'){
+    const links=Array.from(basicsNav.querySelectorAll('a'));
+    if(links.length){basicsHashes.clear();links.forEach(link=>{if(link.hash)basicsHashes.add(link.hash)})}
+  }
+  basicsLink.classList.toggle('active',basicsHashes.has(hash));
+  if(basicsHashes.has(hash))basicsLink.setAttribute('aria-current','location');
   else basicsLink.removeAttribute('aria-current');
-  for (const link of sectionLinks) {
-    const active = link === selected;
-    $(link.hash.slice(1)).hidden = !active;
-    link.classList.toggle('active', active);
-    if (active) link.setAttribute('aria-current', 'page');
+  for(const link of sectionLinks){
+    const active=link.hash===hash;
+    link.classList.toggle('active',active);
+    if(active)link.setAttribute('aria-current','page');
     else link.removeAttribute('aria-current');
   }
+}
+function updateRail(section){
+  if(!section)return;
+  const title=section.querySelector('h2'),desc=section.querySelector('.section-description');
+  $('railTitle').textContent=(section.dataset.railTitle||(title&&title.textContent)||section.id||'章节').trim();
+  $('railDesc').textContent=(desc?desc.textContent:'只读概览；从左侧导航切换章节。').trim();
+  const clock=$('railClock');if(clock)clock.textContent=new Date().toLocaleTimeString();
+  document.querySelectorAll('#railLinks a').forEach(link=>{
+    if(link.getAttribute('href')==='#'+section.id)link.setAttribute('aria-current','true');
+    else link.removeAttribute('aria-current');
+  });
+}
+function buildRail(){
+  const list=$('railLinks');
+  if(!list)return;
+  list.replaceChildren();
+  const links=Array.from(document.querySelectorAll('#appSidebar .nav-link[href^="#"]:not(.external)'));
+  for(const navLink of links){
+    const link=document.createElement('a');
+    const label=Array.from(navLink.childNodes).filter(node=>node.nodeType===3).map(node=>node.textContent).join('').trim();
+    link.href=navLink.getAttribute('href');
+    link.textContent=label||navLink.textContent.trim();
+    list.append(link);
+  }
+}
+function setNavOpen(open){
+  const isOpen=!!open;
+  const wasOpen=document.body.classList.contains('nav-open');
+  document.body.classList.toggle('nav-open',isOpen);
+  const overlay=$('navOverlay');if(overlay)overlay.hidden=!isOpen;
+  const toggle=$('navToggle');if(toggle)toggle.setAttribute('aria-expanded',String(isOpen));
+  const main=document.querySelector('main.workspace'),rail=$('contextRail');
+  if(main)main.inert=isOpen;
+  if(rail)rail.inert=isOpen;
+  if(isOpen){
+    const close=$('navClose')||document.querySelector('#appSidebar .nav-link');
+    if(close&&typeof close.focus==='function')requestAnimationFrame(()=>{try{close.focus()}catch(e){}});
+  }else if(wasOpen&&toggle&&typeof toggle.focus==='function')toggle.focus();
+}
+function initShell(){
+  buildRail();
+  const toggle=$('navToggle'),overlay=$('navOverlay');
+  if(toggle)toggle.addEventListener('click',()=>setNavOpen(!document.body.classList.contains('nav-open')));
+  if(overlay)overlay.addEventListener('click',()=>setNavOpen(false));
+  const close=$('navClose');
+  if(close)close.addEventListener('click',()=>setNavOpen(false));
+  if(typeof document.addEventListener==='function'){
+    document.addEventListener('keydown',event=>{if(event.key==='Escape')setNavOpen(false)});
+  }
+  document.querySelectorAll('#appSidebar .nav-link').forEach(link=>link.addEventListener('click',()=>setNavOpen(false)));
+  const initial=document.querySelector('#panelGrid > section.card[id]');
+  if(initial)updateRail(initial);
+  const cards=Array.from(document.querySelectorAll('#panelGrid > section.card[id]'));
+  let current=null,ticking=false;
+  function syncActive(){
+    ticking=false;
+    if(!cards.length)return;
+    const threshold=Math.min(220,window.innerHeight*.22);
+    let card=cards[0],bestTop=-Infinity;
+    for(const item of cards){
+      const top=item.getBoundingClientRect().top;
+      if(top>threshold)break;
+      if(top>bestTop){bestTop=top;card=item;}
+    }
+    if(Math.ceil(window.scrollY+window.innerHeight)>=document.documentElement.scrollHeight-2)card=cards[cards.length-1];
+    if(card===current)return;
+    current=card;markActive('#'+card.id);updateRail(card);
+  }
+  function onScroll(){if(ticking)return;ticking=true;requestAnimationFrame(syncActive)}
+  window.addEventListener('scroll',onScroll,{passive:true});
+  if(window.matchMedia){
+    const drawerQuery=window.matchMedia('(max-width:800px)');
+    const onDrawerBreakpoint=()=>{if(!drawerQuery.matches)setNavOpen(false)};
+    if(drawerQuery.addEventListener)drawerQuery.addEventListener('change',onDrawerBreakpoint);
+    else if(drawerQuery.addListener)drawerQuery.addListener(onDrawerBreakpoint);
+  }
+  shellSyncActive=syncActive;
+  if(!$('app').hidden)syncActive();
+}
+function showWorkspaceSection(refreshSection) {
+  const selected = sectionLinks.find(link => link.hash === location.hash) || defaultSection;
+  markActive(selected.hash);
+  const target=$(selected.hash.slice(1));if(target)updateRail(target);
   const load = sectionLoaders.get(selected.hash);
   if (refreshSection && load && !$('app').hidden) run(load);
 }
@@ -1844,6 +2184,7 @@ for (const link of sectionLinks) {
   });
 }
 showWorkspaceSection(false);
+initShell();
 async function logout(){if(gameJobTimer){clearTimeout(gameJobTimer);gameJobTimer=null}try{await api('/api/logout',{})}catch(e){}csrf='';if(statusTimer){clearInterval(statusTimer);statusTimer=null}$('app').hidden=true;$('auth').hidden=false;$('login').hidden=false;$('firstRun').hidden=true;notice('')}
 resumeSession();
 let appearanceTab='appearance';
