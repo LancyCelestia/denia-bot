@@ -24,6 +24,12 @@ if (Test-Path -LiteralPath (Join-Path $rootPath 'rag\.venv-gpu\Scripts\python.ex
 }
 $gsuidPython = Join-Path $rootPath 'gsuid\core\.venv\Scripts\python.exe'
 $pluginSettings = Join-Path $botDir 'data\plugins.json'
+$bundledPythonVersion = '3.12.13'
+$bundledPythonUrl = 'https://github.com/astral-sh/python-build-standalone/releases/download/20260510/cpython-3.12.13%2B20260510-x86_64-pc-windows-msvc-install_only_stripped.tar.gz'
+$bundledPythonSha256 = '24168aff2e7d93784c6a436124c4ebb79b076a4e289bde4902c08333507b71d0'
+$bundledRuntimeDir = Join-Path $rootPath 'runtime'
+$bundledPythonDir = Join-Path $bundledRuntimeDir 'python312'
+$bundledPythonExe = Join-Path $bundledPythonDir 'python.exe'
 
 function Write-Section($Message) {
     Write-Host "[deps] $Message" -ForegroundColor Cyan
@@ -64,6 +70,101 @@ trap {
     exit 1
 }
 
+function Test-Python312([string]$Exe) {
+    if (-not (Test-Path -LiteralPath $Exe -PathType Leaf)) {
+        return $false
+    }
+    try {
+        $version = & $Exe -c "import sys; print(str(sys.version_info[0]) + '.' + str(sys.version_info[1]))" 2>$null
+        return ($LASTEXITCODE -eq 0 -and ($version -join "`n").Trim() -eq '3.12')
+    } catch {
+        return $false
+    }
+}
+
+function Find-HostPython312 {
+    $py = Get-Command py.exe -ErrorAction SilentlyContinue
+    if ($py) {
+        $exe = & $py.Source -3.12 -c "import sys; print(sys.executable)" 2>$null
+        if ($LASTEXITCODE -eq 0 -and $exe -and (Test-Path -LiteralPath $exe -PathType Leaf)) {
+            return $exe
+        }
+    }
+    $pythonCmd = Get-Command python.exe -ErrorAction SilentlyContinue
+    if ($pythonCmd -and (Test-Python312 $pythonCmd.Source)) {
+        return $pythonCmd.Source
+    }
+    return $null
+}
+
+function Get-BundledPython {
+    if (-not (Test-Path -LiteralPath $bundledPythonExe)) {
+        return $null
+    }
+    if (-not (Test-Python312 $bundledPythonExe)) {
+        Stop-Check "Bundled Python runtime is invalid: $bundledPythonExe`nDelete runtime\python312 and retry."
+    }
+    return $bundledPythonExe
+}
+
+function Install-BundledPython {
+    if (-not [Environment]::Is64BitOperatingSystem) {
+        Stop-Check 'The pinned Python runtime requires 64-bit Windows.'
+    }
+    $tarExe = Join-Path $env:SystemRoot 'System32\tar.exe'
+    if (-not (Test-Path -LiteralPath $tarExe -PathType Leaf)) {
+        $tar = Get-Command tar.exe -ErrorAction SilentlyContinue
+        if (-not $tar) {
+            Stop-Check 'tar.exe is required to extract the pinned Python runtime.'
+        }
+        $tarExe = $tar.Source
+    }
+
+    $tempDir = Join-Path $bundledRuntimeDir ('.tmp-python312-' + [guid]::NewGuid())
+    $archive = Join-Path $tempDir 'python312.tar.gz'
+    $extractDir = Join-Path $tempDir 'extract'
+    try {
+        try {
+            [void][IO.Directory]::CreateDirectory($extractDir)
+            [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+            $ProgressPreference = 'SilentlyContinue'
+            $request = @{}
+            if ($env:HTTPS_PROXY) {
+                $request.Proxy = $env:HTTPS_PROXY
+            } elseif ($env:HTTP_PROXY) {
+                $request.Proxy = $env:HTTP_PROXY
+            }
+            Write-Section "Downloading Python $bundledPythonVersion ..."
+            Invoke-WebRequest -Uri $bundledPythonUrl -UseBasicParsing -OutFile $archive @request -ErrorAction Stop
+            $hash = (Get-FileHash -LiteralPath $archive -Algorithm SHA256 -ErrorAction Stop).Hash.ToLowerInvariant()
+            if ($hash -ne $bundledPythonSha256) {
+                throw "Python runtime SHA256 mismatch: expected $bundledPythonSha256, got $hash."
+            }
+            Write-Ok "Python runtime SHA256: $hash"
+            Write-Section 'Extracting the pinned Python runtime ...'
+            & $tarExe -xzf $archive -C $extractDir --strip-components=1
+            if ($LASTEXITCODE -ne 0) {
+                throw "tar.exe could not extract the Python runtime (exit $LASTEXITCODE)."
+            }
+            if (-not (Test-Python312 (Join-Path $extractDir 'python.exe'))) {
+                throw 'Extracted runtime does not provide a working Python 3.12.'
+            }
+            if (Test-Path -LiteralPath $bundledPythonDir) {
+                throw "Bundled Python directory already exists but is not usable: $bundledPythonDir`nDelete it and retry."
+            }
+            Move-Item -LiteralPath $extractDir -Destination $bundledPythonDir -ErrorAction Stop
+        } finally {
+            if (Test-Path -LiteralPath $tempDir) {
+                Remove-Item -LiteralPath $tempDir -Recurse -Force -ErrorAction Stop
+            }
+        }
+    } catch {
+        Stop-Check $_.Exception.Message
+    }
+    Write-Ok "Python runtime: $bundledPythonExe"
+    return $bundledPythonExe
+}
+
 Write-Host '==========================================' -ForegroundColor Cyan
 Write-Host '  Startup dependency preflight' -ForegroundColor Cyan
 Write-Host '==========================================' -ForegroundColor Cyan
@@ -79,30 +180,20 @@ if (-not (Test-Path -LiteralPath $python -PathType Leaf)) {
     if ($CheckOnly) {
         Stop-Check "NoneBot virtual environment is missing: $python"
     }
-    Write-Section 'NoneBot venv is missing; trying to create it with Python 3.12 ...'
-    $created = $false
-    $py = Get-Command py.exe -ErrorAction SilentlyContinue
-    if ($py) {
-        & $py.Source -3.12 -m venv $venvDir
-        if ($LASTEXITCODE -eq 0 -and (Test-Path -LiteralPath $python -PathType Leaf)) {
-            $created = $true
-        }
+    $hostPython = Get-BundledPython
+    if (-not $hostPython) {
+        $hostPython = Find-HostPython312
     }
-    if (-not $created) {
-        $pythonCmd = Get-Command python.exe -ErrorAction SilentlyContinue
-        if ($pythonCmd) {
-            $versionOutput = & $pythonCmd.Source -c "import sys; print(str(sys.version_info[0]) + '.' + str(sys.version_info[1]))" 2>&1
-            $versionText = ($versionOutput -join "`n").Trim()
-            if ($LASTEXITCODE -eq 0 -and $versionText -eq '3.12') {
-                & $pythonCmd.Source -m venv $venvDir
-                if ($LASTEXITCODE -eq 0 -and (Test-Path -LiteralPath $python -PathType Leaf)) {
-                    $created = $true
-                }
-            }
+    if (-not $hostPython) {
+        if ($SkipInstall) {
+            Stop-Check 'Python 3.12 is unavailable, and -SkipInstall prevents the runtime download. Install Python 3.12 or rerun without -SkipInstall.'
         }
+        Write-Section 'No system Python 3.12 found; downloading the pinned python-build-standalone runtime ...'
+        $hostPython = Install-BundledPython
     }
-    if (-not $created) {
-        Stop-Check 'Could not create the NoneBot venv. Install Python 3.12, then run: py -3.12 -m venv nonebot\.venv'
+    & $hostPython -m venv $venvDir
+    if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $python -PathType Leaf)) {
+        Stop-Check "Could not create the NoneBot venv with $hostPython (exit $LASTEXITCODE)."
     }
 }
 if (-not (Test-Path -LiteralPath (Join-Path $venvDir 'pyvenv.cfg') -PathType Leaf)) {
