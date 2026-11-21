@@ -1,7 +1,7 @@
 # Windows 一键启动：首次运行下载 Python 3.12
 
 日期：2026-11-21
-状态：已批准（B 方案，2026-11-21）
+状态：已批准（B 方案，2026-11-21；实现简化为不复用系统 Python）
 规模：小改动
 
 ## 背景与目标
@@ -13,6 +13,8 @@
 - 本机已有 uv 管理的 3.12.13（`py -V:Astral\CPython3.12.13`），旧脚本不认识它。
 
 结果：一键启动在 Python 发现阶段退出，无法进入依赖安装。
+
+最终实现不复用系统 Python：三轮审查确认 Python Install Manager 的启动别名、CP936 输出和 PEP 514 标签/路径解析不可靠，因此始终使用固定运行时。
 
 目标：干净 Windows x64 clone 在没有任何可用 Python 3.12 时，由脚本首次运行下载固定版本的 Python 3.12，校验后创建 `nonebot\.venv`，再继续现有 preflight。仓库不提交运行时二进制。
 
@@ -42,18 +44,17 @@
 在 `nonebot\.venv` 缺失时：
 
 1. 已下载的 `runtime\python312\python.exe`（版本必须为 3.12）；
-2. `py -0p` 列出的已注册 3.12（列表命令，只读取已安装运行时，不启动解释器，不触发 Python Install Manager 自动安装）；
-3. 以上都没有，且允许安装：下载并校验固定运行时到 `runtime\python312`；
-4. 仍失败：`Stop-Check`，不启动任何服务。
+2. 以上不存在，且允许安装：下载并校验固定运行时到 `runtime\python312`；
+3. 仍失败：`Stop-Check`，不启动任何服务。
 
-发现阶段不执行 PATH 上的 `python.exe`：Python Install Manager 可能在无运行时或 `automatic_install` 被配置/管理员策略设为 true 时自动安装；`py -0p` 是列表命令，不受该设置影响。未注册到 `py` 的 PATH Python 3.12 会走固定运行时下载。
+发现阶段不执行系统 `py` / `python.exe`：Python Install Manager 可能在无运行时或 `automatic_install` 被配置/管理员策略设为 true 时自动安装；其 `py -0p` 输出还存在 CP936/UTF-8 编码和 PEP 514 标签/路径格式差异。固定运行时是确定性的安全路径。
 
-`-CheckOnly` 与 `-SkipInstall` 禁止第 3 步；缺 Python 时直接报告。
+`-CheckOnly` 与 `-SkipInstall` 禁止第 2 步；缺 Python 时直接报告。
 
 ### 下载与安装
 
 - `Invoke-WebRequest -UseBasicParsing -OutFile`，启用 TLS 1.2，设置 `$ProgressPreference = 'SilentlyContinue'`。
-- 发现阶段只用 `py -0p` 列表命令；不执行 PATH 上的 `python.exe`，避免 Python Install Manager 自动安装。
+- 发现阶段不执行任何系统 Python（`py` / `python.exe`）；只用缓存运行时或固定下载，避免 Python Install Manager 自动安装和编码问题。
 - 如设置了 `HTTPS_PROXY` / `HTTP_PROXY`，传给 `-Proxy`；否则走系统代理。
 - 下载后先 `Get-FileHash -Algorithm SHA256`，与固定值比较；不匹配立即删除并退出。
 - 解压使用 `%SystemRoot%\System32\tar.exe -xzf ... --strip-components=1`（Windows 10 1803+ 自带的 bsdtar）。缺少 `tar.exe` 时给出明确错误。
@@ -73,29 +74,25 @@
 
 - 不内置 SnowLuma；干净 clone 仍会在 `snowluma\node.exe` 处停止（预期）。
 - 不改变 `nonebot\.venv` 布局，不放宽 Python 3.12 要求。
-- 不支持 ARM64；x64 以外的机器回退到系统 Python 或报错。
-- 不依赖 uv 专属接口；`py -0p` 列出的已注册 3.12（包括 uv 注册的运行时）可以复用；没有注册的 3.12 时由脚本下载固定运行时。
+- 不支持 ARM64；x64 以外的机器直接报错（不再回退到系统 Python）。
+- 不复用系统 / uv Python；始终使用固定运行时。首次运行下载约 21 MB。
 
 ## 验证
 
-1. 正常 PATH（`py -0p` 可列出 3.12.13）运行 `启动机器人.bat`：
-   - 复用已注册的 3.12，不下载；
-   - `nonebot\.venv` 创建成功；
-   - preflight 继续并停在 `snowluma\node.exe` 缺失；
-   - 退出码 4，8080/5099/8091/8765 无监听。
-2. 受限 PATH（移除 `py.exe` / `python.exe`，例如仅 `C:\Windows\System32;C:\Windows;C:\Windows\System32\WindowsPowerShell\v1.0`），无 `runtime\python312`、无 `nonebot\.venv`，运行一键启动：
-   - 出现下载/校验/解压日志；
+1. 干净 clone（无 `nonebot\.venv`、无 `runtime\python312`，正常 PATH）运行 `启动机器人.bat`：
+   - 出现下载/校验/解压日志（不复用系统 Python）；
    - `runtime\python312\python.exe -V` 为 3.12.13；
    - `nonebot\.venv` 创建成功；
    - preflight 继续并停在 `snowluma\node.exe` 缺失；
-   - 退出码 4，四个端口无监听。
+   - 退出码 4，8080/5099/8091/8765 无监听。
+2. 受限 PATH（移除 `py.exe` / `python.exe`）重复首次运行：
+   - 行为与正常 PATH 相同，证明没有隐藏的系统 Python 依赖。
 3. 第二次运行：复用已下载运行时，不重复下载。
 4. `-SkipInstall`：不下载，缺 Python 时报告并退出。
 5. `-CheckOnly`：不下载，只做文件检查。
 6. `git status` 在 clone 中保持干净（`runtime/` 被忽略）。
 7. 删除 `runtime\python312` 后可重新下载。
-8. 非 ASCII 路径：`py -0p` 列表输出在 CP437 等旧代码页下仍能解码；`D:\测试目录\python.exe` 提取结果逐字一致。
-9. 哈希不匹配：临时改错 SHA 时退出 1，不产生 `runtime\python312`，不留下 `.tmp-python312-*`，无服务监听。
+8. 哈希不匹配：临时改错 SHA 时退出 1，不产生 `runtime\python312`，不留下 `.tmp-python312-*`，无服务监听。
 
 ## 风险与回滚
 
