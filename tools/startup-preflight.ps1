@@ -82,33 +82,6 @@ function Test-Python312([string]$Exe) {
     }
 }
 
-function Find-HostPython312 {
-    $py = Get-Command py.exe -ErrorAction SilentlyContinue
-    if (-not $py) {
-        return $null
-    }
-    # Listing registrations cannot trigger the install manager's automatic installs.
-    $previousEncoding = [Console]::OutputEncoding
-    try {
-        [Console]::OutputEncoding = [Text.Encoding]::UTF8
-        $listing = & $py.Source -0p 2>$null
-        if ($LASTEXITCODE -ne 0) {
-            return $null
-        }
-    } finally {
-        [Console]::OutputEncoding = $previousEncoding
-    }
-    foreach ($line in $listing) {
-        if ($line -match '3\.12' -and $line -match '\s([A-Za-z]:\\.*\\python\.exe)\s*$') {
-            $exe = $Matches[1]
-            if (Test-Python312 $exe) {
-                return $exe
-            }
-        }
-    }
-    return $null
-}
-
 function Get-BundledPython {
     if (-not (Test-Path -LiteralPath $bundledPythonExe)) {
         return $null
@@ -194,13 +167,10 @@ if (-not (Test-Path -LiteralPath $python -PathType Leaf)) {
     }
     $hostPython = Get-BundledPython
     if (-not $hostPython) {
-        $hostPython = Find-HostPython312
-    }
-    if (-not $hostPython) {
         if ($SkipInstall) {
-            Stop-Check 'Python 3.12 is unavailable, and -SkipInstall prevents the runtime download. Install Python 3.12 or rerun without -SkipInstall.'
+            Stop-Check 'Python 3.12 is unavailable, and -SkipInstall prevents the runtime download. Rerun without -SkipInstall to download the pinned runtime.'
         }
-        Write-Section 'No system Python 3.12 found; downloading the pinned python-build-standalone runtime ...'
+        Write-Section 'No bundled Python 3.12 runtime found; downloading the pinned python-build-standalone runtime ...'
         $hostPython = Install-BundledPython
     }
     & $hostPython -m venv $venvDir
