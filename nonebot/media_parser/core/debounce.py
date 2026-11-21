@@ -46,3 +46,16 @@ class Debouncer:
     def hit_resource(self, session: str, resource_id: str) -> bool:
         """基于资源 ID 的防抖"""
         return self._hit(session, f"res:{resource_id}")
+
+    def _release(self, session: str, key: str) -> None:
+        bucket = self._cache.get(session)
+        if bucket:
+            bucket.pop(key, None)
+
+    def release_link(self, session: str, link: str) -> None:
+        """失败后释放链接，允许立即重试。"""
+        self._release(session, f"link:{link}")
+
+    def release_resource(self, session: str, resource_id: str) -> None:
+        """失败后释放资源，允许立即重试。"""
+        self._release(session, f"res:{resource_id}")

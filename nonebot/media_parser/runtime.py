@@ -78,6 +78,8 @@ class ParserRuntime:
 
     async def process(self, bot, event, match):
         keyword = found = None
+        session = ''
+        result = None
         started = perf_counter()
         parser = self.parsers.get(match[0])
         token = begin(getattr(getattr(parser, "platform", None), "name", "unknown"))
@@ -92,6 +94,12 @@ class ParserRuntime:
                     return
             if self.debouncer.hit_link(session, found.group(0)):
                 status = "skipped"
+                self.log_skip(
+                    'Debounced',
+                    f'同一链接在 {getattr(self.debouncer, "interval", 300)} 秒内重复，已跳过',
+                    platform=self._platform_name(keyword),
+                    url=found.group(0),
+                )
                 return
             try:
                 with phase("parse"):
@@ -106,14 +114,22 @@ class ParserRuntime:
                     await asyncio.wait_for(bot.send(event, message), timeout=15)
                 except Exception:
                     logger.warning('[parser] 无法发送解析失败提示')
+                self._release_debounce(session, found)
                 return
             if self.debouncer.hit_resource(session, result.get_resource_id()):
                 status = "skipped"
+                self.log_skip(
+                    'DuplicateResource',
+                    f'同一资源在 {getattr(self.debouncer, "interval", 300)} 秒内重复，已跳过',
+                    platform=self._platform_name(keyword),
+                    url=getattr(result, 'url', '') or found.group(0),
+                )
                 return
             with phase("send"):
                 await self.sender.send_parse_result(Transport(bot, event, self.cfg), result)
         except asyncio.CancelledError:
             status = "cancelled"
+            self._release_debounce(session, found, result)
             raise
         except Exception as exc:
             status = "error"
@@ -124,11 +140,38 @@ class ParserRuntime:
             except (KeyError, AttributeError):
                 pass
             self.log_failure(exc, platform=platform, url=found.group(0) if found else '')
+            self._release_debounce(session, found, result)
         finally:
             try:
                 record("total", started, outcome() if status == "ok" else status)
             finally:
                 end(token)
+
+    def _platform_name(self, keyword: str | None) -> str:
+        parser = self.parsers.get(keyword) if keyword else None
+        return getattr(getattr(parser, 'platform', None), 'name', '')
+
+    def log_skip(self, reason: str, detail: str, *, platform: str = '', url: str = '') -> None:
+        """把防抖跳过写进事件日志，面板能看到“为什么没有回复”。"""
+        try:
+            from .core.event_log import event_log
+            event_log(self.cfg).record('warn', reason, detail, platform=platform, url=url)
+        except Exception:  # noqa: BLE001 - 日志失败不能影响主流程
+            logger.debug('[parser] 事件日志写入失败', exc_info=True)
+
+    def _release_debounce(self, session: str, found, result=None) -> None:
+        """发送/解析失败后释放防抖，允许同链接立即重试。"""
+        if not session or found is None:
+            return
+        try:
+            self.debouncer.release_link(session, found.group(0))
+        except Exception:  # noqa: BLE001
+            logger.debug('[parser] 链接防抖释放失败', exc_info=True)
+        if result is not None:
+            try:
+                self.debouncer.release_resource(session, result.get_resource_id())
+            except Exception:  # noqa: BLE001
+                logger.debug('[parser] 资源防抖释放失败', exc_info=True)
 
     def log_failure(self, exc: Exception, *, platform: str = '', url: str = ''):
         """把失败写进事件日志；超出阈值单独归类，面板上能一眼看出来。"""
