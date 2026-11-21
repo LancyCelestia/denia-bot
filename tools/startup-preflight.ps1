@@ -75,7 +75,7 @@ function Test-Python312([string]$Exe) {
         return $false
     }
     try {
-        $version = & $Exe -c "import sys; print(str(sys.version_info[0]) + '.' + str(sys.version_info[1]))" 2>$null
+        $version = & $Exe -I -c "import sys; print(str(sys.version_info[0]) + '.' + str(sys.version_info[1]))" 2>$null
         return ($LASTEXITCODE -eq 0 -and ($version -join "`n").Trim() -eq '3.12')
     } catch {
         return $false
@@ -83,32 +83,30 @@ function Test-Python312([string]$Exe) {
 }
 
 function Find-HostPython312 {
-    $previousAutoInstall = $env:PYTHON_MANAGER_AUTOMATIC_INSTALL
+    $py = Get-Command py.exe -ErrorAction SilentlyContinue
+    if (-not $py) {
+        return $null
+    }
+    # Listing registrations cannot trigger the install manager's automatic installs.
+    $previousEncoding = [Console]::OutputEncoding
     try {
-        $env:PYTHON_MANAGER_AUTOMATIC_INSTALL = 'false'
-        $py = Get-Command py.exe -ErrorAction SilentlyContinue
-        if ($py) {
-            # JSON keeps the path ASCII on the wire, regardless of the console code page.
-            $pathJson = & $py.Source -3.12 -c "import json,sys; print(json.dumps(sys.executable))" 2>$null
-            if ($LASTEXITCODE -eq 0 -and $pathJson) {
-                $exe = ConvertFrom-Json -InputObject (($pathJson -join "`n").Trim())
-                if ($exe -and (Test-Path -LiteralPath $exe -PathType Leaf)) {
-                    return $exe
-                }
+        [Console]::OutputEncoding = [Text.Encoding]::UTF8
+        $listing = & $py.Source -0p 2>$null
+        if ($LASTEXITCODE -ne 0) {
+            return $null
+        }
+    } finally {
+        [Console]::OutputEncoding = $previousEncoding
+    }
+    foreach ($line in $listing) {
+        if ($line -match '3\.12' -and $line -match '\s([A-Za-z]:\\.*\\python\.exe)\s*$') {
+            $exe = $Matches[1]
+            if (Test-Python312 $exe) {
+                return $exe
             }
         }
-        $pythonCmd = Get-Command python.exe -ErrorAction SilentlyContinue
-        if ($pythonCmd -and (Test-Python312 $pythonCmd.Source)) {
-            return $pythonCmd.Source
-        }
-        return $null
-    } finally {
-        if ($null -eq $previousAutoInstall) {
-            Remove-Item Env:\PYTHON_MANAGER_AUTOMATIC_INSTALL
-        } else {
-            $env:PYTHON_MANAGER_AUTOMATIC_INSTALL = $previousAutoInstall
-        }
     }
+    return $null
 }
 
 function Get-BundledPython {
