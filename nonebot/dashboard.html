@@ -799,16 +799,26 @@ html[data-skin="academia"] #app .head-right .btn:hover{background:#5c4033;border
   <p class="hint"><b>生效方式：</b>正文文件每次渲染都会重新读取，替换 <code>current.jinja2</code> 无需重启；只有 <code>models.yml</code> 的 <code>template</code> 字段首次从预设切换为 <code>current</code> 时，才需要重启机器人或在主人私聊发送 <code>.model reload</code>。称呼和主人信息仍读 <code>configs/templates.yml</code>。</p>
 </section>
 <section id="model-pref" class="card">
-  <div class="card-head"><div class="card-icon" aria-hidden="true">⇄</div><div><h2>模型设置</h2><p class="section-description">选择聊天首选模型和首选失败时的次选模型。保存后下一条回复生效，不需要重启机器人；中转地址、API Key 和人设仍在 <code>configs/models.yml</code> 中维护。</p></div></div>
-  <div class="parser-grid">
-    <label class="parser-field"><span>首选模型</span><select id="modelPrimary" aria-label="首选模型" onchange="updateModelPrefDetails()"></select><small id="modelPrimaryDetail">加载中…</small></label>
-    <label class="parser-field"><span>次选模型</span><select id="modelSecondary" aria-label="次选模型" onchange="updateModelPrefDetails()"></select><small id="modelSecondaryDetail">加载中…</small></label>
+  <div class="card-head"><div class="card-icon" aria-hidden="true">⇄</div><div><h2>模型设置</h2><p class="section-description">维护默认提供商的 base URL 和 API Key，获取上游模型列表，再选择首选和次选模型。模型保存后下一条回复生效；提供商配置保存后需要重启机器人。</p></div></div>
+  <div class="subsection"><h3>提供商</h3>
+    <div class="parser-grid">
+      <label class="parser-field"><span>Base URL</span><input id="modelBaseUrl" placeholder="http://127.0.0.1:8090/v1" autocomplete="off"><small>OpenAI 兼容地址，通常以 <code>/v1</code> 结尾；不要填查询参数或账号密码。</small></label>
+      <label class="parser-field"><span>API Key</span><input id="modelApiKey" type="password" autocomplete="new-password" placeholder="加载中…"><small>只写不读；留空保持现有 Key。Key 只发给上面的提供商地址。</small></label>
+    </div>
+    <div class="parser-actions"><button id="modelProviderSave" class="primary" type="button" onclick="run(saveModelProvider)" disabled>保存提供商</button><button id="modelUpstreamFetch" type="button" onclick="run(fetchModelUpstream)">获取模型列表</button><span id="modelProviderState" class="hint" role="status"></span></div>
+    <p class="hint" id="modelRestart" hidden>提供商配置已保存。重启机器人后才会使用新的 base URL/Key；模型选择不需要重启。<button type="button" onclick="confirmRestart()">重启机器人</button></p>
   </div>
-  <div class="parser-actions"><button id="modelSave" class="primary" type="button" onclick="run(saveModelPref)" disabled>保存模型设置</button><button type="button" onclick="run(loadModelPref)">刷新</button><span id="modelPrefState" class="hint" role="status"></span></div>
-  <p class="hint" id="modelPrefCurrent">—</p>
-  <p class="hint" id="modelPrefSwaps">—</p>
-  <p class="hint" id="modelPrefPublication">—</p>
-  <p class="hint">下拉框只列 <code>models.yml</code> 条目；条目后的箭头是它的 <code>model_name</code>。选择条目会同时使用该条目的中转、Key 和人设。任意上游真模型名仍可在主人私聊里用 <code>.模型 首选 &lt;真模型名&gt;</code> 设置；面板保存同一入口时保留已有的真模型覆盖，切换条目则清掉覆盖。</p>
+  <div class="subsection"><h3>模型</h3>
+    <div class="parser-grid">
+      <label class="parser-field"><span>首选模型</span><select id="modelPrimary" aria-label="首选模型" onchange="updateModelPrefDetails()"></select><small id="modelPrimaryDetail">加载中…</small></label>
+      <label class="parser-field"><span>次选模型</span><select id="modelSecondary" aria-label="次选模型" onchange="updateModelPrefDetails()"></select><small id="modelSecondaryDetail">加载中…</small></label>
+    </div>
+    <div class="parser-actions"><button id="modelSave" class="primary" type="button" onclick="run(saveModelPref)">保存模型设置</button><button type="button" onclick="run(loadModelPref)">刷新</button><span id="modelPrefState" class="hint" role="status"></span></div>
+    <p class="hint" id="modelPrefCurrent">—</p>
+    <p class="hint" id="modelPrefSwaps">—</p>
+    <p class="hint" id="modelPrefPublication">—</p>
+  </div>
+  <p class="hint">面板只维护默认提供商的地址、Key 和两个模型选择；其他模型条目仍可在主人私聊用 <code>.模型</code> 指令管理。API Key 不会回显，也不会写进页面或日志。</p>
 </section>
 <section id="account" class="card">
   <div class="card-head"><div class="card-icon" aria-hidden="true">⚿</div><div><h2>管理员密码</h2><p class="section-description">首次设置完成后，可在这里修改面板登录密码。保存后所有设备都需要用新密码重新登录；不会影响机器人配置或超级管理员名单。</p></div></div>
@@ -1424,70 +1434,77 @@ async function savePersonaBody(){run(async()=>{
   await refreshPersonaView();
   $('personaBodyState').textContent='已保存 · 下一条回复生效，无需重启'+(data.active_is_current?'':'；当前生效模板不是 current，本次修改不会改变正在使用的人格');
 })}
-let modelPrefSnapshot=null;
-function modelPrefEntry(name){
-  if(!name||!modelPrefSnapshot)return null;
-  const wanted=String(name).toLowerCase();
-  return (modelPrefSnapshot.models||[]).find(item=>String(item.name).toLowerCase()===wanted)||null;
-}
-function modelPrefOption(select,name,emptyLabel){
+let modelPrefSnapshot=null,modelUpstreamModels=[];
+function modelPrefSelect(select,current,emptyLabel,allowEmpty){
   select.replaceChildren();
-  const empty=document.createElement('option');empty.value='';empty.textContent=emptyLabel;select.append(empty);
-  for(const item of ((modelPrefSnapshot&&modelPrefSnapshot.models)||[])){
-    const option=document.createElement('option');option.value=item.name;
-    option.textContent=item.name+' → '+(item.model_name||'未配置 model_name')+(item.default?'（默认）':'');
-    select.append(option);
-  }
-  const wanted=String(name||'').toLowerCase();
+  if(allowEmpty){const empty=document.createElement('option');empty.value='';empty.textContent=emptyLabel;select.append(empty)}
+  for(const id of modelUpstreamModels){const option=document.createElement('option');option.value=id;option.textContent=id;select.append(option)}
+  const wanted=String(current||'').toLowerCase();
   const match=Array.from(select.options).find(option=>option.value&&option.value.toLowerCase()===wanted);
-  if(name&&!match){const stale=document.createElement('option');stale.value=name;stale.textContent=name+'（当前配置中已不存在）';select.append(stale)}
-  select.value=name?((match&&match.value)||name):'';
+  if(current&&!match){const stale=document.createElement('option');stale.value=current;stale.textContent=current+'（当前列表中没有）';select.append(stale)}
+  select.value=current?((match&&match.value)||current):(allowEmpty?'':(modelUpstreamModels[0]||''));
 }
-function modelPrefDescribe(role,value){
+function fillModelSelects(){
   const state=(modelPrefSnapshot&&modelPrefSnapshot.state)||{};
-  const entry=modelPrefEntry(value);
-  const override=state[role+'_model'];
-  const same=value&&state[role]&&String(value).toLowerCase()===String(state[role]).toLowerCase();
-  if(!value)return role==='primary'?'跟随默认条目 '+(modelPrefSnapshot?modelPrefSnapshot.default_model||'—':'—'):'未设置 · 首选失败时不会降级';
-  if(!entry)return '当前保存的条目 '+value+' 已不在 models.yml 中；请重新选择。';
-  let text='条目 '+value+' → '+(entry.model_name||'未配置 model_name')+(entry.provider?' · '+entry.provider:'')+(entry.stream?' · 流式':' · 非流式');
-  if(same&&override)text+=' · 当前真模型覆盖 '+override+'（保存不变则保留）';
-  else if(same)text+=' · 当前保存值';
-  else text+=' · 保存后切换条目，会清掉该入口的真模型覆盖';
-  return text;
+  const provider=(modelPrefSnapshot&&modelPrefSnapshot.provider)||{};
+  modelPrefSelect($('modelPrimary'),state.primary_model||provider.model_name||'','',false);
+  modelPrefSelect($('modelSecondary'),state.secondary_model||'','无（不降级）',true);
 }
 function updateModelPrefDetails(){
-  if(!modelPrefSnapshot)return;
-  const state=modelPrefSnapshot.state||{};
-  $('modelPrimaryDetail').textContent=modelPrefDescribe('primary',$('modelPrimary').value);
-  $('modelSecondaryDetail').textContent=modelPrefDescribe('secondary',$('modelSecondary').value);
-  const active=modelPrefSnapshot.active_model||'—';
-  const source=modelPrefSnapshot.active_source==='model_pref'?'模型首选':'默认条目';
-  let current='当前生效：'+active+'（'+source+'）';
-  if(state.primary&&!modelPrefEntry(state.primary))current+='；首选「'+state.primary+'」已不在 models.yml 中，机器人会先跟随默认条目';
-  $('modelPrefCurrent').textContent=current;
+  const data=modelPrefSnapshot;if(!data)return;
+  const provider=data.provider||{},state=data.state||{};
+  const primary=$('modelPrimary').value,secondary=$('modelSecondary').value;
+  let primaryText='请选择首选模型';
+  if(primary)primaryText='首选 '+primary+(state.primary_model===primary?' · 当前保存值':(!state.primary_model&&primary===provider.model_name?' · 当前默认模型':' · 保存后切换'));
+  $('modelPrimaryDetail').textContent=primaryText;
+  $('modelSecondaryDetail').textContent=secondary?('次选 '+secondary+(state.secondary_model===secondary?' · 当前保存值':' · 保存后切换')+' · 首选失败时重跑一次'):'未设置 · 首选失败时不会降级';
+  $('modelPrefCurrent').textContent='当前生效：'+(data.active_model||provider.model_name||'—')+'（'+(data.active_source==='model_pref'?'模型首选':'默认模型')+'）';
   const swaps=state.swaps||{},names=Object.keys(swaps).sort();
   $('modelPrefSwaps').textContent='今天顶过班：'+(names.length?names.map(name=>name+' '+swaps[name]+' 次').join('、'):'没有');
 }
 function applyModelPref(data){
   modelPrefSnapshot=data;
-  const state=data.state||{};
-  modelPrefOption($('modelPrimary'),state.primary||'','默认（'+(data.default_model||'models.yml default')+'）');
-  modelPrefOption($('modelSecondary'),state.secondary||'','无（不降级）');
-  updateModelPrefDetails();
-  const publication=data.publication||{};
-  $('modelPrefPublication').textContent=publication.published?'配置已发布':'配置未发布，保存已锁定：请先核对 models.yml 并重新发布摘要';
-  $('modelSave').disabled=!publication.published;
+  const provider=data.provider||{},publication=data.publication||{};
+  $('modelBaseUrl').value=provider.base_url||'';
+  $('modelApiKey').value='';
+  $('modelApiKey').placeholder=provider.key_configured?'已配置，留空保持不变':'尚未配置 API Key';
+  $('modelPrefPublication').textContent=publication.published?'配置已发布':'配置未发布，保存提供商已锁定：请先核对 models.yml 并重新发布摘要';
+  $('modelProviderSave').disabled=!publication.published;
+  $('modelRestart').hidden=true;
+  $('modelProviderState').textContent='';
   $('modelPrefState').textContent='';
+  fillModelSelects();
+  updateModelPrefDetails();
 }
-async function loadModelPref(){applyModelPref(await api('/api/model-pref'))}
-async function saveModelPref(){run(async()=>{
-  const primary=$('modelPrimary').value||null;
-  const secondary=$('modelSecondary').value||null;
+async function fetchModelUpstream(){
+  const base=$('modelBaseUrl').value.trim(),key=$('modelApiKey').value;
+  const data=await api('/api/model-pref/upstream',{base_url:base,api_key:key});
+  modelUpstreamModels=data.models||[];
+  $('modelApiKey').value='';
+  fillModelSelects();
+  $('modelProviderState').textContent='已获取 '+modelUpstreamModels.length+' 个模型';
+}
+async function loadModelPref(){
+  const data=await api('/api/model-pref');
+  applyModelPref(data);
+  if(data.provider&&data.provider.key_configured){
+    try{await fetchModelUpstream()}catch(e){$('modelProviderState').textContent=e.message}
+  }
+}
+async function saveModelProvider(){
+  const base=$('modelBaseUrl').value.trim(),key=$('modelApiKey').value;
+  const data=await api('/api/model-pref/provider',{base_url:base,api_key:key});
+  $('modelApiKey').value='';
+  applyModelPref(data);
+  $('modelRestart').hidden=false;
+  $('modelProviderState').textContent='提供商已保存 · 重启机器人后生效';
+}
+async function saveModelPref(){
+  const primary=$('modelPrimary').value||null,secondary=$('modelSecondary').value||null;
   const data=await api('/api/model-pref',{primary,secondary});
   applyModelPref(data);
   $('modelPrefState').textContent='已保存 · 下一条回复生效，无需重启';
-})}
+}
 async function resetBotName(){run(async()=>{if(!confirm('恢复默认机器人名称「达妮娅」？'))return;const data=await api('/api/bot-name',{reset:true});$('botNameInput').value=data.name;applyBotName(data.name);const labels={file:'面板设置',env:'环境变量',default:'默认名称'};$('botNameState').textContent=`已恢复 · ${labels[data.source]||data.source||'未知'}`})}
 let tokenData=null;
 function formatTokens(n){n=Number(n)||0;if(n<1000)return String(n);if(n<1000000)return (n/1000).toFixed(1)+'K';return (n/1000000).toFixed(2)+'M'}

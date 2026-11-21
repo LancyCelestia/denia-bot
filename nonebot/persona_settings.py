@@ -1,7 +1,4 @@
 """Persona template selection for the management panel.
-            "model_name": str(raw.get("model_name") or ""),
-            "provider": str(raw.get("provider") or ""),
-            "stream": bool(raw.get("stream", True)),
 
 MuiceBot resolves the persona from the ``template`` field of the active entry in
 ``configs/models.yml``; ``DEFAULT_TEMPLATE`` is only a fallback for entries that
@@ -406,6 +403,11 @@ def public(models_path=None, templates_dir=None, state_path=None) -> dict:
             "template": template,
             "template_source": source,
             "template_mode": raw.get("template_mode") or None,
+            "model_name": str(raw.get("model_name") or ""),
+            "provider": str(raw.get("provider") or ""),
+            "stream": bool(raw.get("stream", True)),
+            "api_host": str(raw.get("api_host") or ""),
+            "api_key_configured": bool(raw.get("api_key")),
         })
 
     active_template = next(item["template"] for item in models if item["active"])
