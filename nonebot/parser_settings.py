@@ -117,7 +117,7 @@ def cache_stats(cache_dir: Path | None = None) -> dict:
 
 
 def events(limit: int = 100) -> dict:
-    """解析器的失败/超限事件，供面板日志页读取。"""
+    """解析器的失败/超限/防抖跳过事件，供面板日志页读取。"""
     from media_parser.core.event_log import event_log
 
     log = event_log()

@@ -1,3 +1,4 @@
+import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -6,7 +7,7 @@ from unittest.mock import AsyncMock
 from nonebot.adapters.onebot.v11.exception import ActionFailed, NetworkError
 
 from media_parser.core.data import ImageContent, ParseResult, Platform, SendGroup
-from media_parser.core.sender import MessageSender
+from media_parser.core.sender import MessageSender, QQ_IMAGE_UPLOAD_LIMIT
 from media_parser.transport import Transport
 
 
@@ -167,6 +168,24 @@ class ParserSenderTests(unittest.IsolatedAsyncioTestCase):
             await self.make_sender(preview=True).send_parse_result(Transport(bot, event), self.make_result())
         bot.send.assert_awaited_once()
         self.assertEqual(len(bot.send.await_args.args[1]), 1)
+
+
+    async def test_oversized_original_uses_preview(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            original = Path(tmp) / 'original.jpg'
+            with original.open('wb') as fp:
+                fp.truncate(QQ_IMAGE_UPLOAD_LIMIT + 1)
+            preview = Path(tmp) / 'preview.webp'
+            preview.write_bytes(b'preview')
+            result = ParseResult(
+                platform=Platform('xhs', '小红书'),
+                contents=[ImageContent(original, preview)],
+            )
+            bot = SimpleNamespace(self_id='10', send=AsyncMock(), call_api=AsyncMock())
+            await self.make_sender().send_parse_result(Transport(bot, SimpleNamespace(user_id=42)), result)
+            bot.send.assert_awaited_once()
+            file = bot.send.await_args.args[1][0].data['file']
+            self.assertTrue(str(file).endswith('/preview.webp'))
 
 
 if __name__ == '__main__':

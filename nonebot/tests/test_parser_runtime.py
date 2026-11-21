@@ -1,7 +1,7 @@
 import asyncio
 import unittest
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, Mock
 
 from media_parser.core.data import ParseResult, Platform
 from media_parser.runtime import ArbiterBot, ParserRuntime
@@ -75,10 +75,64 @@ class ParserRuntimeTests(unittest.TestCase):
                 parser = runtime.parsers[match[0]]
                 parser.parse = AsyncMock(return_value=ParseResult(platform=Platform('bilibili', 'B站'), title='test', url='https://example.com/a'))
                 runtime.sender.send_parse_result = AsyncMock()
+                runtime.log_skip = Mock()
                 await runtime.process(SimpleNamespace(), event, match)
                 await runtime.process(SimpleNamespace(), event, match)
                 self.assertEqual(parser.parse.await_count, 1)
                 self.assertEqual(runtime.sender.send_parse_result.await_count, 1)
+                runtime.log_skip.assert_called_once()
+                self.assertEqual(runtime.log_skip.call_args.args[0], 'Debounced')
+            finally:
+                await runtime.close()
+        asyncio.run(run())
+
+
+    def test_send_failure_releases_link_debounce(self):
+        async def run():
+            runtime = ParserRuntime()
+            try:
+                event = SimpleNamespace(self_id=10, user_id=20, original_message=[seg('text', text='https://xhslink.com/a/example')], reply=None)
+                match = runtime.match(event)
+                self.assertIsNotNone(match)
+                parser = runtime.parsers[match[0]]
+                result = ParseResult(platform=Platform('xhs', '小红书'), title='test', url='https://example.com/a')
+                parser.parse = AsyncMock(return_value=result)
+                runtime.sender.send_parse_result = AsyncMock(side_effect=[RuntimeError('send failed'), None])
+                runtime.log_failure = Mock()
+                runtime.log_skip = Mock()
+                await runtime.process(SimpleNamespace(), event, match)
+                await runtime.process(SimpleNamespace(), event, match)
+                self.assertEqual(parser.parse.await_count, 2)
+                self.assertEqual(runtime.sender.send_parse_result.await_count, 2)
+                runtime.log_failure.assert_called_once()
+                runtime.log_skip.assert_not_called()
+            finally:
+                await runtime.close()
+        asyncio.run(run())
+
+    def test_parse_failure_releases_link_debounce(self):
+        async def run():
+            runtime = ParserRuntime()
+            try:
+                event = SimpleNamespace(self_id=10, user_id=20, original_message=[seg('text', text='https://xhslink.com/a/example')], reply=None)
+                match = runtime.match(event)
+                self.assertIsNotNone(match)
+                parser = runtime.parsers[match[0]]
+                parser.parse = AsyncMock(side_effect=[
+                    RuntimeError('parse failed'),
+                    ParseResult(platform=Platform('xhs', '小红书'), title='test', url='https://example.com/a'),
+                ])
+                runtime.sender.send_parse_result = AsyncMock()
+                runtime.log_failure = Mock()
+                runtime.log_skip = Mock()
+                bot = SimpleNamespace(send=AsyncMock())
+                await runtime.process(bot, event, match)
+                await runtime.process(bot, event, match)
+                self.assertEqual(parser.parse.await_count, 2)
+                bot.send.assert_awaited_once()
+                runtime.sender.send_parse_result.assert_awaited_once()
+                runtime.log_failure.assert_called_once()
+                runtime.log_skip.assert_not_called()
             finally:
                 await runtime.close()
         asyncio.run(run())

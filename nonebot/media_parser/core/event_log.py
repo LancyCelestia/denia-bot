@@ -124,6 +124,6 @@ def event_log(config=None) -> ParserEventLog:
     """取全局事件日志（数据目录下的 media_parser/events.jsonl）。"""
     global _log
     if _log is None:
-        base = Path(config.data_dir) if config is not None else Path(__file__).resolve().parent.parent / "data" / "media_parser"
+        base = Path(config.data_dir) if config is not None else Path(__file__).resolve().parents[2] / "data" / "media_parser"
         _log = ParserEventLog(Path(base) / "events.jsonl")
     return _log

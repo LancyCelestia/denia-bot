@@ -41,6 +41,10 @@ from .perf import mark, phase
 from .utils import transcode_video_audio_to_lc
 
 
+QQ_IMAGE_UPLOAD_LIMIT = 20 * 1024 * 1024
+"""QQ/NapCat 单图上传的经验上限；超过时退回卡片预览图，避免 highway 323。"""
+
+
 class MessageSender:
     """
     消息发送器
@@ -175,6 +179,27 @@ class MessageSender:
                 with phase("preview_fallback_send"):
                     await event.send(event.chain_result([Plain(fallback)]))
 
+    async def _prefer_preview(self, path: Path, content: ImageContent) -> Path:
+        """原图超过 QQ 上传上限时，用已缓存的预览图代替。"""
+        try:
+            if path.stat().st_size <= QQ_IMAGE_UPLOAD_LIMIT:
+                return path
+        except OSError:
+            return path
+        try:
+            preview = await content.get_preview_path()
+        except Exception:  # noqa: BLE001 - 预览失败不应阻断原图发送
+            return path
+        if not preview or preview == path:
+            return path
+        try:
+            if preview.stat().st_size >= path.stat().st_size:
+                return path
+        except OSError:
+            return path
+        mark("degraded")
+        return preview
+
     async def _build_segments(
         self,
         result: ParseResult,
@@ -236,7 +261,8 @@ class MessageSender:
                 continue
 
             match cont:
-                case ImageContent():
+                case ImageContent() as image:
+                    path = await self._prefer_preview(path, image)
                     segs.append(self._image_from_path(path))
                 case GraphicsContent() as g:
                     segs.append(self._image_from_path(path))
