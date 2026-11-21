@@ -535,13 +535,41 @@ async def set_model_pref_config(req: Request):
     if 'primary' not in body or 'secondary' not in body:
         raise HTTPException(400, '必须同时提供 primary 和 secondary')
     try:
-        return model_pref_panel.save(body.get('primary'), body.get('secondary'))
+        return model_pref_panel.save_models(body.get('primary'), body.get('secondary'))
+    except (ValueError, TypeError) as e:
+        raise HTTPException(400, str(e))
+    except OSError:
+        raise HTTPException(503, '模型设置无法保存')
+
+@app.post('/api/model-pref/provider')
+async def set_model_provider(req: Request):
+    mutate(req)
+    body = await req.json()
+    if not isinstance(body, dict):
+        raise HTTPException(400, '请求体必须是对象')
+    try:
+        return model_pref_panel.save_provider(body.get('base_url'), body.get('api_key'))
     except model_pref_panel.Unpublished:
         raise HTTPException(409, '模型配置尚未发布：请先核对 configs/models.yml 并重新发布摘要')
     except (ValueError, TypeError) as e:
         raise HTTPException(400, str(e))
     except OSError:
-        raise HTTPException(503, '模型设置无法保存')
+        raise HTTPException(503, '提供商配置无法保存')
+
+@app.post('/api/model-pref/upstream')
+async def list_model_upstream(req: Request):
+    mutate(req)
+    body = await req.json()
+    if not isinstance(body, dict):
+        raise HTTPException(400, '请求体必须是对象')
+    try:
+        return model_pref_panel.fetch_upstream(body.get('base_url'), body.get('api_key'))
+    except model_pref_panel.UpstreamError as e:
+        raise HTTPException(502, str(e))
+    except (ValueError, TypeError) as e:
+        raise HTTPException(400, str(e))
+    except OSError:
+        raise HTTPException(503, '无法读取模型提供商配置')
 
 @app.get('/api/persona')
 def persona_config(req: Request):

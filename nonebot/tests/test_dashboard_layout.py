@@ -1,4 +1,12 @@
 """Structural guardrails for the dashboard page layout.
+    card = _between(text, '<section id="model-pref"', '</section>')
+    assert 'id="modelBaseUrl"' in card
+    assert 'id="modelApiKey"' in card
+    assert 'id="modelProviderSave"' in card
+    assert 'id="modelUpstreamFetch"' in card
+    assert 'id="modelRestart"' in card
+    assert 'fetchModelUpstream' in text and 'saveModelProvider' in text
+    assert 'relay' not in card and 'echo-test' not in card
 
 These tests are intentionally about the layout contract, not a specific card's
 form. They catch the regressions that would quietly turn the panel back into

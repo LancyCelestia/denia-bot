@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 
 import pytest
+import yaml
 from fastapi.testclient import TestClient
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -13,13 +14,17 @@ import model_pref_panel
 import model_publication
 import persona_settings
 
-MODEL_TEXT = """relay:
+MODEL_TEXT = """# provider config
+relay:
   provider: openai
   default: true
   template: Denia
   template_mode: system
-  model_name: test-model
+  model_name: gemini-3.8-flash-high
+  api_host: http://old.example/v1
   api_key: sk-secret-value
+  stream: true
+# diagnostic entry
 echo-test:
   provider: _echo
   default: false
@@ -49,7 +54,8 @@ def panel(tmp_path, monkeypatch):
     monkeypatch.setattr(persona_settings, 'TEMPLATES_DIR', templates)
     monkeypatch.setattr(persona_settings, 'get_private', lambda key: '')
     monkeypatch.setattr(model_pref_panel, 'STATE_PATH', state)
-    return {'client': TestClient(d.app), 'models': models, 'templates': templates, 'state': state}
+    return {'client': TestClient(d.app), 'models': models, 'templates': templates,
+            'state': state, 'monkeypatch': monkeypatch}
 
 
 def login(client):
@@ -65,139 +71,175 @@ def seed_state(path, **over):
     return state
 
 
+class FakeResponse:
+    def __init__(self, status_code=200, payload=None, content=None):
+        self.status_code = status_code
+        self.payload = payload
+        self.content = content if content is not None else json.dumps(payload or {}).encode()
+
+    def json(self):
+        return self.payload
+
+
 def test_model_pref_requires_login(panel):
     assert panel['client'].get('/api/model-pref').status_code == 401
 
 
-def test_model_pref_post_requires_csrf_and_both_keys(panel):
+def test_model_pref_post_requires_csrf(panel):
     client = panel['client']
     headers = login(client)
-    assert client.post('/api/model-pref', json={'primary': None, 'secondary': None}).status_code == 403
+    assert client.post('/api/model-pref', json={'primary': 'm', 'secondary': None}).status_code == 403
+    assert client.post('/api/model-pref/provider', json={'base_url': 'http://x/v1'}).status_code == 403
+    assert client.post('/api/model-pref/upstream', json={}).status_code == 403
     assert client.post('/api/model-pref', json=[], headers=headers).status_code == 400
     assert client.post('/api/model-pref', json={}, headers=headers).status_code == 400
-    assert client.post('/api/model-pref', json={'primary': 'relay'}, headers=headers).status_code == 400
-    assert not panel['state'].exists()
+    assert client.post('/api/model-pref/provider', json=[], headers=headers).status_code == 400
+    assert client.post('/api/model-pref/upstream', json=[], headers=headers).status_code == 400
 
 
-def test_model_pref_view_lists_entries_without_secrets(panel):
-    seed_state(panel['state'], primary='relay', primary_model='upstream-a')
+def test_model_pref_view_hides_entries_and_key(panel):
+    seed_state(panel['state'], primary='relay', primary_model='deepseek-v4.1-flash-eco',
+               secondary=None, swaps={'relay': 2, 'echo-test': 5})
     client = panel['client']
     headers = login(client)
     view = client.get('/api/model-pref', headers=headers)
     assert view.status_code == 200
     body = view.json()
-    by_name = {item['name']: item for item in body['models']}
-    assert by_name['relay']['model_name'] == 'test-model'
-    assert by_name['relay']['default'] is True
-    assert by_name['echo-test']['model_name'] == 'echo'
-    assert body['default_model'] == 'relay'
-    assert body['active_model'] == 'relay'
+    encoded = json.dumps(body, ensure_ascii=False)
+    assert body['provider'] == {
+        'base_url': 'http://old.example/v1',
+        'key_configured': True,
+        'model_name': 'gemini-3.8-flash-high',
+        'template': 'Denia',
+    }
+    assert body['active_model'] == 'deepseek-v4.1-flash-eco'
     assert body['active_source'] == 'model_pref'
-    assert body['state']['primary_model'] == 'upstream-a'
+    assert body['state']['primary_model'] == 'deepseek-v4.1-flash-eco'
+    assert body['state']['swaps'] == {'gemini-3.8-flash-high': 2}
     assert body['publication']['published'] is True
-    assert 'sk-secret-value' not in view.text
+    assert 'sk-secret-value' not in encoded
+    assert 'relay' not in encoded
+    assert 'echo-test' not in encoded
 
 
-def test_model_pref_rejects_unknown_entry_and_keeps_state(panel):
-    seed_state(panel['state'], primary='relay', secondary='echo-test')
-    before = panel['state'].read_bytes()
+def test_model_pref_provider_save_and_restart(panel):
+    seed_state(panel['state'], primary='relay', primary_model='deepseek-v4.1-flash-eco')
     client = panel['client']
     headers = login(client)
-    response = client.post('/api/model-pref',
-                           json={'primary': 'missing', 'secondary': 'echo-test'},
-                           headers=headers)
-    assert response.status_code == 400
-    assert panel['state'].read_bytes() == before
-    assert client.post('/api/model-pref',
-                       json={'primary': ['relay'], 'secondary': None},
-                       headers=headers).status_code == 400
-
-
-def test_model_pref_preserves_override_for_unchanged_entry(panel):
-    seed_state(panel['state'], primary='relay', primary_model='upstream-a',
-               secondary='echo-test', secondary_model='upstream-b',
-               swaps={'relay': 2})
-    client = panel['client']
-    headers = login(client)
-    response = client.post('/api/model-pref',
-                           json={'primary': 'relay', 'secondary': 'echo-test'},
+    response = client.post('/api/model-pref/provider',
+                           json={'base_url': 'http://new.example/v1/', 'api_key': 'sk-new-key'},
                            headers=headers)
     assert response.status_code == 200
-    state = mp.load_state(panel['state'])
-    assert state['primary'] == 'relay'
-    assert state['primary_model'] == 'upstream-a'
-    assert state['secondary'] == 'echo-test'
-    assert state['secondary_model'] == 'upstream-b'
-    assert state['swaps'] == {'relay': 2}
-    assert state['updated']
-    assert response.json()['saved']['restart_required'] is False
-
-
-def test_model_pref_clears_override_when_entry_changes(panel):
-    seed_state(panel['state'], primary='relay', primary_model='upstream-a',
-               secondary='echo-test', secondary_model='upstream-b')
-    client = panel['client']
-    headers = login(client)
-    response = client.post('/api/model-pref',
-                           json={'primary': 'echo-test', 'secondary': None},
-                           headers=headers)
-    assert response.status_code == 200
-    state = mp.load_state(panel['state'])
-    assert state['primary'] == 'echo-test'
-    assert state['primary_model'] is None
-    assert state['secondary'] is None
-    assert state['secondary_model'] is None
     body = response.json()
-    assert body['active_model'] == 'echo-test'
-    assert body['active_source'] == 'model_pref'
+    assert body['restart_required'] is True
+    assert body['provider']['base_url'] == 'http://new.example/v1'
+    assert body['provider']['key_configured'] is True
+    assert 'sk-new-key' not in response.text
+    assert 'sk-secret-value' not in response.text
+    data = yaml.safe_load(panel['models'].read_text(encoding='utf-8'))
+    assert data['relay']['api_host'] == 'http://new.example/v1'
+    assert data['relay']['api_key'] == 'sk-new-key'
+    assert data['relay']['template'] == 'Denia'
+    assert data['relay']['model_name'] == 'gemini-3.8-flash-high'
+    assert data['echo-test']['model_name'] == 'echo'
+    assert model_publication.read_published(panel['models']) == panel['models'].read_bytes()
 
 
-def test_model_pref_clears_primary_and_keeps_swaps(panel):
-    seed_state(panel['state'], primary='relay', primary_model='upstream-a',
-               swaps={'relay': 3})
+def test_model_pref_provider_rejects_bad_url(panel):
     client = panel['client']
     headers = login(client)
-    response = client.post('/api/model-pref',
-                           json={'primary': '', 'secondary': 'echo-test'},
-                           headers=headers)
-    assert response.status_code == 200
-    state = mp.load_state(panel['state'])
-    assert state['primary'] is None
-    assert state['primary_model'] is None
-    assert state['secondary'] == 'echo-test'
-    assert state['swaps'] == {'relay': 3}
-    assert response.json()['active_model'] == 'relay'
-    assert response.json()['active_source'] == 'default'
+    before = panel['models'].read_bytes()
+    response = client.post('/api/model-pref/provider',
+                           json={'base_url': 'ftp://example.com/v1'}, headers=headers)
+    assert response.status_code == 400
+    assert panel['models'].read_bytes() == before
 
 
-def test_model_pref_refuses_unpublished_models(panel):
+def test_model_pref_provider_refuses_unpublished(panel):
     seed_state(panel['state'], primary='relay')
     panel['models'].write_text(MODEL_TEXT + '# manual edit\n', encoding='utf-8')
     models_before = panel['models'].read_bytes()
     state_before = panel['state'].read_bytes()
     client = panel['client']
     headers = login(client)
-
     view = client.get('/api/model-pref', headers=headers)
     assert view.status_code == 200
     assert view.json()['publication']['published'] is False
-
-    response = client.post('/api/model-pref',
-                           json={'primary': 'echo-test', 'secondary': None},
+    response = client.post('/api/model-pref/provider',
+                           json={'base_url': 'http://new.example/v1', 'api_key': 'sk-new'},
                            headers=headers)
     assert response.status_code == 409
-    assert panel['state'].read_bytes() == state_before
     assert panel['models'].read_bytes() == models_before
+    assert panel['state'].read_bytes() == state_before
 
 
-def test_model_pref_save_does_not_touch_models(panel):
+def test_model_pref_upstream_returns_models_without_key(panel):
     seed_state(panel['state'], primary='relay')
+    seen = {}
+
+    def fake_get(url, **kwargs):
+        seen['url'] = url
+        seen.update(kwargs)
+        return FakeResponse(payload={'data': [{'id': 'm1'}, {'id': 'm2'}]})
+
+    panel['monkeypatch'].setattr(model_pref_panel.httpx, 'get', fake_get)
+    client = panel['client']
+    headers = login(client)
+    response = client.post('/api/model-pref/upstream', json={}, headers=headers)
+    assert response.status_code == 200
+    body = response.json()
+    assert body['models'] == ['m1', 'm2']
+    assert body['source'] == 'http://old.example/v1'
+    assert 'sk-secret-value' not in response.text
+    assert seen['headers'] == {'Authorization': 'Bearer sk-secret-value'}
+
+
+def test_model_pref_upstream_error_is_502_without_key(panel):
+    seed_state(panel['state'], primary='relay')
+    panel['monkeypatch'].setattr(
+        model_pref_panel.httpx, 'get',
+        lambda url, **kwargs: FakeResponse(status_code=500, payload={}),
+    )
+    client = panel['client']
+    headers = login(client)
+    response = client.post('/api/model-pref/upstream', json={}, headers=headers)
+    assert response.status_code == 502
+    assert 'sk-secret-value' not in response.text
+
+
+def test_model_pref_models_save(panel):
+    seed_state(panel['state'], primary='relay', primary_model='old-model',
+               secondary=None, swaps={'relay': 3})
     models_before = panel['models'].read_bytes()
     client = panel['client']
     headers = login(client)
     response = client.post('/api/model-pref',
-                           json={'primary': 'echo-test', 'secondary': None},
+                           json={'primary': 'deepseek-v4.1-flash-eco', 'secondary': None},
                            headers=headers)
     assert response.status_code == 200
+    body = response.json()
+    assert body['saved']['restart_required'] is False
+    assert body['active_model'] == 'deepseek-v4.1-flash-eco'
+    assert 'relay' not in response.text
+    assert 'echo-test' not in response.text
+    state = mp.load_state(panel['state'])
+    assert state['primary'] == 'relay'
+    assert state['primary_model'] == 'deepseek-v4.1-flash-eco'
+    assert state['secondary'] is None
+    assert state['swaps'] == {'relay': 3}
     assert panel['models'].read_bytes() == models_before
-    assert 'sk-secret-value' not in json.dumps(response.json())
+
+
+@pytest.mark.parametrize('primary,secondary', [
+    ('', None), ('a\x00b', None), ('x' * 201, None), (None, None), ('ok', 'a\nb'),
+])
+def test_model_pref_models_reject_bad_names(panel, primary, secondary):
+    seed_state(panel['state'], primary='relay')
+    before = panel['state'].read_bytes()
+    client = panel['client']
+    headers = login(client)
+    response = client.post('/api/model-pref',
+                           json={'primary': primary, 'secondary': secondary},
+                           headers=headers)
+    assert response.status_code == 400
+    assert panel['state'].read_bytes() == before
