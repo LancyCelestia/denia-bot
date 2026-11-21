@@ -616,15 +616,7 @@ svg.liquid-filter-defs{position:absolute;width:0;height:0;overflow:hidden}
 #panelGrid > .card{min-width:0;margin:0;scroll-margin-top:124px;outline:4px solid var(--tray);outline-offset:0}
 body[data-page="overview"] #panelGrid{margin-top:0}
 body[data-page="section"] #panelGrid > .card:not([hidden]) .card-head h2{display:none}
-.context-rail{display:none;position:fixed;top:12px;right:12px;bottom:12px;z-index:40;width:280px;flex-direction:column;gap:12px;overflow-y:auto}
-.rail-card{padding:18px;border:1px solid var(--line);border-radius:18px;background:var(--paper);box-shadow:0 10px 30px var(--shadow-card)}
-.rail-label{color:var(--muted);font:500 10px var(--font-mono);letter-spacing:.12em;text-transform:uppercase}
-.rail-card h2{margin:6px 0;font:500 18px var(--font-display)}
-.rail-desc{margin:0;color:var(--muted);font-size:12.5px;line-height:1.6}
-.rail-meta{display:flex;justify-content:space-between;gap:8px;margin-top:12px;color:var(--text-9);font:11px var(--font-mono)}
-.rail-links{display:flex;flex-direction:column;gap:2px;margin-top:8px}
-.rail-links a{padding:7px 8px;border-radius:8px;color:var(--muted);font-size:12.5px;text-decoration:none}
-.rail-links a:hover,.rail-links a[aria-current="true"]{background:var(--surface-hover);color:var(--ink)}
+
 .page-footer{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:auto;padding:16px 0;border-top:1px solid var(--line);color:var(--muted);font-size:12px}
 .page-footer a{color:var(--accent-dark);text-decoration:none}
 .nav-overlay{position:fixed;inset:0;z-index:55;background:rgba(20,20,20,.35);-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)}
@@ -632,7 +624,6 @@ html[data-skin="holy"] #app .sidebar{top:0;left:0;bottom:0;background:var(--pape
 html[data-skin="holy"] .page-head{background:var(--paper);box-shadow:0 1px 2px var(--shadow-card)}
 @media(min-width:801px){
   html[data-skin="holy"] #app .sidebar{width:240px;padding-left:14px;padding-right:14px}
-  html[data-skin="holy"] #app .workspace{margin-left:240px;max-width:1100px}
   html[data-skin="holy"] #panelGrid > .card{scroll-margin-top:124px}
 }
 /* Academia scopes its paper palette on .card; mirror that local palette on the new paper surfaces. */
@@ -650,14 +641,7 @@ html[data-skin="academia"] #app .page-head{
 }
 html[data-skin="academia"] #app .head-right .btn{background:#3d2b1f;border-color:rgba(139,115,85,.45);color:#f5f0e1}
 html[data-skin="academia"] #app .head-right .btn:hover{background:#5c4033;border-color:rgba(139,115,85,.80);color:#f5f0e1}
-@media(max-width:1279px){
-  html[data-skin="holy"] #app .workspace{margin-right:0}
-  .context-rail{display:none!important}
-}
-@media(min-width:1280px){
-  html[data-skin="holy"] .context-rail{display:flex}
-  html[data-skin="holy"] #app .workspace{margin-right:304px;max-width:1100px}
-}
+
 @media(max-width:1100px){
   .kpis{grid-template-columns:repeat(3,minmax(0,1fr))}
   .hero-core{grid-template-columns:1fr}
@@ -687,7 +671,6 @@ html[data-skin="academia"] #app .head-right .btn:hover{background:#5c4033;border
   .verdict{font-size:34px}
   .hero-actions{gap:10px}
   .head-left h1{font-size:25px}
-  .rail-meta{flex-direction:column;gap:2px}
 }
 @media(prefers-reduced-motion:reduce){
   html{scroll-behavior:auto}
@@ -789,7 +772,7 @@ html[data-skin="academia"] #app .head-right .btn:hover{background:#5c4033;border
 <a class="nav-link" href="#superusers"><span class="nav-icon">⚑</span>超级管理员</a>
 </nav>
 <div id="panelGrid" class="panel-grid">
-<section id="bot-info" class="card" data-rail-title="Bot 基本情况">
+<section id="bot-info" class="card" data-page-title="Bot 基本情况">
   <div class="card-head"><div class="card-icon" aria-hidden="true">◈</div><div><h2>bot基本信息</h2><p class="section-description">设置机器人在状态卡、日报、集群卡、灾害卡和指令菜单中显示的 bot-name。保存后立即生效，不需要重启机器人。</p></div></div>
   <div class="controls"><input id="botNameInput" maxlength="40" placeholder="如：达妮娅" aria-label="机器人名称"><button class="primary" type="button" onclick="run(saveBotName)">保存名称</button><button type="button" onclick="run(resetBotName)">恢复默认</button><span id="botNameState" class="hint" role="status"></span></div>
   <p class="hint">只改显示名称，不改人格、唤醒词或模型设置；默认名称为「达妮娅」。名称最多 40 个字符。</p>
@@ -1065,7 +1048,7 @@ html[data-skin="academia"] #app .head-right .btn:hover{background:#5c4033;border
 </div>
 </div>
 <footer class="page-footer"><span>达妮娅控制台 · {{APP_VERSION}}</span><span>本地管理空间 · 仅管理员</span></footer></main>
-<div id="contextRail" class="context-rail" aria-label="页面信息"><section class="rail-card"><div class="rail-label">CURRENT VIEW</div><h2 id="railTitle">Bot 基本情况</h2><p class="rail-desc" id="railDesc">机器人身份、人格与运行概览。</p><div class="rail-meta"><span>只读概览</span><span id="railUpdated">—</span></div></section><section class="rail-card"><div class="rail-label">ON THIS PAGE</div><nav class="rail-links" id="railLinks" aria-label="本页章节"></nav></section><section class="rail-card"><div class="rail-label">SHELL</div><p class="rail-desc">本地管理空间 · 仅管理员</p><div class="rail-meta"><span>本地时间 <b id="railClock">—</b></span><span>{{APP_VERSION}}</span></div></section></div></div>
+</div>
 <script id="appScript">
 let csrf='';const $=x=>document.getElementById(x);
 function cssVar(name){try{return getComputedStyle(document.documentElement).getPropertyValue(name).trim()}catch(e){return ''}}
@@ -1302,7 +1285,6 @@ function updateShellStatus(status){
   $('heroVerdict').textContent=connected?'连接正常':offline?'等待连接':'状态未知';
   $('heroSub').textContent=connected?'OneBot 已连接，可以在左侧管理记忆、群聊与天气。':offline?'OneBot 未连接；请检查机器人进程和端口。':'无法确认 OneBot 连接状态；请检查机器人进程与健康探测。';
   const label=$('shellBotName').textContent||'达妮娅';$('heroBotLine').textContent=label+' · '+(b.protocol||'OneBot');
-  $('railUpdated').textContent='更新于 '+new Date().toLocaleTimeString();
 }
 function shellRuler(points,now){
   const ruler=$('heroRuler');if(!ruler)return;
@@ -1342,7 +1324,6 @@ function updateShellLive(overview){
   $('kpiDisk').textContent=enabled&&disk&&disk.percent!=null?Math.round(Number(disk.percent))+'%':'—';
   $('kpiDiskSmall').textContent=enabled&&disk&&disk.used!=null?`${statusBytes(disk.used)} / ${statusBytes(disk.total)}`:'已用 / 总量';
   shellRuler(enabled?(x.history&&x.history.points)||[]:[],x.now);
-  $('railUpdated').textContent='更新于 '+new Date().toLocaleTimeString();
 }
 async function refreshShell(){notice('');await Promise.allSettled([loadBotStatus(),loadStatus(),loadTokens(),refresh()])}
 async function loadBotName(){const data=await api('/api/bot-name');$('botNameInput').value=data.name||'';applyBotName(data.name);const labels={file:'面板设置',env:'环境变量',default:'默认名称'};$('botNameState').textContent=`当前：${labels[data.source]||data.source||'未知'}`}
@@ -2104,23 +2085,12 @@ function navGroupLabel(hash){
   }
   return '';
 }
-function setRailContent(title,desc,hash){
-  const railTitle=$('railTitle'),railDesc=$('railDesc'),clock=$('railClock');
-  if(railTitle)railTitle.textContent=title;
-  if(railDesc)railDesc.textContent=desc;
-  if(clock)clock.textContent=new Date().toLocaleTimeString();
-  document.querySelectorAll('#railLinks a').forEach(link=>{
-    if(link.getAttribute('href')===hash)link.setAttribute('aria-current','true');
-    else link.removeAttribute('aria-current');
-  });
-}
 function showOverview(){
   if(overviewPanel)overviewPanel.hidden=false;
   pageSections.forEach(section=>{section.hidden=true});
   if(basicsNav)basicsNav.hidden=true;
   const name=($('shellBotName')&&$('shellBotName').textContent)||'达妮娅';
   setPageHeading('你好，'+name+'。','在这里管理她的记忆、群里的话题与天气提醒。');
-  setRailContent('控制台概览','主机、服务、用量与最近日志的一屏总览。','#overview');
   markActive('#overview');
   if(document.body)document.body.dataset.page='overview';
 }
@@ -2136,42 +2106,20 @@ function markActive(hash){
     else link.removeAttribute('aria-current');
   }
 }
-function updateRail(section){
-  if(!section)return;
-  const heading=section.querySelector('h2'),description=section.querySelector('.section-description');
-  const title=(section.dataset.railTitle||(heading&&heading.textContent)||section.id||'章节').trim();
-  const desc=(description?description.textContent:'只读概览；从左侧导航切换章节。').trim();
-  setRailContent(title,desc,'#'+section.id);
-}
-function buildRail(){
-  const list=$('railLinks');
-  if(!list)return;
-  list.replaceChildren();
-  const links=Array.from(document.querySelectorAll('#appSidebar .nav-link[href^="#"]:not(.external)'));
-  for(const navLink of links){
-    const link=document.createElement('a');
-    const label=Array.from(navLink.childNodes).filter(node=>node.nodeType===3).map(node=>node.textContent).join('').trim();
-    link.href=navLink.getAttribute('href');
-    link.textContent=label||navLink.textContent.trim();
-    list.append(link);
-  }
-}
 function setNavOpen(open){
   const isOpen=!!open;
   const wasOpen=document.body.classList.contains('nav-open');
   document.body.classList.toggle('nav-open',isOpen);
   const overlay=$('navOverlay');if(overlay)overlay.hidden=!isOpen;
   const toggle=$('navToggle');if(toggle)toggle.setAttribute('aria-expanded',String(isOpen));
-  const main=document.querySelector('main.workspace'),rail=$('contextRail');
+  const main=document.querySelector('main.workspace');
   if(main)main.inert=isOpen;
-  if(rail)rail.inert=isOpen;
   if(isOpen){
     const close=$('navClose')||document.querySelector('#appSidebar .nav-link');
     if(close&&typeof close.focus==='function')requestAnimationFrame(()=>{try{close.focus()}catch(e){}});
   }else if(wasOpen&&toggle&&typeof toggle.focus==='function')toggle.focus();
 }
 function initShell(){
-  buildRail();
   const toggle=$('navToggle'),overlay=$('navOverlay');
   if(toggle)toggle.addEventListener('click',()=>setNavOpen(!document.body.classList.contains('nav-open')));
   if(overlay)overlay.addEventListener('click',()=>setNavOpen(false));
@@ -2203,10 +2151,9 @@ function showWorkspaceSection(refreshSection) {
       const inBasics = basicsHashSet().has(hash);
       if (basicsNav) basicsNav.hidden = !inBasics;
       const heading = target.querySelector('h2');
-      const title = (target.dataset.railTitle || (heading && heading.textContent) || target.id || '章节').trim();
+      const title = (target.dataset.pageTitle || (heading && heading.textContent) || target.id || '章节').trim();
       const group = hash === '#bot-info' ? navGroupLabel(hash) : (inBasics ? 'Bot 基本情况' : navGroupLabel(hash));
       setPageHeading(title, group || '控制台');
-      updateRail(target);
       markActive(hash);
       if (document.body) document.body.dataset.page = 'section';
       const load = sectionLoaders.get(hash);

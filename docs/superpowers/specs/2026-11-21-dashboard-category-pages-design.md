@@ -26,7 +26,7 @@
 - `#overview` 包裹 hero + KPI；默认无 hash 时显示概览。
 - 新增侧栏「概览」链接，href 为 `#overview`；其余链接保持原 hash。
 - `#panelGrid` 改为块布局；只保留当前 section 可见，其余 `hidden`。
-- 栏目页 page-head 标题 = 当前 section 的 `data-rail-title`/`h2`；副标题 = 所属侧栏分组（Bot 基本情况子页为「Bot 基本情况」）。
+- 栏目页 page-head 标题 = 当前 section 的 `data-page-title`/`h2`；副标题 = 所属侧栏分组（Bot 基本情况子页为「Bot 基本情况」）。
 - 栏目页隐藏卡片自身的 `h2`，保留图标、说明、表单，避免与 page-head 重复主标题；说明仍在卡片头部完整显示。
 - 概览页隐藏 basics-nav 和所有 section；栏目页隐藏 hero/KPI；basics-nav 仅在五个 Bot 基本情况子页显示。
 - 页面切换使用现有 `hashchange` 和重复点击刷新逻辑；切换后回到页首，不新增后端请求。
@@ -47,6 +47,7 @@
 后续修改必须保持：
 
 - 概览不显示栏目卡片；栏目卡片只能在 `#panelGrid`，且一次只显示当前页一张。
+- 圣杯布局只保留左侧 sidebar 与主内容，不显示右侧 context rail / 页内导航。
 - page-head 在概览和栏目页都可见，并显示当前页标题/分组；栏目的页面主标题不回退到卡片 h2。
 - 全宽卡片，不恢复 12 栏 grid、`grid-column` / span 类或滚动 spy。
 - 新增或重排页面时，同步更新 `nonebot/tests/test_dashboard_layout.py` 和 `test_bilibili_panel.py::test_sidebar_keeps_primary_order_and_groups_bot_settings`。
