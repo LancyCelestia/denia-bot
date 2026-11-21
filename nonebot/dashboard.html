@@ -555,7 +555,7 @@ svg.liquid-filter-defs{position:absolute;width:0;height:0;overflow:hidden}
 #app .side-bottom strong{display:block;margin-bottom:2px;color:var(--text-5);font-size:12px}
 #app .side-theme,#app .side-logout{width:100%;min-height:32px;margin-top:6px;padding:4px 10px;border-color:var(--line);border-radius:10px;background:transparent;font-size:12px;box-shadow:none}
 #app .side-theme:hover,#app .side-logout:hover{background:var(--surface-hover);border-color:var(--line-strong)}
-#app .workspace{margin-left:288px;margin-right:0;max-width:1180px;padding:12px 32px 64px}
+#app .workspace{margin-left:288px;margin-right:0;max-width:1180px;min-height:100vh;display:flex;flex-direction:column;padding:12px 32px 64px}
 .page-head{position:sticky;top:12px;z-index:30;display:flex;align-items:flex-end;justify-content:space-between;gap:20px;min-height:78px;padding:14px 18px;border:1px solid var(--line);border-radius:var(--r-20);background:var(--paper-translucent,var(--paper));box-shadow:0 20px 54px -44px var(--shadow-card),inset 0 1px 0 rgba(255,255,255,.6);-webkit-backdrop-filter:blur(16px) saturate(115%);backdrop-filter:blur(16px) saturate(115%)}
 .head-left{display:flex;align-items:flex-start;gap:12px;min-width:0}
 .head-left h1{margin:4px 0 6px;font:600 34px/1.14 var(--font-display);letter-spacing:-.015em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -612,9 +612,10 @@ svg.liquid-filter-defs{position:absolute;width:0;height:0;overflow:hidden}
 #botBasicsNav .nav-link:hover{background:var(--surface-hover);color:var(--ink)}
 #botBasicsNav .nav-link.active{background:var(--paper);border-color:var(--line-strong);color:var(--ink);font-weight:500}
 #botBasicsNav .nav-link.active::before{display:none}
-#panelGrid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:24px;margin-top:18px;align-items:start}
-#panelGrid > .card{grid-column:span 12;min-width:0;margin:0;scroll-margin-top:124px;outline:4px solid var(--tray);outline-offset:0}
-#panelGrid > #master,#panelGrid > #superusers,#panelGrid > #group,#panelGrid > #weather,#panelGrid > #game-events,#panelGrid > #epic,#panelGrid > #bilibili,#panelGrid > #embedding,#panelGrid > #renderer,#panelGrid > #disaster,#panelGrid > #account,#panelGrid > #monitor{grid-column:span 6}
+#panelGrid{display:block;margin-top:18px}
+#panelGrid > .card{min-width:0;margin:0;scroll-margin-top:124px;outline:4px solid var(--tray);outline-offset:0}
+body[data-page="overview"] #panelGrid{margin-top:0}
+body[data-page="section"] #panelGrid > .card:not([hidden]) .card-head h2{display:none}
 .context-rail{display:none;position:fixed;top:12px;right:12px;bottom:12px;z-index:40;width:280px;flex-direction:column;gap:12px;overflow-y:auto}
 .rail-card{padding:18px;border:1px solid var(--line);border-radius:18px;background:var(--paper);box-shadow:0 10px 30px var(--shadow-card)}
 .rail-label{color:var(--muted);font:500 10px var(--font-mono);letter-spacing:.12em;text-transform:uppercase}
@@ -624,7 +625,7 @@ svg.liquid-filter-defs{position:absolute;width:0;height:0;overflow:hidden}
 .rail-links{display:flex;flex-direction:column;gap:2px;margin-top:8px}
 .rail-links a{padding:7px 8px;border-radius:8px;color:var(--muted);font-size:12.5px;text-decoration:none}
 .rail-links a:hover,.rail-links a[aria-current="true"]{background:var(--surface-hover);color:var(--ink)}
-.page-footer{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:26px;padding:16px 0;border-top:1px solid var(--line);color:var(--muted);font-size:12px}
+.page-footer{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:auto;padding:16px 0;border-top:1px solid var(--line);color:var(--muted);font-size:12px}
 .page-footer a{color:var(--accent-dark);text-decoration:none}
 .nav-overlay{position:fixed;inset:0;z-index:55;background:rgba(20,20,20,.35);-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)}
 html[data-skin="holy"] #app .sidebar{top:0;left:0;bottom:0;background:var(--paper);border:0;border-right:1px solid var(--line);border-radius:0;box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none}
@@ -658,8 +659,6 @@ html[data-skin="academia"] #app .head-right .btn:hover{background:#5c4033;border
   html[data-skin="holy"] #app .workspace{margin-right:304px;max-width:1100px}
 }
 @media(max-width:1100px){
-  #panelGrid{grid-template-columns:1fr}
-  #panelGrid > .card{grid-column:auto!important}
   .kpis{grid-template-columns:repeat(3,minmax(0,1fr))}
   .hero-core{grid-template-columns:1fr}
   .hero-side{border-left:0;border-top:1px solid var(--line)}
@@ -673,6 +672,9 @@ html[data-skin="academia"] #app .head-right .btn:hover{background:#5c4033;border
   .sb-toggle{display:inline-flex}
   #app #appearanceButtonMobile{display:inline-flex}
   .page-head{top:8px;padding:10px 12px;align-items:flex-start;flex-direction:column;gap:10px}
+  .head-left{width:100%}
+  .head-left>div{min-width:0;flex:1}
+  .head-desc{white-space:normal;overflow:visible;text-overflow:clip;max-width:100%}
   #panelGrid > .card{scroll-margin-top:160px}
   .head-right{width:100%;justify-content:flex-start}
   .head-left h1{font-size:28px}
@@ -751,8 +753,9 @@ html[data-skin="academia"] #app .head-right .btn:hover{background:#5c4033;border
 <section id="firstRun" hidden><h1>首次设置密码</h1><p>这是首次登录。请设置新的管理员密码（12 至 256 位），完成后所有设备都需要用新密码重新登录，一次性临时密码文件会被删除。</p><form onsubmit="setupPassword();return false"><label class="auth-label" for="setupPassword">新密码</label><input id="setupPassword" type="password" autocomplete="new-password" minlength="12" maxlength="256" placeholder="至少 12 位" required><label class="auth-label" for="setupPasswordConfirm">确认新密码</label><input id="setupPasswordConfirm" type="password" autocomplete="new-password" minlength="12" maxlength="256" placeholder="再次输入密码" required><button class="primary" type="submit">完成设置并重新登录　→</button></form></section><p id="message" role="status" aria-live="polite"></p><p class="auth-foot">QQ BOT · 管理员控制台 · {{APP_VERSION}}</p></div></div>
 <div id="app" class="shell" hidden><div id="navOverlay" class="nav-overlay" hidden></div><aside class="sidebar" id="appSidebar"><button type="button" class="sb-close" id="navClose" aria-label="关闭导航">×</button><div class="brand"><span class="brand-mark" aria-hidden="true">✳</span><span><span id="botBrandName">达妮娅</span> <span style="color:var(--text-10);font-weight:400">/</span> 控制台</span></div>
 <div class="bot-card"><span class="avatar" id="shellAvatar">达</span><span class="bot-copy"><strong class="bot-name" id="shellBotName">达妮娅</strong><span class="bot-sub" id="shellBotVersion">OneBot · 本地控制台</span></span><span class="bot-live" id="shellBotLive" data-tone="unknown" aria-hidden="true"></span></div>
-<div class="nav-caption">工作台</div><nav class="nav" aria-label="管理导航">
-<a id="botBasicsLink" class="nav-link active" href="#bot-info"><span class="nav-icon">◈</span>Bot 基本情况</a>
+<nav class="nav" aria-label="管理导航">
+<div class="nav-caption">工作台</div><a id="overviewLink" class="nav-link active" href="#overview"><span class="nav-icon">▦</span>概览</a>
+<a id="botBasicsLink" class="nav-link" href="#bot-info"><span class="nav-icon">◈</span>Bot 基本情况</a>
 <a class="nav-link" href="#memes"><span class="nav-icon">☺</span>表情包</a>
 <a class="nav-link" href="#memory"><span class="nav-icon">◈</span>用户记忆</a>
 <a class="nav-link" href="#group"><span class="nav-icon">◉</span>群聊话题</a>
@@ -776,9 +779,9 @@ html[data-skin="academia"] #app .head-right .btn:hover{background:#5c4033;border
 <div class="nav-caption">外部服务</div><a id="gsuidConsoleLink" class="nav-link external" href="http://127.0.0.1:8765/app" target="_blank" rel="noopener noreferrer" title="gsuid_core WebConsole（独立登录，默认端口 8765）" aria-label="打开 gsuid_core 游戏账号控制台（端口 8765）"><span class="nav-icon">⚙</span>游戏账号控制台<span class="nav-ext">↗</span></a></nav><div class="side-bottom"><strong>QQ 机器人</strong>本地管理空间 · {{APP_VERSION}}<button type="button" class="side-logout" onclick="logout()">退出登录</button><button type="button" class="side-theme" id="appearanceButton" aria-expanded="false" aria-controls="appearancePopover">◐ 主题设置</button></div></aside>
 <main class="workspace"><header class="page-head"><div class="head-left"><button type="button" class="sb-toggle" id="navToggle" aria-label="打开导航" aria-controls="appSidebar" aria-expanded="false">☰</button><div><div class="eyebrow">YOUR BOT, AT A GLANCE</div><h1 id="pageTitle">你好，<span id="heroBotName">达妮娅</span>。</h1><p class="head-desc" id="pageDesc">在这里管理她的记忆、群里的话题与天气提醒。</p></div></div><div class="head-right"><span class="live-pill" id="shellLive" role="status" aria-live="polite"><span class="dot" id="shellLiveDot" data-tone="unknown"></span><span id="shellLiveText">连接中</span></span><button type="button" class="btn" onclick="refreshShell()">刷新</button><button type="button" class="btn topline-theme" id="appearanceButtonMobile" aria-expanded="false" aria-controls="appearancePopover" aria-label="主题设置">◐ 主题</button></div></header>
 <div id="appMessage" class="notice-slot" role="status" aria-live="polite"></div>
-<section class="hero" aria-labelledby="heroVerdict"><div class="hero-core"><div class="hero-main"><div class="hero-bot"><span class="avatar" id="heroAvatar">达</span><span id="heroBotLine">达妮娅 · OneBot</span><span class="pill" id="heroConnection"><span class="dot" data-tone="unknown"></span>连接中</span></div><div class="verdict-row"><div class="eyebrow" id="heroKicker">CURRENT STATUS</div><h2 class="verdict" id="heroVerdict" aria-live="polite">—</h2><p class="hero-sub" id="heroSub" aria-live="polite">正在读取状态…</p></div><div class="hero-actions"><a class="btn btn-primary" href="#status">查看运行详情 →</a><a class="link" href="#status">状态历史</a></div></div><aside class="hero-side"><div class="side-head"><h2>24h 采样</h2><span class="pill" id="heroHeartbeat"><span class="dot" data-tone="ok"></span>等待</span></div><p class="hb-note" id="heroHbNote">采集于 —</p><div class="ruler-plot" id="heroRuler" role="img" aria-label="过去 24 小时的资源采样"></div><div class="ruler-axis" aria-hidden="true"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div><div class="side-facts"><div class="row"><span>连续运行</span><b id="heroStartedAt">—</b></div><div class="row"><span>最近采集</span><b id="heroLastRefresh">—</b></div><div class="row"><span>当前版本</span><b>{{APP_VERSION}}</b></div></div></aside></div></section>
-<div class="kpis" aria-label="运行概览"><div class="kpi"><span>CPU</span><b id="kpiCpu">—</b><small id="kpiCpuSmall">当前采样</small></div><div class="kpi"><span>内存</span><b id="kpiMem">—</b><small id="kpiMemSmall">已用 / 总量</small></div><div class="kpi"><span>磁盘</span><b id="kpiDisk">—</b><small id="kpiDiskSmall">已用 / 总量</small></div><div class="kpi"><span>今日 Token</span><b id="kpiTokens">—</b><small id="kpiTokensSmall">近 7 天 —</small></div><div class="kpi"><span>p95 延迟</span><b id="kpiP95">—</b><small id="kpiP95Small">暂无数据</small></div><div class="kpi"><span>消息速率</span><b id="kpiRate">—</b><small id="kpiRateSmall">暂无数据</small></div></div>
-<nav id="botBasicsNav" class="basics-nav" aria-label="Bot 基本情况">
+<div id="overview" class="overview-page"><section class="hero" aria-labelledby="heroVerdict"><div class="hero-core"><div class="hero-main"><div class="hero-bot"><span class="avatar" id="heroAvatar">达</span><span id="heroBotLine">达妮娅 · OneBot</span><span class="pill" id="heroConnection"><span class="dot" data-tone="unknown"></span>连接中</span></div><div class="verdict-row"><div class="eyebrow" id="heroKicker">CURRENT STATUS</div><h2 class="verdict" id="heroVerdict" aria-live="polite">—</h2><p class="hero-sub" id="heroSub" aria-live="polite">正在读取状态…</p></div><div class="hero-actions"><a class="btn btn-primary" href="#status">查看运行详情 →</a><a class="link" href="#status">状态历史</a></div></div><aside class="hero-side"><div class="side-head"><h2>24h 采样</h2><span class="pill" id="heroHeartbeat"><span class="dot" data-tone="ok"></span>等待</span></div><p class="hb-note" id="heroHbNote">采集于 —</p><div class="ruler-plot" id="heroRuler" role="img" aria-label="过去 24 小时的资源采样"></div><div class="ruler-axis" aria-hidden="true"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div><div class="side-facts"><div class="row"><span>连续运行</span><b id="heroStartedAt">—</b></div><div class="row"><span>最近采集</span><b id="heroLastRefresh">—</b></div><div class="row"><span>当前版本</span><b>{{APP_VERSION}}</b></div></div></aside></div></section>
+<div class="kpis" aria-label="运行概览"><div class="kpi"><span>CPU</span><b id="kpiCpu">—</b><small id="kpiCpuSmall">当前采样</small></div><div class="kpi"><span>内存</span><b id="kpiMem">—</b><small id="kpiMemSmall">已用 / 总量</small></div><div class="kpi"><span>磁盘</span><b id="kpiDisk">—</b><small id="kpiDiskSmall">已用 / 总量</small></div><div class="kpi"><span>今日 Token</span><b id="kpiTokens">—</b><small id="kpiTokensSmall">近 7 天 —</small></div><div class="kpi"><span>p95 延迟</span><b id="kpiP95">—</b><small id="kpiP95Small">暂无数据</small></div><div class="kpi"><span>消息速率</span><b id="kpiRate">—</b><small id="kpiRateSmall">暂无数据</small></div></div></div>
+<nav id="botBasicsNav" class="basics-nav" aria-label="Bot 基本情况" hidden>
 <a class="nav-link" href="#bot-info"><span class="nav-icon">◈</span>基本信息</a>
 <a class="nav-link" href="#persona"><span class="nav-icon">✎</span>人格模板</a>
 <a class="nav-link" href="#tokens"><span class="nav-icon">◫</span>Token 消耗</a>
@@ -1126,7 +1129,7 @@ async function saveEmbedding(){let key=$('embeddingKey').value.trim();if(!key)th
 async function login(){run(async()=>{let x=await api('/api/login',{password:$('password').value});csrf=x.csrf;$('password').value='';$('login').hidden=true;if(x.must_change){showFirstRun();return}await enterApp()})}
 function showFirstRun(){$('app').hidden=true;$('auth').hidden=false;$('login').hidden=true;$('firstRun').hidden=false;$('setupPassword').focus()}
 async function setupPassword(){run(async()=>{const p=$('setupPassword').value,c=$('setupPasswordConfirm').value;if(p.length<12||p.length>256)throw Error('密码长度须为 12 到 256 位');if(p!==c)throw Error('两次输入的密码不一致');await api('/api/setup-password',{password:p,confirm:c});$('setupPassword').value='';$('setupPasswordConfirm').value='';csrf='';$('firstRun').hidden=true;$('login').hidden=false;notice('密码已设置，请使用新密码登录')})}
-async function enterApp(){$('auth').hidden=true;$('app').hidden=false;if(shellSyncActive)shellSyncActive();await run(loadEmbedding);await run(loadBotName);await run(loadPersona);await loadBotStatus();await loadBotUpdate();await loadPlugins();startStatusPolling();await refresh();await loadMaster();await loadParser();await loadEvents();await loadTokens();await loadStatus();await loadSuperusers();await loadEpic();await run(loadRenderer);await run(loadDisaster);await run(loadGameEvents);await run(loadBilibili);await run(loadMemes)}
+async function enterApp(){$('auth').hidden=true;$('app').hidden=false;await run(loadEmbedding);await run(loadBotName);await run(loadPersona);await loadBotStatus();await loadBotUpdate();await loadPlugins();startStatusPolling();await refresh();await loadMaster();await loadParser();await loadEvents();await loadTokens();await loadStatus();await loadSuperusers();await loadEpic();await run(loadRenderer);await run(loadDisaster);await run(loadGameEvents);await run(loadBilibili);await run(loadMemes)}
 async function resumeSession(){try{let r=await fetch('/api/session');if(!r.ok)return;let x=await r.json();csrf=x.csrf;if(x.must_change){showFirstRun();return}await enterApp()}catch(e){/* 未登录，停在登录框 */}}
 async function changePassword(){run(async()=>{const p=$('newPassword').value,c=$('confirmPassword').value;if(p.length<12||p.length>256)throw Error('密码长度须为 12 到 256 位');if(p!==c)throw Error('两次输入的密码不一致');await api('/api/password',{password:p});$('newPassword').value='';$('confirmPassword').value='';$('accountMessage').textContent='';csrf='';if(statusTimer){clearInterval(statusTimer);statusTimer=null}$('app').hidden=true;$('auth').hidden=false;$('login').hidden=false;$('firstRun').hidden=true;notice('密码已修改，请使用新密码登录')})}
 function options(id,items){let el=$(id),old=el.value;el.replaceChildren();items.forEach(x=>{let o=document.createElement('option');o.value=x.value;o.textContent=x.label;el.append(o)});if(items.some(x=>x.value===old))el.value=old}
@@ -1287,7 +1290,7 @@ async function epicImmediate(){if(!confirm('立即向所有推送目标发送当
 
 async function loadMaster(){let v=await api('/api/master-aware');$('masterOwners').value=(v.owner_ids||[]).join(', ');$('masterTitle').value=v.title||''}
 async function saveMaster(){run(async()=>{let ids=$('masterOwners').value.trim(),title=$('masterTitle').value.trim();await api('/api/master-aware',{owner_ids:ids?ids.split(/[,，\s]+/):null,title:title||null});$('masterSaved').textContent='已保存';await loadMaster()})}
-function applyBotName(name){const label=String(name||'达妮娅').trim()||'达妮娅',initial=Array.from(label)[0]||'达';for(const id of ['botBrandName','shellBotName','heroBotName']){const el=$(id);if(el)el.textContent=label}for(const id of ['shellAvatar','heroAvatar']){const el=$(id);if(el)el.textContent=initial}const line=$('heroBotLine');if(line){const current=line.textContent||'',mark=current.indexOf(' · ');line.textContent=label+(mark>=0?current.slice(mark):' · OneBot')}}
+function applyBotName(name){const label=String(name||'达妮娅').trim()||'达妮娅',initial=Array.from(label)[0]||'达';for(const id of ['botBrandName','shellBotName','heroBotName']){const el=$(id);if(el)el.textContent=label}for(const id of ['shellAvatar','heroAvatar']){const el=$(id);if(el)el.textContent=initial}const line=$('heroBotLine');if(line){const current=line.textContent||'',mark=current.indexOf(' · ');line.textContent=label+(mark>=0?current.slice(mark):' · OneBot')}if(document.body&&document.body.dataset&&(document.body.dataset.page==='overview'||!location.hash||location.hash==='#overview'))setPageHeading('你好，'+label+'。','在这里管理她的记忆、群里的话题与天气提醒。')}
 function setShellPill(id,text,tone){const el=$(id);if(!el)return;const dot=document.createElement('span');dot.className='dot';dot.dataset.tone=tone||'unknown';el.replaceChildren(dot,document.createTextNode(' '+(text||'')))}
 function updateShellStatus(status){
   const b=(status&&status.bot)||{};
@@ -1342,7 +1345,6 @@ function updateShellLive(overview){
   $('railUpdated').textContent='更新于 '+new Date().toLocaleTimeString();
 }
 async function refreshShell(){notice('');await Promise.allSettled([loadBotStatus(),loadStatus(),loadTokens(),refresh()])}
-let shellSyncActive=null;
 async function loadBotName(){const data=await api('/api/bot-name');$('botNameInput').value=data.name||'';applyBotName(data.name);const labels={file:'面板设置',env:'环境变量',default:'默认名称'};$('botNameState').textContent=`当前：${labels[data.source]||data.source||'未知'}`}
 async function saveBotName(){run(async()=>{const name=$('botNameInput').value.trim();if(!name)throw Error('机器人名称不能为空');const data=await api('/api/bot-name',{name});$('botNameInput').value=data.name;applyBotName(data.name);$('botNameState').textContent='已保存 · 卡片和面板立即生效'})}
 let personaEditor={exists:false,safe:false,activeIsCurrent:false,meta:{},loaded:''};
@@ -2068,19 +2070,62 @@ async function loadBilibili(){
 }
 const basicsNav = $('botBasicsNav');
 const basicsLink = $('botBasicsLink');
+const overviewLink = $('overviewLink');
+const overviewPanel = $('overview');
 const sectionLinks = Array.from(document.querySelectorAll('.nav-link[href^="#"]:not(#botBasicsLink)'));
-const defaultSection = basicsNav.querySelector('a');
+const pageSections = Array.from(document.querySelectorAll('#panelGrid > section.card[id]'));
+const defaultSection = overviewLink || basicsNav.querySelector('a');
 const sectionLoaders = new Map([
   ['#events', loadEvents], ['#tokens', loadTokens], ['#status', loadStatus],
   ['#superusers', loadSuperusers], ['#game-events', loadGameEvents],
   ['#epic', loadEpic], ['#bilibili', loadBilibili], ['#disaster', loadDisaster],
 ]);
-function markActive(hash){
-  const basicsHashes=new Set(['#bot-info','#persona','#tokens','#master','#superusers']);
+function basicsHashSet(){
+  const hashes=new Set(['#bot-info','#persona','#tokens','#master','#superusers']);
   if(basicsNav&&typeof basicsNav.querySelectorAll==='function'){
     const links=Array.from(basicsNav.querySelectorAll('a'));
-    if(links.length){basicsHashes.clear();links.forEach(link=>{if(link.hash)basicsHashes.add(link.hash)})}
+    if(links.length){hashes.clear();links.forEach(link=>{if(link.hash)hashes.add(link.hash)})}
   }
+  return hashes;
+}
+function setPageHeading(title,desc){
+  const heading=$('pageTitle'),description=$('pageDesc');
+  if(heading)heading.textContent=title;
+  if(description)description.textContent=desc;
+}
+function navGroupLabel(hash){
+  const links=Array.from(document.querySelectorAll('#appSidebar .nav-link[href]'));
+  const link=links.find(item=>item.getAttribute('href')===hash);
+  if(!link)return '';
+  let node=link.previousElementSibling;
+  while(node){
+    if(node.classList&&node.classList.contains('nav-caption'))return node.textContent.trim();
+    node=node.previousElementSibling;
+  }
+  return '';
+}
+function setRailContent(title,desc,hash){
+  const railTitle=$('railTitle'),railDesc=$('railDesc'),clock=$('railClock');
+  if(railTitle)railTitle.textContent=title;
+  if(railDesc)railDesc.textContent=desc;
+  if(clock)clock.textContent=new Date().toLocaleTimeString();
+  document.querySelectorAll('#railLinks a').forEach(link=>{
+    if(link.getAttribute('href')===hash)link.setAttribute('aria-current','true');
+    else link.removeAttribute('aria-current');
+  });
+}
+function showOverview(){
+  if(overviewPanel)overviewPanel.hidden=false;
+  pageSections.forEach(section=>{section.hidden=true});
+  if(basicsNav)basicsNav.hidden=true;
+  const name=($('shellBotName')&&$('shellBotName').textContent)||'达妮娅';
+  setPageHeading('你好，'+name+'。','在这里管理她的记忆、群里的话题与天气提醒。');
+  setRailContent('控制台概览','主机、服务、用量与最近日志的一屏总览。','#overview');
+  markActive('#overview');
+  if(document.body)document.body.dataset.page='overview';
+}
+function markActive(hash){
+  const basicsHashes=basicsHashSet();
   basicsLink.classList.toggle('active',basicsHashes.has(hash));
   if(basicsHashes.has(hash))basicsLink.setAttribute('aria-current','location');
   else basicsLink.removeAttribute('aria-current');
@@ -2093,14 +2138,10 @@ function markActive(hash){
 }
 function updateRail(section){
   if(!section)return;
-  const title=section.querySelector('h2'),desc=section.querySelector('.section-description');
-  $('railTitle').textContent=(section.dataset.railTitle||(title&&title.textContent)||section.id||'章节').trim();
-  $('railDesc').textContent=(desc?desc.textContent:'只读概览；从左侧导航切换章节。').trim();
-  const clock=$('railClock');if(clock)clock.textContent=new Date().toLocaleTimeString();
-  document.querySelectorAll('#railLinks a').forEach(link=>{
-    if(link.getAttribute('href')==='#'+section.id)link.setAttribute('aria-current','true');
-    else link.removeAttribute('aria-current');
-  });
+  const heading=section.querySelector('h2'),description=section.querySelector('.section-description');
+  const title=(section.dataset.railTitle||(heading&&heading.textContent)||section.id||'章节').trim();
+  const desc=(description?description.textContent:'只读概览；从左侧导航切换章节。').trim();
+  setRailContent(title,desc,'#'+section.id);
 }
 function buildRail(){
   const list=$('railLinks');
@@ -2140,41 +2181,41 @@ function initShell(){
     document.addEventListener('keydown',event=>{if(event.key==='Escape')setNavOpen(false)});
   }
   document.querySelectorAll('#appSidebar .nav-link').forEach(link=>link.addEventListener('click',()=>setNavOpen(false)));
-  const initial=document.querySelector('#panelGrid > section.card[id]');
-  if(initial)updateRail(initial);
-  const cards=Array.from(document.querySelectorAll('#panelGrid > section.card[id]'));
-  let current=null,ticking=false;
-  function syncActive(){
-    ticking=false;
-    if(!cards.length)return;
-    const threshold=Math.min(220,window.innerHeight*.22);
-    let card=cards[0],bestTop=-Infinity;
-    for(const item of cards){
-      const top=item.getBoundingClientRect().top;
-      if(top>threshold)break;
-      if(top>bestTop){bestTop=top;card=item;}
-    }
-    if(Math.ceil(window.scrollY+window.innerHeight)>=document.documentElement.scrollHeight-2)card=cards[cards.length-1];
-    if(card===current)return;
-    current=card;markActive('#'+card.id);updateRail(card);
-  }
-  function onScroll(){if(ticking)return;ticking=true;requestAnimationFrame(syncActive)}
-  window.addEventListener('scroll',onScroll,{passive:true});
   if(window.matchMedia){
     const drawerQuery=window.matchMedia('(max-width:800px)');
     const onDrawerBreakpoint=()=>{if(!drawerQuery.matches)setNavOpen(false)};
     if(drawerQuery.addEventListener)drawerQuery.addEventListener('change',onDrawerBreakpoint);
     else if(drawerQuery.addListener)drawerQuery.addListener(onDrawerBreakpoint);
   }
-  shellSyncActive=syncActive;
-  if(!$('app').hidden)syncActive();
 }
 function showWorkspaceSection(refreshSection) {
   const selected = sectionLinks.find(link => link.hash === location.hash) || defaultSection;
-  markActive(selected.hash);
-  const target=$(selected.hash.slice(1));if(target)updateRail(target);
-  const load = sectionLoaders.get(selected.hash);
-  if (refreshSection && load && !$('app').hidden) run(load);
+  const hash = (selected && selected.hash) || '#overview';
+  if (hash === '#overview' || hash === '') {
+    showOverview();
+  } else {
+    const target = $(hash.slice(1));
+    if (!target) {
+      showOverview();
+    } else {
+      if (overviewPanel) overviewPanel.hidden = true;
+      pageSections.forEach(section => { section.hidden = section.id !== target.id });
+      const inBasics = basicsHashSet().has(hash);
+      if (basicsNav) basicsNav.hidden = !inBasics;
+      const heading = target.querySelector('h2');
+      const title = (target.dataset.railTitle || (heading && heading.textContent) || target.id || '章节').trim();
+      const group = hash === '#bot-info' ? navGroupLabel(hash) : (inBasics ? 'Bot 基本情况' : navGroupLabel(hash));
+      setPageHeading(title, group || '控制台');
+      updateRail(target);
+      markActive(hash);
+      if (document.body) document.body.dataset.page = 'section';
+      const load = sectionLoaders.get(hash);
+      if (refreshSection && load && !$('app').hidden) run(load);
+    }
+  }
+  if (refreshSection && !$('app').hidden && typeof window.scrollTo === 'function') {
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  }
 }
 window.addEventListener('hashchange', () => showWorkspaceSection(true));
 for (const link of sectionLinks) {
@@ -2183,8 +2224,8 @@ for (const link of sectionLinks) {
     if (link.hash === location.hash) showWorkspaceSection(true);
   });
 }
-showWorkspaceSection(false);
 initShell();
+showWorkspaceSection(false);
 async function logout(){if(gameJobTimer){clearTimeout(gameJobTimer);gameJobTimer=null}try{await api('/api/logout',{})}catch(e){}csrf='';if(statusTimer){clearInterval(statusTimer);statusTimer=null}$('app').hidden=true;$('auth').hidden=false;$('login').hidden=false;$('firstRun').hidden=true;notice('')}
 resumeSession();
 let appearanceTab='appearance';
