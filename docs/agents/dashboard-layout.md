@@ -10,7 +10,7 @@
 
 - 概览只放 page-head、hero、CPU/内存/磁盘/Token KPI 与 footer。
 - 每个一级栏目只显示一张全宽栏目卡片。
-- Bot 基本情况继续用二级导航：基本信息 / 人格模板 / Token 消耗 / 主人识别 / 超级管理员。
+- Bot 基本情况继续用二级导航：基本信息 / 人格模板 / 模型设置 / Token 消耗 / 主人识别 / 超级管理员。
 
 ## 页面骨架
 
@@ -29,7 +29,7 @@
 - `h1#pageTitle` 是页面唯一主标题；`p#pageDesc` 显示概览问候、一级页所属侧栏分组，或 Bot 子页的「Bot 基本情况」。
 - `#overview` 只包含 `.hero` 与 `.kpis`；不得放入 `section.card`。
 - `#panelGrid` 必须使用块布局，直接子元素是每个栏目一个 `section.card`；`#appearancePopover` 是固定的浮层，不属于页面卡片。
-- `#botBasicsNav` 在概览和一级栏目页隐藏；仅当当前页是 `#bot-info`、`#persona`、`#tokens`、`#master`、`#superusers` 时显示。
+- `#botBasicsNav` 在概览和一级栏目页隐藏；仅当当前页是 `#bot-info`、`#persona`、`#model-pref`、`#tokens`、`#master`、`#superusers` 时显示。
 - `.page-footer` 保持在 `.workspace` 末尾。
 
 ## 侧栏顺序

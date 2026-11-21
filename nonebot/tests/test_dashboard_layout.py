@@ -112,6 +112,18 @@ def test_cards_stay_full_width_and_duplicate_card_titles_are_hidden():
         assert not re.search(r'grid-column|grid-template-columns|\bspan-\d', tag)
 
 
+def test_model_settings_page_is_wired_to_the_basics_nav_and_loader():
+    text = _html()
+    basics = re.search(r'<nav id="botBasicsNav".*?</nav>', text, re.S).group(0)
+    assert 'href="#model-pref"' in basics
+    panel = _between(text, '<div id="panelGrid"', '<div id="appearancePopover"')
+    assert re.search(r'<section id="model-pref" class="card">', panel)
+    assert re.search(r'<h2>模型设置</h2>', panel)
+    assert "['#model-pref', loadModelPref]" in text
+    assert 'async function loadModelPref' in text
+    assert 'id="modelPrimary"' in panel and 'id="modelSecondary"' in panel
+
+
 def test_mobile_layout_hooks_remain_present():
     text = _html()
     styles = _styles(text)
