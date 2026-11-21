@@ -10,7 +10,7 @@ set "TOOLS_BAT="
 for %%F in ("%~dp0tools\*.bat") do call :pick "%%~fF"
 if not defined TOOLS_BAT goto :missing
 
-call "%TOOLS_BAT%"
+call "%TOOLS_BAT%" --no-pause
 set "RC=%ERRORLEVEL%"
 if not "%RC%"=="0" echo [!!] Start did not fully succeed, exit code %RC%.
 echo.
