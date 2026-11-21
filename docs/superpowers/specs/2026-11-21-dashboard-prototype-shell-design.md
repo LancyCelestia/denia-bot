@@ -49,31 +49,28 @@ PR #46 新增 `docs/research/prototypes/dashboard-preview.html`：静态 mock，
 ```
 
 - 现有 17 个 `<section id="...">` 保持 ID 不变，统一包进 `panel-grid`。
-- page-head 的标题/描述默认“控制台”；滚动时用 scroll spy 取当前 section 的 `h2`/`section-description` 更新。
-- hero 使用 `/api/bot-status` 的 ready/connected、bot 名称、版本和最近刷新时间；没有 24h 历史时不画伪造曲线，改为“当前链路”状态条（24 个 tick 表示本次连接状态）或隐藏图表，仅保留事实行。
+- page-head 是 sticky 概览头：标题/描述保持“你好，<bot>。”与总览说明；滚动或导航时只更新 sidebar 高亮、context rail 当前 section 与锚点位置，不把 page-head 改成表单标题。
+- hero 使用 `/api/bot-status` 的 ready/connected、bot 名称、版本和最近刷新时间；24h 侧栏用 `/api/status/overview` 的真实资源采样点画 24 个 tick，无采样时显示灰色空 tick 与“—”事实，不伪造曲线。
 - KPI 行：CPU/内存/磁盘来自 `/api/status/overview`，今日 Token 来自 `/api/token?days=7`；p95/消息速率没有现成数据时显示 `—`。
 - sidebar 的 bot 名称复用 `applyBotName`；live dot 复用 bot status；`side-bottom` 保留主题/退出。
 - 主题切换、登录、CSRF、`appMessage`、`basics-nav` 的 ID 与行为不变。
 
 ### 卡片与 12 栏
 
-- `.card` 使用 4px tray 边（`--surface-2`/`--tray` token）+ 现有 paper 内容；保留各 skin 的颜色覆盖。
-- 概览/摘要卡使用以下 span，长表单/表格默认 `span 12`；最终以 1024/1440 截图调整：
+- `.card` 使用 4px tray 边（`--surface-2`/`--tray` token）+ 现有 paper 内容；tray 用 `outline` 而非 `box-shadow`，避免覆盖新拟物等 skin 自身的卡片阴影。
+- 概览/摘要卡使用以下 span，只配对 DOM 中相邻的卡片，避免 12 栏留空；长表单/表格默认 `span 12`：
 
 | Section | span |
 |---|---|
-| `bot-info` | 7 |
-| `persona` | 12（长编辑器） |
-| `memes` | 7 |
-| `memory` | 5 |
-| `group` / `weather` | 6 / 6 |
-| `game-events` / `epic` | 6 / 6 |
-| `bilibili` / `disaster` | 6 / 6 |
-| `parser` | 12（字段密集） |
-| `embedding` / `renderer` | 6 / 6 |
-| `status` / `monitor` / `plugins` / `tokens` / `events` / `account` | 12 |
+| `bot-info` / `persona` / `plugins` / `memes` / `status` / `tokens` / `memory` / `parser` / `events` | 12 |
+| `account` / `monitor` | 6 / 6（相邻） |
+| `master` / `superusers` | 6 / 6（相邻） |
+| `group` / `weather` | 6 / 6（相邻） |
+| `game-events` / `epic` | 6 / 6（相邻） |
+| `bilibili` / `embedding` | 6 / 6（相邻） |
+| `renderer` / `disaster` | 6 / 6（相邻） |
 
-- `≤1100px` 全部单列；`1101–1279px` 只保留 7/5 与 6/6；`≥1280px` 完整 12 栏（holy 再让出 280px context rail）。
+- `≤1100px` 全部单列；`1101–1279px` 保留上述相邻 6/6；`≥1280px` 完整 12 栏（holy 再让出 280px context rail）。
 
 ### 圣杯 context rail
 
