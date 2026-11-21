@@ -634,6 +634,7 @@ html[data-skin="holy"] .page-head{background:var(--paper);box-shadow:0 1px 2px v
   html[data-skin="holy"] #app .workspace{margin-left:240px;max-width:1100px}
   html[data-skin="holy"] #panelGrid > .card{scroll-margin-top:124px}
 }
+/* Academia scopes its paper palette on .card; mirror that local palette on the new paper surfaces. */
 html[data-skin="academia"] #app .hero-main,
 html[data-skin="academia"] #app .kpi,
 html[data-skin="academia"] #app #botBasicsNav .nav-link.active,
@@ -675,7 +676,6 @@ html[data-skin="academia"] #app .head-right .btn:hover{background:#5c4033;border
   #panelGrid > .card{scroll-margin-top:160px}
   .head-right{width:100%;justify-content:flex-start}
   .head-left h1{font-size:28px}
-  #app .nav{display:flex;flex-direction:column;gap:1px;overflow-y:auto}
   #app .nav-link{white-space:normal}
 }
 @media(max-width:640px){
@@ -688,6 +688,7 @@ html[data-skin="academia"] #app .head-right .btn:hover{background:#5c4033;border
   .rail-meta{flex-direction:column;gap:2px}
 }
 @media(prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
   #app .sidebar,.rtick,#app .btn{transition:none!important}
 }
 </style>
@@ -773,9 +774,9 @@ html[data-skin="academia"] #app .head-right .btn:hover{background:#5c4033;border
 <div class="nav-caption">安全</div>
 <a class="nav-link" href="#account"><span class="nav-icon">⚿</span>管理员密码</a>
 <div class="nav-caption">外部服务</div><a id="gsuidConsoleLink" class="nav-link external" href="http://127.0.0.1:8765/app" target="_blank" rel="noopener noreferrer" title="gsuid_core WebConsole（独立登录，默认端口 8765）" aria-label="打开 gsuid_core 游戏账号控制台（端口 8765）"><span class="nav-icon">⚙</span>游戏账号控制台<span class="nav-ext">↗</span></a></nav><div class="side-bottom"><strong>QQ 机器人</strong>本地管理空间 · {{APP_VERSION}}<button type="button" class="side-logout" onclick="logout()">退出登录</button><button type="button" class="side-theme" id="appearanceButton" aria-expanded="false" aria-controls="appearancePopover">◐ 主题设置</button></div></aside>
-<main class="workspace"><header class="page-head"><div class="head-left"><button type="button" class="sb-toggle" id="navToggle" aria-label="打开导航" aria-controls="appSidebar" aria-expanded="false">☰</button><div><div class="eyebrow">YOUR BOT, AT A GLANCE</div><h1 id="pageTitle">你好，<span id="heroBotName">达妮娅</span>。</h1><p class="head-desc" id="pageDesc">在这里管理她的记忆、群里的话题与天气提醒。</p></div></div><div class="head-right"><span class="live-pill" id="shellLive"><span class="dot" id="shellLiveDot" data-tone="unknown"></span><span id="shellLiveText">连接中</span></span><button type="button" class="btn" onclick="refreshShell()">刷新</button><button type="button" class="btn topline-theme" id="appearanceButtonMobile" aria-expanded="false" aria-controls="appearancePopover" aria-label="主题设置">◐ 主题</button></div></header>
+<main class="workspace"><header class="page-head"><div class="head-left"><button type="button" class="sb-toggle" id="navToggle" aria-label="打开导航" aria-controls="appSidebar" aria-expanded="false">☰</button><div><div class="eyebrow">YOUR BOT, AT A GLANCE</div><h1 id="pageTitle">你好，<span id="heroBotName">达妮娅</span>。</h1><p class="head-desc" id="pageDesc">在这里管理她的记忆、群里的话题与天气提醒。</p></div></div><div class="head-right"><span class="live-pill" id="shellLive" role="status" aria-live="polite"><span class="dot" id="shellLiveDot" data-tone="unknown"></span><span id="shellLiveText">连接中</span></span><button type="button" class="btn" onclick="refreshShell()">刷新</button><button type="button" class="btn topline-theme" id="appearanceButtonMobile" aria-expanded="false" aria-controls="appearancePopover" aria-label="主题设置">◐ 主题</button></div></header>
 <div id="appMessage" class="notice-slot" role="status" aria-live="polite"></div>
-<section class="hero" aria-labelledby="heroVerdict"><div class="hero-core"><div class="hero-main"><div class="hero-bot"><span class="avatar" id="heroAvatar">达</span><span id="heroBotLine">达妮娅 · OneBot</span><span class="pill" id="heroConnection"><span class="dot" data-tone="unknown"></span>连接中</span></div><div class="verdict-row"><div class="eyebrow" id="heroKicker">CURRENT STATUS</div><h2 class="verdict" id="heroVerdict">—</h2><p class="hero-sub" id="heroSub">正在读取状态…</p></div><div class="hero-actions"><a class="btn btn-primary" href="#status">查看运行详情 →</a><a class="link" href="#status">状态历史</a></div></div><aside class="hero-side"><div class="side-head"><h2>24h 采样</h2><span class="pill" id="heroHeartbeat"><span class="dot" data-tone="ok"></span>等待</span></div><p class="hb-note" id="heroHbNote">采集于 —</p><div class="ruler-plot" id="heroRuler" role="img" aria-label="过去 24 小时的资源采样"></div><div class="ruler-axis" aria-hidden="true"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div><div class="side-facts"><div class="row"><span>连续运行</span><b id="heroStartedAt">—</b></div><div class="row"><span>最近采集</span><b id="heroLastRefresh">—</b></div><div class="row"><span>当前版本</span><b>{{APP_VERSION}}</b></div></div></aside></div></section>
+<section class="hero" aria-labelledby="heroVerdict"><div class="hero-core"><div class="hero-main"><div class="hero-bot"><span class="avatar" id="heroAvatar">达</span><span id="heroBotLine">达妮娅 · OneBot</span><span class="pill" id="heroConnection"><span class="dot" data-tone="unknown"></span>连接中</span></div><div class="verdict-row"><div class="eyebrow" id="heroKicker">CURRENT STATUS</div><h2 class="verdict" id="heroVerdict" aria-live="polite">—</h2><p class="hero-sub" id="heroSub" aria-live="polite">正在读取状态…</p></div><div class="hero-actions"><a class="btn btn-primary" href="#status">查看运行详情 →</a><a class="link" href="#status">状态历史</a></div></div><aside class="hero-side"><div class="side-head"><h2>24h 采样</h2><span class="pill" id="heroHeartbeat"><span class="dot" data-tone="ok"></span>等待</span></div><p class="hb-note" id="heroHbNote">采集于 —</p><div class="ruler-plot" id="heroRuler" role="img" aria-label="过去 24 小时的资源采样"></div><div class="ruler-axis" aria-hidden="true"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div><div class="side-facts"><div class="row"><span>连续运行</span><b id="heroStartedAt">—</b></div><div class="row"><span>最近采集</span><b id="heroLastRefresh">—</b></div><div class="row"><span>当前版本</span><b>{{APP_VERSION}}</b></div></div></aside></div></section>
 <div class="kpis" aria-label="运行概览"><div class="kpi"><span>CPU</span><b id="kpiCpu">—</b><small id="kpiCpuSmall">当前采样</small></div><div class="kpi"><span>内存</span><b id="kpiMem">—</b><small id="kpiMemSmall">已用 / 总量</small></div><div class="kpi"><span>磁盘</span><b id="kpiDisk">—</b><small id="kpiDiskSmall">已用 / 总量</small></div><div class="kpi"><span>今日 Token</span><b id="kpiTokens">—</b><small id="kpiTokensSmall">近 7 天 —</small></div><div class="kpi"><span>p95 延迟</span><b id="kpiP95">—</b><small id="kpiP95Small">暂无数据</small></div><div class="kpi"><span>消息速率</span><b id="kpiRate">—</b><small id="kpiRateSmall">暂无数据</small></div></div>
 <nav id="botBasicsNav" class="basics-nav" aria-label="Bot 基本情况">
 <a class="nav-link" href="#bot-info"><span class="nav-icon">◈</span>基本信息</a>
@@ -1293,10 +1294,10 @@ function updateShellStatus(status){
   const connected=b.connected===true,offline=b.connected===false||b.state==='offline',tone=connected?'ok':offline?'bad':'unknown';
   $('shellLiveDot').dataset.tone=tone;
   $('shellBotLive').dataset.tone=tone;
-  $('shellLiveText').textContent=connected?'运行正常':offline?'未连接':'连接中';
-  setShellPill('heroConnection',connected?'已连接':offline?'未连接':'检查中',tone);
-  $('heroVerdict').textContent=connected?'连接正常':offline?'等待连接':'状态读取中';
-  $('heroSub').textContent=connected?'OneBot 已连接，可以在左侧管理记忆、群聊与天气。':offline?'OneBot 未连接；请检查机器人进程和端口。':'正在读取机器人连接状态。';
+  $('shellLiveText').textContent=connected?'运行正常':offline?'未连接':'状态未知';
+  setShellPill('heroConnection',connected?'已连接':offline?'未连接':'状态未知',tone);
+  $('heroVerdict').textContent=connected?'连接正常':offline?'等待连接':'状态未知';
+  $('heroSub').textContent=connected?'OneBot 已连接，可以在左侧管理记忆、群聊与天气。':offline?'OneBot 未连接；请检查机器人进程和端口。':'无法确认 OneBot 连接状态；请检查机器人进程与健康探测。';
   const label=$('shellBotName').textContent||'达妮娅';$('heroBotLine').textContent=label+' · '+(b.protocol||'OneBot');
   $('railUpdated').textContent='更新于 '+new Date().toLocaleTimeString();
 }
@@ -1325,9 +1326,10 @@ function updateShellLive(overview){
   const x=overview||{},live=x.live||{},cfg=x.config||{};
   const enabled=x.enabled!==false&&cfg.enabled!==false;
   const stamp=live.collected_at?new Date(live.collected_at*1000).toLocaleTimeString():'—';
+  const collected=Number(live.collected_at)||0,stale=collected>0&&Date.now()/1000-collected>900;
   const cpu=live.cpu||{},mem=live.memory||{},disk=(live.disks||[])[0];
-  $('heroHbNote').textContent=enabled?'采集于 '+stamp:'状态采集已关闭';
-  setShellPill('heroHeartbeat',enabled?(live.collected_at?'在线':'等待'):'关闭',enabled&&live.collected_at?'ok':'unknown');
+  $('heroHbNote').textContent=enabled?(collected?'采集于 '+stamp+(stale?' · 已过期':''):'尚无采样'):'状态采集已关闭';
+  setShellPill('heroHeartbeat',!enabled?'关闭':!collected?'等待':stale?'已过期':'在线',!enabled||!collected?'unknown':stale?'warn':'ok');
   $('heroStartedAt').textContent=enabled&&live.uptime!=null?statusDuration(live.uptime):'—';
   $('heroLastRefresh').textContent=enabled?stamp:'—';
   $('kpiCpu').textContent=enabled&&cpu.percent!=null?statusPct(cpu.percent):'—';
@@ -2075,6 +2077,10 @@ const sectionLoaders = new Map([
 ]);
 function markActive(hash){
   const basicsHashes=new Set(['#bot-info','#persona','#tokens','#master','#superusers']);
+  if(basicsNav&&typeof basicsNav.querySelectorAll==='function'){
+    const links=Array.from(basicsNav.querySelectorAll('a'));
+    if(links.length){basicsHashes.clear();links.forEach(link=>{if(link.hash)basicsHashes.add(link.hash)})}
+  }
   basicsLink.classList.toggle('active',basicsHashes.has(hash));
   if(basicsHashes.has(hash))basicsLink.setAttribute('aria-current','location');
   else basicsLink.removeAttribute('aria-current');
@@ -2154,6 +2160,12 @@ function initShell(){
   }
   function onScroll(){if(ticking)return;ticking=true;requestAnimationFrame(syncActive)}
   window.addEventListener('scroll',onScroll,{passive:true});
+  if(window.matchMedia){
+    const drawerQuery=window.matchMedia('(max-width:800px)');
+    const onDrawerBreakpoint=()=>{if(!drawerQuery.matches)setNavOpen(false)};
+    if(drawerQuery.addEventListener)drawerQuery.addEventListener('change',onDrawerBreakpoint);
+    else if(drawerQuery.addListener)drawerQuery.addListener(onDrawerBreakpoint);
+  }
   shellSyncActive=syncActive;
   if(!$('app').hidden)syncActive();
 }
