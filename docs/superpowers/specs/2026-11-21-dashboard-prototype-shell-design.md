@@ -53,7 +53,7 @@ PR #46 新增 `docs/research/prototypes/dashboard-preview.html`：静态 mock，
 - hero 使用 `/api/bot-status` 的 ready/connected、bot 名称、版本和最近刷新时间；24h 侧栏用 `/api/status/overview` 的真实资源采样点画 24 个 tick，无采样时显示灰色空 tick 与“—”事实，不伪造曲线。
 - KPI 行：CPU/内存/磁盘来自 `/api/status/overview`，今日 Token 来自 `/api/token?days=7`；p95/消息速率没有现成数据时显示 `—`。
 - sidebar 的 bot 名称复用 `applyBotName`；live dot 复用 bot status；`side-bottom` 保留主题/退出。
-- 主题切换、登录、CSRF、`appMessage`、`basics-nav` 的 ID 与行为不变。
+- 主题切换、登录、CSRF、`appMessage` 的 ID 与行为不变；`basics-nav` 保留 ID 与全部链接，在单页滚动中作为快捷导航保持可见（原单栏目视图的隐藏逻辑不再适用）。
 
 ### 卡片与 12 栏
 
@@ -75,7 +75,7 @@ PR #46 新增 `docs/research/prototypes/dashboard-preview.html`：静态 mock，
 ### 圣杯 context rail
 
 - 仅 `html[data-skin="holy"]` 且 `≥1280px` 显示；宽 280px，右侧 fixed。
-- 内容：当前 section 标题/描述、同组 section 链接、当前时间/版本；scroll spy 更新。
+- 内容：当前 section 标题/描述、sidebar 全站章节链接（当前项高亮）、当前时间/版本；scroll spy 更新。
 - `holy` 的 sidebar 保持 240px；workspace 右移 304px；`≤1279px` 隐藏 rail。
 
 ### 移动端
