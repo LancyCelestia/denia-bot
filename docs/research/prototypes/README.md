@@ -4,6 +4,14 @@
 > 生产实现见 `nonebot/disaster_render.py`（B 卡）与 `nonebot/disaster_tone.py`；本文件保留 A/B/C 原型作为设计记录。
 > 固定样例、无外部资源、无持久化，不并入生产代码。
 
+## 面板视觉风格预览
+
+`dashboard-preview.html` 是 Bot 管理面板的视觉参考原型：固定 mock 数据，不接运行时、不发请求、不写 `nonebot/data`。
+
+- 五套可切换风格：`korean`（韩式极简）、`scandi`（北欧极简）、`liquid`（液态玻璃）、`academia`（暗黑学院）、`holy`（圣杯布局）。
+- 主题键 `data-skin` 与正式面板（`nonebot/dashboard.html`）一致，可用 `?skin=holy` 直接指定。
+- 预览单独使用 localStorage 键 `qqbot.dashboard.preview.skin.v1`，不改写正式面板的 `qqbot.dashboard.appearance.v1`。
+
 ## 问题
 
 四类灾害在群聊/面板里应该长什么样？同一份固定数据下，比较三种**结构不同**的卡片：
