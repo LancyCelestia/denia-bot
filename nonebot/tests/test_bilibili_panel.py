@@ -152,10 +152,10 @@ def test_sidebar_keeps_primary_order_and_groups_bot_settings():
     basics_links = re.findall(r'<a [^>]*href="#([^"]+)"', basics)
     sections = [name for name in re.findall(r'<section id="([^"]+)"', text)
                 if name not in {'login', 'firstRun', 'changePassword'}]
-    assert links[:5] == ['bot-info', 'memes', 'memory', 'group', 'status']
+    assert links[:6] == ['overview', 'bot-info', 'memes', 'memory', 'group', 'status']
     assert basics_links == ['bot-info', 'persona', 'tokens', 'master', 'superusers']
     assert 'bilibili' in links
-    assert set(links) | set(basics_links) == set(sections)
+    assert set(links) | set(basics_links) == set(sections) | {'overview'}
 
 
 def test_target_route_requires_csrf_and_forwards_target(tmp_path, clean_env, monkeypatch):
