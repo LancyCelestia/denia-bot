@@ -26,7 +26,7 @@
 - `#overview` 包裹 hero + KPI；默认无 hash 时显示概览。
 - 新增侧栏「概览」链接，href 为 `#overview`；其余链接保持原 hash。
 - `#panelGrid` 改为块布局；只保留当前 section 可见，其余 `hidden`。
-- 栏目页 page-head 标题 = 当前 section 的 `data-rail-title`/`h2`；副标题 = 所属侧栏分组（Bot 基本情况子页为「Bot 基本情况」）。
+- 栏目页 page-head 标题 = 当前 section 的 `data-page-title`/`h2`；副标题 = 所属侧栏分组（Bot 基本情况子页为「Bot 基本情况」）。
 - 栏目页隐藏卡片自身的 `h2`，保留图标、说明、表单，避免与 page-head 重复主标题；说明仍在卡片头部完整显示。
 - 概览页隐藏 basics-nav 和所有 section；栏目页隐藏 hero/KPI；basics-nav 仅在五个 Bot 基本情况子页显示。
 - 页面切换使用现有 `hashchange` 和重复点击刷新逻辑；切换后回到页首，不新增后端请求。

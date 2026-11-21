@@ -51,7 +51,7 @@
 ## 视觉约束
 
 - **全宽卡片**：`#panelGrid` 保持 `display:block`；不得恢复 12 栏 grid、`grid-column`、span 类或其他概览网格布局。
-- **单一标题**：栏目页的 page-head 使用 card 的 `data-rail-title`/`h2` 作为标题；卡片自身 h2 在栏目页视觉隐藏（`body[data-page="section"] #panelGrid > .card:not([hidden]) .card-head h2{display:none}`），保留图标、说明和表单。不得恢复与 page-head 重复的卡片主标题。
+- **单一标题**：栏目页的 page-head 使用 card 的 `data-page-title`/`h2` 作为标题；卡片自身 h2 在栏目页视觉隐藏（`body[data-page="section"] #panelGrid > .card:not([hidden]) .card-head h2{display:none}`），保留图标、说明和表单。不得恢复与 page-head 重复的卡片主标题。
 - **无滚动 spy**：侧栏高亮由当前 hash 决定，不使用滚动位置推断当前栏目。
 - **sticky page-head**：栏目页可以滚动长表单，但 page-head 保持现有 sticky 外观；卡片保留 `scroll-margin-top`。
 - **移动端**：800px 断点沿用抽屉、遮罩、顶部主题按钮；概览 KPI 2 列；栏目卡片全宽；390px 不得出现横向溢出。

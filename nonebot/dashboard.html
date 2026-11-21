@@ -772,7 +772,7 @@ html[data-skin="academia"] #app .head-right .btn:hover{background:#5c4033;border
 <a class="nav-link" href="#superusers"><span class="nav-icon">⚑</span>超级管理员</a>
 </nav>
 <div id="panelGrid" class="panel-grid">
-<section id="bot-info" class="card" data-rail-title="Bot 基本情况">
+<section id="bot-info" class="card" data-page-title="Bot 基本情况">
   <div class="card-head"><div class="card-icon" aria-hidden="true">◈</div><div><h2>bot基本信息</h2><p class="section-description">设置机器人在状态卡、日报、集群卡、灾害卡和指令菜单中显示的 bot-name。保存后立即生效，不需要重启机器人。</p></div></div>
   <div class="controls"><input id="botNameInput" maxlength="40" placeholder="如：达妮娅" aria-label="机器人名称"><button class="primary" type="button" onclick="run(saveBotName)">保存名称</button><button type="button" onclick="run(resetBotName)">恢复默认</button><span id="botNameState" class="hint" role="status"></span></div>
   <p class="hint">只改显示名称，不改人格、唤醒词或模型设置；默认名称为「达妮娅」。名称最多 40 个字符。</p>
@@ -2151,7 +2151,7 @@ function showWorkspaceSection(refreshSection) {
       const inBasics = basicsHashSet().has(hash);
       if (basicsNav) basicsNav.hidden = !inBasics;
       const heading = target.querySelector('h2');
-      const title = (target.dataset.railTitle || (heading && heading.textContent) || target.id || '章节').trim();
+      const title = (target.dataset.pageTitle || (heading && heading.textContent) || target.id || '章节').trim();
       const group = hash === '#bot-info' ? navGroupLabel(hash) : (inBasics ? 'Bot 基本情况' : navGroupLabel(hash));
       setPageHeading(title, group || '控制台');
       markActive(hash);
