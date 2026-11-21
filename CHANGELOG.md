@@ -13,6 +13,11 @@
 
 - 管理面板「主人识别」移除身份识别开关：主人识别属于核心插件，身份识别始终生效；该栏只维护主人 QQ 号与称呼。
 
+### 修复与加固
+
+- Windows 一键启动：若 `nonebot\.venv\Scripts\python.exe` 缺失，使用有效的 `runtime\python312\python.exe` 创建虚拟环境；若缓存解释器也缺失，才下载并校验固定版本的 python-build-standalone 3.12.13。不复用系统或 uv 的 Python；preflight 的 `-CheckOnly` 和 `-SkipInstall` 都不会下载。
+- 若 `runtime\python312` 已存在但缺少 `python.exe`，脚本会在下载解压后停止；若缓存解释器存在但无法运行或不是 Python 3.12，则直接停止，不下载。请删除 `runtime\python312` 后重试；若虚拟环境也损坏，请一并删除 `nonebot\.venv`。
+
 ## [0.1.0b2] - 2026-11-19
 
 首个公开 Beta 版本，汇总仓库自 2026-10-30 初始化以来的主要能力。当前版本重点是管理面板可用性、人格维护、B 站动态卡片和运维安全。

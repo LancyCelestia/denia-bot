@@ -554,6 +554,8 @@ Windows 上使用 `tools\启动所有.bat` / `tools\停止所有.bat` 启停；�
 
 - 脚本按自身所在目录解析检出路径（`%~dp0`），检出放哪个盘都行；不要改回写死的绝对路径。
 - 启动前先运行 `tools\startup-preflight.ps1`：检查 `nonebot\.venv`、SnowLuma 运行时和 `requirements.lock`，必要时创建虚拟环境并安装/补齐依赖。检查失败时不会启动任何服务；安装耗时期间也不会并行拉起其他服务。`-CheckOnly` 只做文件检查、不运行 pip；`-SkipInstall` 只读检查、缺依赖时报告而不安装或修复（8080 上已有机器人时启动脚本会自动使用它）。
+- 有效的 `nonebot\.venv` 无需下载 Python。若 `nonebot\.venv\Scripts\python.exe` 缺失，脚本可用有效的 `runtime\python312\python.exe` 离线创建虚拟环境，不复用系统或 uv 的 Python。若缓存解释器也缺失，正常启动会从 GitHub 下载固定版本的 python-build-standalone 3.12.13（约 21 MB），校验 SHA256 后解压，再安装到缓存目录。`runtime\python312` 已被 `.gitignore` 忽略；preflight 的 `-CheckOnly` 和 `-SkipInstall` 都不会下载。
+- 若 `runtime\python312` 已存在但缺少 `python.exe`，脚本会在下载解压后因目标目录已存在而停止；直接重试会重复下载。若缓存解释器存在但无法运行或不是 Python 3.12，则在下载前停止。两种情况都应先删除 `runtime\python312` 再正常启动；若虚拟环境也损坏，或要强制重新下载，请同时删除 `runtime\python312` 和 `nonebot\.venv`。
 - 启动前检查 8080：已有机器人在跑时不会重复拉起第二个 NoneBot 实例，而是提示先停止。
 - 启动前清理 `NO_PROXY` 中的 IPv6 回环条目（`::1` / `[::1]`），其他条目原样保留；机器人进程启动时也会做同样清理，避免本机回环请求被系统代理拦住。
 - 启动横幅和结尾的 connection info 都会打印管理面板地址，默认 `http://127.0.0.1:8092`；设置了 `DASHBOARD_HOST` / `DASHBOARD_PORT` 就照实显示。面板是独立进程，脚本只显示地址、不启动它，按 README 的命令在 `nonebot` 目录单独启动。
