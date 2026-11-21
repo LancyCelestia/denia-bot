@@ -47,6 +47,7 @@
 后续修改必须保持：
 
 - 概览不显示栏目卡片；栏目卡片只能在 `#panelGrid`，且一次只显示当前页一张。
+- 圣杯布局只保留左侧 sidebar 与主内容，不显示右侧 context rail / 页内导航。
 - page-head 在概览和栏目页都可见，并显示当前页标题/分组；栏目的页面主标题不回退到卡片 h2。
 - 全宽卡片，不恢复 12 栏 grid、`grid-column` / span 类或滚动 spy。
 - 新增或重排页面时，同步更新 `nonebot/tests/test_dashboard_layout.py` 和 `test_bilibili_panel.py::test_sidebar_keeps_primary_order_and_groups_bot_settings`。

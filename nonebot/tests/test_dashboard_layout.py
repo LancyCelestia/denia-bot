@@ -121,3 +121,19 @@ def test_mobile_layout_hooks_remain_present():
     assert 'id="appSidebar"' in text
     assert 'id="appearanceButtonMobile"' in text
     assert re.search(r'\.topline-theme\{display:inline-flex\}', styles)
+
+
+def test_holy_layout_has_no_right_context_rail():
+    text = _html()
+    styles = _styles(text)
+    assert 'contextRail' not in text
+    assert 'context-rail' not in text
+    assert 'railLinks' not in text
+    assert 'ON THIS PAGE' not in text
+    assert 'margin-right:304px' not in styles
+    assert not re.search(r'html\[data-skin="holy"\][^{}]*\.context-rail', styles)
+
+    workspace = re.search(r'html\[data-skin="holy"\] \.workspace\{([^}]*)\}', styles)
+    assert workspace is not None
+    assert 'margin-right:0' in workspace.group(1)
+    assert 'max-width:1440px' in workspace.group(1)
