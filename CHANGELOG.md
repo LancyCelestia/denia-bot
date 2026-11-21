@@ -15,7 +15,8 @@
 
 ### 修复与加固
 
-- Windows 一键启动：仅当 `nonebot\.venv` 缺失且 `runtime\python312` 不存在时，才下载并校验固定版本的 python-build-standalone 3.12.13，解压到 `runtime\python312` 后创建虚拟环境。已有有效虚拟环境或有效运行时缓存时无需下载；不复用系统或 uv 的 Python，preflight 的 `-CheckOnly` 和 `-SkipInstall` 都不会下载。
+- Windows 一键启动：若 `nonebot\.venv\Scripts\python.exe` 缺失，使用有效的 `runtime\python312\python.exe` 创建虚拟环境；若缓存解释器也缺失，才下载并校验固定版本的 python-build-standalone 3.12.13。不复用系统或 uv 的 Python；preflight 的 `-CheckOnly` 和 `-SkipInstall` 都不会下载。
+- 若 `runtime\python312` 已存在但缺少 `python.exe`，脚本会在下载解压后停止；若缓存解释器存在但无法运行或不是 Python 3.12，则直接停止，不下载。请删除 `runtime\python312` 后重试；若虚拟环境也损坏，请一并删除 `nonebot\.venv`。
 
 ## [0.1.0b2] - 2026-11-19
 

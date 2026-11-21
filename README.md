@@ -209,7 +209,9 @@ python serve.py --port 8091
 
 Windows 上使用 `tools\启动所有.bat` / `tools\停止所有.bat` 启停；根目录的 `启动机器人.bat` / `停止机器人.bat` 只是调用它们的薄入口。脚本按自身位置解析检出目录，启动前先运行 `tools\startup-preflight.ps1`：检查 `nonebot\.venv` 和 SnowLuma 运行时，必要时用 Python 3.12 创建虚拟环境，并按 `requirements.lock` 安装/校验依赖；依赖检查失败时不会启动任何服务。依赖安装可能耗时，完成后才继续后续启动。启动前还会检查 8080 是否已有实例，并清理 `NO_PROXY` 中无法识别的 IPv6 回环条目（`::1` / `[::1]`），避免本机回环请求被系统代理或代理例外规则拦住。启动横幅和结尾的 connection info 都会打印管理面板地址（默认 `http://127.0.0.1:8092`，设置了 `DASHBOARD_HOST` / `DASHBOARD_PORT` 就照实显示）；面板是独立进程，仍需按上面的命令单独启动。直接运行启动脚本失败时控制台会暂停；根目录入口始终保留控制台。它们是本机开发/调试入口；生产部署仍走 Linux + systemd。
 
-若 `nonebot\.venv` 缺失，脚本会用缓存的 `runtime\python312` 创建虚拟环境，不复用系统或 uv 的 Python。只有缓存也不存在时，才下载固定版本的 python-build-standalone 3.12.13（约 21 MB），校验 SHA256 后解压。要强制重新下载，请同时删除 `runtime\python312` 和 `nonebot\.venv` 后正常启动。
+若 `nonebot\.venv\Scripts\python.exe` 缺失，脚本优先用 `runtime\python312\python.exe` 创建虚拟环境，不复用系统或 uv 的 Python。若缓存解释器也缺失，正常启动会从 GitHub 下载固定版本的 python-build-standalone 3.12.13（约 21 MB），校验 SHA256 后解压到临时目录，再安装到 `runtime\python312`。
+
+若 `runtime\python312` 已存在却缺少 `python.exe`，脚本会在下载解压后停止，不会覆盖该目录；若缓存解释器存在但无法运行或不是 Python 3.12，则直接停止，不下载。遇到这两种情况，请删除 `runtime\python312` 后重试；若虚拟环境也损坏，或要强制重新下载，请同时删除 `runtime\python312` 和 `nonebot\.venv` 后正常启动。
 
 `-CheckOnly` 和 `-SkipInstall` 都不会下载 Python。这两个开关仅供 `tools\startup-preflight.ps1` 使用，`tools\启动所有.bat` 不会转发。请在仓库根目录的 PowerShell 中按需运行其一：
 
