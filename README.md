@@ -115,6 +115,7 @@ denia-bot/
 │   ├─ dashboard.py|html  管理面板
 │   └─ media_parser/      链路解析插件（适配版）
 ├─ rag/                   本地检索服务（serve.py / core.py / build_index.py / eval_gate.py）
+├─ deploy-linux/          Linux 一键部署：venv/依赖、配置、systemd、SnowLuma Docker
 ├─ tools/                 启停脚本、账号隔离、自检脚本
 ├─ docker/snowluma/       QQ 协议端 compose 模板
 ├─ gsuid/                 可选游戏账号查询：gsuid_core 核心与插件的安装脚本
@@ -126,7 +127,22 @@ denia-bot/
 
 ## 快速开始（Linux 服务器）
 
-以下步骤适用于 Linux 和已有 OneBot v11 协议端的环境；需要 Python 3.12 和可用的模型服务。部署到其他环境时请按实际路径和网络修改。
+### 一键部署（推荐）
+
+Linux 默认使用 Docker 跑 SnowLuma、systemd 跑 NoneBot/面板/gsuid。脚本会创建 `.venv`、安装 `requirements.lock`、复制缺失配置、生成 OneBot token 和 SnowLuma VNC 密码、执行迁移和面板初始化，并安装 systemd 单元：
+
+```bash
+git clone https://github.com/Lkyloveaw/denia-bot.git
+cd denia-bot
+sudo bash deploy-linux/install.sh
+sudo bash deploy-linux/start.sh
+```
+
+首次安装后按 [deploy-linux/README.md](deploy-linux/README.md) 完成 SnowLuma 扫码和面板首次登录。`stop.sh` / `status.sh` 分别用于停止和查看状态；`install.sh --check` / `--dry-run` 可在不改系统的前提下检查。
+
+### 手动步骤
+
+以下步骤适用于已有 OneBot v11 协议端、或不想使用 systemd 的环境；需要 Python 3.12 和可用的模型服务。部署到其他环境时请按实际路径和网络修改。
 
 ```bash
 git clone https://github.com/Lkyloveaw/denia-bot.git

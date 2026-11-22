@@ -38,10 +38,11 @@ logs/
 *.cookie
 
 # ============================ 第三方组件（不重复分发）============================
-# 协议端二进制、注入模块、内置 Node，以及它们的回滚备份
-snowluma/
+# 协议端二进制、注入模块、内置 Node，以及它们的回滚备份（仅仓库根目录）
+/snowluma/
 # 生产 deploy 用的 compose 含内网地址，模板在 docker/snowluma/
 compose.yml
+docker/snowluma/.env.local
 axonhub/
 install/
 exports/

@@ -6,6 +6,8 @@
 
 ### 新增
 
+- Linux 一键部署：新增 `deploy-linux/install.sh` / `start.sh` / `stop.sh` / `status.sh`，默认用 Docker 跑 SnowLuma、systemd 跑 NoneBot/面板/gsuid；安装脚本创建 `.venv`、按 `requirements.lock` 安装依赖、复制缺失配置、生成 OneBot token 与 SnowLuma VNC 密码、执行迁移和面板初始化，并安装主 `qqbot.service`、面板/gsuid 单元及启动顺序 drop-in。
+- SnowLuma 的 `docker/snowluma/` compose 模板纳入版本控制；`.gitignore` 只忽略仓库根 `snowluma/`，并忽略部署本地的 `docker/snowluma/.env.local`。模板默认把数据放在根 `snowluma/`、端口绑 `127.0.0.1`，支持 `BIND_ADDR` / `SNOWLUMA_DATA_DIR` / `SNOWLUMA_HOOK_AUTOLOAD`。
 - 管理面板「运行日志」：新增机器人运行日志 tail 查看，支持来源、行数、关键词、错误/解析错误/警告筛选和自动滚动；接口只读、白名单限定并自动掩码 Bearer/Key/Cookie 等敏感值。
 - 管理面板首次启动引导：设置管理员密码后自动进入「Bot 基本设置」，用「上一步 / 下一步」分五步完成 Bot 名称、人格模板、模型设置、主人识别和超级管理员；步骤进度与完成状态写入 `nonebot/data/dashboard-onboarding.json`，完成或跳过后不再显示。
 - 管理面板「模型设置」改为维护默认提供商的 base URL 与只写 API Key，并从上游 `/v1/models` 获取模型列表选择首选/次选；模型保存下一条回复生效，提供商保存需重启机器人。界面不再显示 `relay`/`echo-test` 条目名，Key 不回显、不进日志。

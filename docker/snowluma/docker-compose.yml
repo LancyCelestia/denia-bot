@@ -1,0 +1,52 @@
+# QQ 协议端（SnowLuma）部署模板
+#
+# 默认由 deploy-linux/install.sh 生成仓库根目录 compose.yml 并启动。
+# 手动启动（从仓库根执行）：
+#   docker compose --env-file docker/snowluma/.env.local \
+#     -f docker/snowluma/docker-compose.yml --project-directory . up -d
+#
+# 首次启动后浏览器打开 http://<服务器IP>:6081 用 noVNC 扫码登录小号，
+# 再到 http://<服务器IP>:5099 的 WebUI 里把「反向 WebSocket」指向
+#   ws://host.docker.internal:8080/onebot/v11/ws
+# accessToken 必须与 nonebot/.env 的 ONEBOT_ACCESS_TOKEN 一致。
+#
+# ⚠️ 这个容器需要 SYS_PTRACE + seccomp=unconfined，属于高风险配置：
+#    只在自己独占的机器上跑，端口只绑内网/回环，绝不直接对公网暴露。
+
+services:
+  snowluma:
+    image: motricseven7/snowluma:latest
+    container_name: qqbot-snowluma
+    restart: unless-stopped
+    shm_size: 1gb
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 1048576
+    # ptrace 注入必需，但显著扩大了容器逃逸面
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - seccomp=unconfined
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    environment:
+      TZ: Asia/Shanghai
+      VNC_PASSWD: "${VNC_PASSWD:?请在 docker/snowluma/.env.local 里设置 VNC 远程桌面密码}"
+      SNOWLUMA_WEBUI_HOST: 0.0.0.0
+      # 0 = 只恢复之前成功接入过的账号，不再自动 hook 同一客户端里登录的其它号
+      SNOWLUMA_HOOK_AUTOLOAD: "${SNOWLUMA_HOOK_AUTOLOAD:-0}"
+    ports:
+      # 只绑内网地址；改成 "127.0.0.1:…" 并用 SSH 隧道访问更安全
+      - "${BIND_ADDR:-127.0.0.1}:6081:6081"     # noVNC 扫码
+      - "${BIND_ADDR:-127.0.0.1}:5099:5099"     # WebUI
+    volumes:
+      # 相对 --project-directory（默认仓库根）；与 docs/OPERATIONS.md 的 snowluma/ 一致
+      - "${SNOWLUMA_DATA_DIR:-./snowluma}:/app/data"
+      - qqbot-qq-config:/app/.config            # QQ 登录态（删了要重新扫码）
+      - qqbot-qq-data:/app/.local/share
+    mem_limit: 2g
+
+volumes:
+  qqbot-qq-config:
+  qqbot-qq-data:
