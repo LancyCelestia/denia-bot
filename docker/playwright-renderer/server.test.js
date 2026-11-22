@@ -3,7 +3,7 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const http=require('node:http');
 const {EventEmitter,once}=require('node:events');
-const {createRendererServer}=require('./server');
+const {createRendererServer,paginateCard}=require('./server');
 const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 
 function engine() {
@@ -92,5 +92,34 @@ test('complete cards allow wide and tall content with a pixel budget',
       '<main data-card style="width:3000px;height:200px"><div style="width:3100px">overflow</div></main>',
       '<main data-card style="width:3000px;height:200px"><div style="height:300px">overflow</div></main>',
     ]) assert.equal((await post('/render-card',bad)).status,422);
+    assert.equal((await (await fetch(url+'/health')).json()).active,0);
+  });
+
+test('pagination runs in the page, so it must not capture Node scope',()=>{
+  const source=paginateCard.toString();
+  assert.equal(typeof paginateCard,'function');
+  for (const name of ['require(','process.','MAX_PIXELS','HttpError']) assert.ok(!source.includes(name),name);
+});
+
+test('pagination keeps footers with content, balances the last page and labels continuation pages',
+  {skip:process.env.RENDER_TEST_REAL!=='1'},async t=>{
+    const {url}=await start(t,{chromium:require('playwright').chromium});
+    const block=h=>`<section style="height:${h}px">x</section>`;
+    const heights=async (body,label='')=>{
+      const attr=label ? ` data-page-label="${label}"` : '';
+      const html=`<style>body{margin:0}main>*{margin:0;display:block}</style><main data-card${attr}>${body}</main>`;
+      const response=await fetch(url+'/render-pages',{method:'POST',body:JSON.stringify({html,width:400,height:1000})});
+      assert.equal(response.status,200);
+      return (await response.json()).pages.map(page=>Buffer.from(page,'base64').readUInt32BE(20));
+    };
+    // 600+350 fills page one; the footer no longer opens page two alone (old result: 950 + a 200px stub).
+    const kept=await heights(block(600)+block(350)+'<footer style="height:100px">f</footer>','测试卡');
+    assert.equal(kept.length,2);
+    assert.equal(kept[0],600);
+    assert.ok(kept[1]>450 && kept[1]<540,`continuation page carries 350 + footer + label: ${kept[1]}`);
+    // A 120px leftover pulls the previous block back instead of shipping a stub page.
+    assert.deepEqual(await heights(block(600)+block(300)+block(120)),[600,420]);
+    // Single pages are untouched: no label, no balancing.
+    assert.deepEqual(await heights(block(300)+'<footer style="height:40px">f</footer>','测试卡'),[340]);
     assert.equal((await (await fetch(url+'/health')).json()).active,0);
   });

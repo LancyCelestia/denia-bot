@@ -96,6 +96,15 @@ async def _fetch(config):
     )
 
 
+async def _covers(games):
+    """封面只是锦上添花：下载失败、超时都返回空，卡片照常出（没有封面而已）。"""
+    try:
+        return await service.fetch_covers(games)
+    except Exception as error:
+        logger.warning(f'[epic] 封面下载失败，卡片不带封面：{type(error).__name__}')
+        return {}
+
+
 async def _message(view, config):
     free = view.get('free') or []
     upcoming = (view.get('upcoming') or []) if config.get('include_upcoming', True) else []
@@ -103,7 +112,8 @@ async def _message(view, config):
         try:
             import epic_free_image
             from card_delivery import image_message
-            pages = await asyncio.to_thread(epic_free_image.render_pages, free, upcoming)
+            covers = await _covers(free + upcoming)
+            pages = await asyncio.to_thread(epic_free_image.render_pages, free, upcoming, covers=covers)
             return image_message(pages)
         except Exception as error:
             logger.warning(f'[epic] 卡片渲染失败，回退文本：{error}')

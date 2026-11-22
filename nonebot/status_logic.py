@@ -973,7 +973,7 @@ def build_report(
         'subtitle': subtitle,
         'host': host,
         'sections': out_sections,
-        'footer': footer or '内容口径与状态卡一致 · 本地 Pillow 渲染',
+        'footer': footer or '内容口径与状态卡一致 · 本机容器渲染',
     }
 
 

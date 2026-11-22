@@ -43,15 +43,18 @@ async def rule(event: Event):
 matcher = on_message(rule=rule, priority=3, block=True)
 _recent = {}
 
-async def as_picture(text):
+async def as_picture(value, fallback=None):
+    """卡片优先；渲染失败回退文字。value 可以是 fetch_view 的视图，也可以是旧的纯文本。"""
+    if fallback is None:
+        fallback = value if isinstance(value, str) else weather.format_text(value)
     try:
         import weather_image
         from card_delivery import image_message
-        pages = await asyncio.to_thread(weather_image.render_pages, text)
+        pages = await asyncio.to_thread(weather_image.render_pages, value)
         return image_message(pages)
     except Exception:
         logger.warning('[weather] 图片渲染失败，回退到文字')
-        return text
+        return fallback
 
 @matcher.handle()
 async def handle(event: Event):
@@ -67,8 +70,8 @@ async def handle(event: Event):
         _recent.clear()
     try:
         cfg = weather.config()
-        result = await weather.query(cfg.get('host',''), cfg.get('key',''), city, forecast)
-        result = await as_picture(result)
+        view = await weather.fetch_view(cfg.get('host',''), cfg.get('key',''), city, forecast)
+        result = await as_picture(view)
     except ValueError as e:
         result = str(e) if str(e) != 'API Host 格式不正确' else '天气服务尚未配置，请联系管理员。'
     except Exception:
@@ -88,8 +91,8 @@ async def worker():
                     bots = get_bots()
                     if not bots: continue
                     cfg = weather.config()
-                    result = await weather.query(cfg.get('host',''),cfg.get('key',''),item['city'],True)
-                    result = await as_picture(result)
+                    view = await weather.fetch_view(cfg.get('host',''),cfg.get('key',''),item['city'],True)
+                    result = await as_picture(view)
                     if weather.claim_push(item['id'],now.date().isoformat()):
                         bot = next(iter(bots.values()))
                         if item['kind'] == 'group':
