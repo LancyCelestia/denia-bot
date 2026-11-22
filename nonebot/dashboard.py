@@ -44,6 +44,7 @@ import status_grafana as status_grafana_mod
 import status_store as status_store_mod
 import superuser_settings
 import theme_panel
+import xhs_login
 from bot_monitor import Monitor, Restart, RestartController, WindowsRestart  # noqa: F401 - 测试仍按旧名引用
 
 ROOT = Path(__file__).resolve().parent
@@ -672,7 +673,62 @@ def parser_config(req: Request):
 @app.post('/api/parser')
 async def set_parser_config(req: Request):
     mutate(req)
-    try: return parser_settings.save(await req.json())
+    try:
+        payload = await req.json()
+    except (ValueError, TypeError):
+        raise HTTPException(400, '请求格式无效')
+    if not isinstance(payload, dict):
+        raise HTTPException(400, '请求格式无效')
+    login_id = payload.pop('xhs_login_id', None)
+    if login_id is not None:
+        if not xhs_login.valid_session_id(login_id):
+            raise HTTPException(400, '扫码会话无效')
+        platforms = payload.get('platforms')
+        if platforms is None:
+            platforms = {}
+            payload['platforms'] = platforms
+        if not isinstance(platforms, dict):
+            raise HTTPException(400, '解析平台格式无效')
+        xhs_changes = platforms.get('xhs')
+        if xhs_changes is not None and not isinstance(xhs_changes, dict):
+            raise HTTPException(400, '小红书平台格式无效')
+        if isinstance(xhs_changes, dict) and xhs_changes.get('cookies'):
+            raise HTTPException(400, '扫码保存时不要同时填写小红书 Cookie')
+        cleared = payload.get('clear_secrets')
+        if isinstance(cleared, list) and 'xhs.cookies' in cleared:
+            raise HTTPException(400, '扫码保存时不要同时清除小红书 Cookie')
+        admin_session = req.cookies.get('admin_session', '')
+        try:
+            claimed = await xhs_login.claim(admin_session, login_id)
+        except xhs_login.XhsLoginError as e:
+            raise HTTPException(e.status, e.detail)
+        xhs_changes = platforms.get('xhs')
+        if xhs_changes is None:
+            xhs_changes = {}
+            platforms['xhs'] = xhs_changes
+        xhs_changes['cookies'] = claimed['cookies']
+        try:
+            saved = parser_settings.save(payload)
+        except Exception as exc:
+            try:
+                await xhs_login.settle(admin_session, login_id, claimed['claim_id'], False)
+            except xhs_login.XhsLoginError:
+                pass
+            if isinstance(exc, FileExistsError):
+                raise HTTPException(409, str(exc))
+            if isinstance(exc, (ValueError, TypeError)):
+                raise HTTPException(400, str(exc))
+            if isinstance(exc, (OSError, sqlite3.Error)):
+                raise HTTPException(503, '解析器配置无法保存，请稍后重试')
+            raise
+        try:
+            await xhs_login.settle(admin_session, login_id, claimed['claim_id'], True)
+        except xhs_login.XhsLoginError:
+            saved = dict(saved)
+            saved['qr_cleanup_pending'] = True
+        return saved
+    try:
+        return parser_settings.save(payload)
     except FileExistsError as e: raise HTTPException(409, str(e))
     except (ValueError, TypeError) as e: raise HTTPException(400, str(e))
     except (OSError, sqlite3.Error): raise HTTPException(503, '解析器配置无法保存，请稍后重试')
@@ -719,6 +775,54 @@ async def bilibili_qr_status(req: Request):
         raise HTTPException(503, f'缺少 B 站登录依赖：{e}')
     except Exception as e:
         return {'status': 'error', 'message': f'读取二维码状态失败：{e}'}
+
+
+async def _xhs_login_body(req: Request) -> dict:
+    try:
+        body = await req.json()
+    except (ValueError, TypeError):
+        raise HTTPException(400, '请求格式无效')
+    if not isinstance(body, dict):
+        raise HTTPException(400, '请求格式无效')
+    return body
+
+
+@app.post('/api/parser/xhs-login/start')
+async def xhs_login_start(req: Request):
+    mutate(req)
+    try:
+        payload = await xhs_login.start(req.cookies.get('admin_session', ''))
+    except xhs_login.XhsLoginError as e:
+        raise HTTPException(e.status, e.detail)
+    return JSONResponse(payload, headers={'Cache-Control': 'no-store'})
+
+
+@app.post('/api/parser/xhs-login/status')
+async def xhs_login_status(req: Request):
+    mutate(req)
+    body = await _xhs_login_body(req)
+    session_id = body.get('id')
+    if not isinstance(session_id, str):
+        raise HTTPException(400, '扫码会话无效')
+    try:
+        payload = await xhs_login.status(req.cookies.get('admin_session', ''), session_id)
+    except xhs_login.XhsLoginError as e:
+        raise HTTPException(e.status, e.detail)
+    return JSONResponse(payload, headers={'Cache-Control': 'no-store'})
+
+
+@app.post('/api/parser/xhs-login/cancel')
+async def xhs_login_cancel(req: Request):
+    mutate(req)
+    body = await _xhs_login_body(req)
+    session_id = body.get('id')
+    if not isinstance(session_id, str):
+        raise HTTPException(400, '扫码会话无效')
+    try:
+        payload = await xhs_login.cancel(req.cookies.get('admin_session', ''), session_id)
+    except xhs_login.XhsLoginError as e:
+        raise HTTPException(e.status, e.detail)
+    return JSONResponse(payload, headers={'Cache-Control': 'no-store'})
 
 
 @app.get('/api/parser-events')

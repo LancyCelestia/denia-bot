@@ -1,11 +1,12 @@
 # Changelog
 
-版本号遵循 PEP 440；展示名 `V0.1 BETA2` 对应 Python 包版本 `0.1.0b2`。
+版本号遵循 PEP 440；展示名 `V0.1.0-RC1` 对应 Python 包版本 `0.1.0rc1`。
 
-## [未发布]
+## [0.1.0rc1] - 2026-11-22
 
 ### 新增
 
+- 管理面板「链接解析」：改为「通用设置 + 18 个平台」标签页，通用设置固定在最前；Cookie / 登录凭据移入平台面板，B 站支持粘贴 Cookie/JSON 与扫码，小红书新增独立回环容器扫码登录（令牌保护、单活跃会话、原子保存，浏览器不返回 Cookie 明文）。
 - 卡片排版改版：天气实况/预报、群话题（新模板 `group_topics_image.py`）、Epic（内嵌 `keyImages` 封面，领取链接只放随附文字）统一为状态卡 D 的浅色配色（`card_theme.py`）；`weather_service.fetch_view()` 返回结构化视图，`query()` 文字输出不变。
 - 渲染服务分页规则：`<footer>` 与 `data-keep-with-prev` 块不单独开页；末页不足单页 1/4 时从上一页回挪；根元素带 `data-page-label` 时续页顶部显示「标签 · 第 2/3 页」。需重建渲染容器生效。
 - Linux 一键部署：新增 `deploy-linux/install.sh` / `start.sh` / `stop.sh` / `status.sh`，默认用 Docker 跑 SnowLuma、systemd 跑 NoneBot/面板/gsuid；安装脚本创建 `.venv`、按 `requirements.lock` 安装依赖、复制缺失配置、生成 OneBot token 与 SnowLuma VNC 密码、执行迁移和面板初始化，并安装主 `qqbot.service`、面板/gsuid 单元及启动顺序 drop-in。

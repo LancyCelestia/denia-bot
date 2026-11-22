@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Existing version tag, for example v0.1.0b2'
+        description: 'Existing version tag, for example v0.1.0rc1'
         required: true
 
 permissions:
@@ -107,7 +107,7 @@ jobs:
             gh release upload "$tag" dist/* --clobber
           else
             case "$tag" in
-              *b*|*beta*|*BETA*) prerelease="--prerelease" ;;
+              *b*|*beta*|*BETA*|*rc*|*RC*) prerelease="--prerelease" ;;
               *) prerelease="" ;;
             esac
             gh release create "$tag" dist/* \

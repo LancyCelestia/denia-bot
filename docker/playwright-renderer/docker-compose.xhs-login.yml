@@ -1,0 +1,37 @@
+services:
+  xhs-login:
+    build:
+      context: ../..
+      dockerfile: docker/playwright-renderer/Dockerfile
+    image: qqbot-xhs-login:1
+    container_name: qqbot-xhs-login
+    restart: unless-stopped
+    command: ["node", "/app/xhs-login-server.js"]
+    ports:
+      # 只绑宿主机回环；不要把登录服务暴露到公网。
+      - "127.0.0.1:${XHS_LOGIN_PORT:-3102}:3001"
+    env_file:
+      - ../../nonebot/data/xhs-login-token.env
+    environment:
+      PORT: "3001"
+      XHS_LOGIN_MODE: "container"
+    user: pwuser
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=268435456
+    shm_size: "256mb"
+    mem_limit: 768m
+    memswap_limit: 1g
+    cpus: 1.0
+    pids_limit: 256
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/health').then(r=>r.json()).then(h=>process.exit(h.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
