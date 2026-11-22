@@ -230,3 +230,19 @@ def test_bilibili_credentials_import_and_qr_are_wired():
     assert 'pollBiliQr' in text
     assert '/api/parser/bilibili/cookies' in text
     assert '/api/parser/bilibili/qr' in text
+
+
+def test_parser_platform_tabs_and_xhs_login_are_wired():
+    text = _html()
+    parser = _between(text, '<section id="parser"', '</section>')
+    assert 'id="parserTabs"' in parser
+    assert 'role="tablist"' in parser
+    assert 'id="parserGeneralPanel"' in parser
+    assert 'id="parserPlatformPanel"' in parser
+    assert 'id="parserSave"' in parser
+    assert 'function parserSelectScope' in text
+    assert 'function parserFocusField' in text
+    assert 'id="xhsLoginStart"' in text
+    assert 'id="xhsLoginQr"' in text
+    assert '/api/parser/xhs-login/start' in text
+    assert 'xhs_login_id' in text

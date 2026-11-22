@@ -1,3 +1,4 @@
+import json
 import tempfile
 import unittest
 from concurrent.futures import ThreadPoolExecutor
@@ -37,6 +38,29 @@ class ParserConfigTests(unittest.TestCase):
             self.assertNotIn('youtube', config.parser.enabled_platforms())
             config.add_blacklist('group:123')
             self.assertIn('group:123', PluginConfig(path).blacklist)
+
+    def test_saved_platform_list_is_backfilled_without_enabling_new_platforms(self):
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / 'config.json'
+            path.write_text(json.dumps({'parsers_template': [
+                {'__template_key': 'bilibili', 'enable': True, 'cookies': 'private-cookie'},
+                {'__template_key': 'legacy_custom', 'enable': True, 'foo': 'bar'},
+            ]}), encoding='utf-8')
+            config = PluginConfig(path)
+            entries = {entry['__template_key']: entry for entry in config.parsers_template}
+            schema = json.loads(
+                (Path(__file__).resolve().parents[1] / 'media_parser' / '_conf_schema.json').read_text(encoding='utf-8')
+            )
+            expected = set(schema['parsers_template']['templates'])
+            self.assertEqual(set(entries) - {'legacy_custom'}, expected)
+            self.assertEqual(entries['bilibili']['cookies'], 'private-cookie')
+            self.assertIs(entries['bilibili']['enable'], True)
+            self.assertIs(entries['xhs']['enable'], False)
+            self.assertEqual(entries['legacy_custom']['foo'], 'bar')
+            self.assertEqual(
+                config.parser.platforms(),
+                [entry['__template_key'] for entry in config.parsers_template],
+            )
 
 
 if __name__ == '__main__':

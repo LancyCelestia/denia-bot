@@ -303,6 +303,23 @@ python dashboard.py --init
 
 解析顺序：`data/bot-name.json` → 进程环境或 `local/bot.env` / `nonebot/.env` 的 `BOT_NAME` / `QQBOT_NAME` → 默认 `达妮娅`。名称仅影响显示，不改人格模板、唤醒词、账号或模型设置。面板可恢复默认；文件损坏时自动回退到环境变量或默认名称。
 
+## 8.2 小红书扫码登录
+
+管理面板「链接解析」顶部是「通用设置」和按 schema 顺序排列的 18 个平台标签，点击标签只显示该平台的设置。小红书平台内的「扫码登录」使用独立的回环登录容器；图片渲染容器仍禁用页面 JS 和外网，两者不要合并。
+
+首次部署：
+
+```bash
+cd /opt/qqbot
+python nonebot/xhs_login.py --init-token
+docker compose -f docker/playwright-renderer/docker-compose.xhs-login.yml up -d --build
+curl --fail http://127.0.0.1:3102/health
+```
+
+`xhs_login.py --init-token` 只创建 `nonebot/data/xhs-login-token.env`，不会覆盖已有有效文件，也不会打印令牌；该文件已被 `.gitignore` 覆盖，需与机器人数据一起备份。容器名 `qqbot-xhs-login`，只监听宿主机回环 3102，面板默认也访问这个地址；如改端口，同时设置面板进程的 `QQBOT_XHS_LOGIN_URL`（只接受本机回环 HTTP 地址）并重启面板。令牌轮换时先停止容器，移走令牌文件，重新执行 `--init-token`，再启动容器。
+
+扫码流程：在「链接解析 → 小红书 → 账号凭证」点击「生成二维码」，用小红书 App 扫码并确认；面板显示「扫码成功」后点击「保存解析设置」，Cookie 才会写入 `nonebot/data/media_parser/config.json`，重启机器人后生效。面板 API 不返回 Cookie 明文。登录容器未启动、令牌不一致、官网风控或页面结构变化时，面板会显示错误；此时仍可手动填写 Cookie。二维码登录可能使同一账号的其他网页端下线。
+
 ## 8.5 服务器状态卡
 
 `nonebot/plugins/statuscard.py` 负责采集与出图，配置在 `nonebot/data/statuscard.json`。

@@ -1003,7 +1003,7 @@ html[data-skin="academia"] #app .head-right .btn:hover{background:#5c4033;border
 </div>
 <div class="weather-actions"><button class="primary" onclick="saveDisaster()">保存灾害预警配置</button><button onclick="run(loadDisaster)">重新加载</button><span id="disasterState" class="hint" role="status"></span></div>
 <p class="hint">保存到 <code>nonebot/data/disaster_warning.json</code>；令牌不会回显。配置保存后由机器人侧读取；数据源接入前不会推送。</p></section>
-<section id="parser" class="card"><div class="card-head"><div class="card-icon" aria-hidden="true">↗</div><div><h2>链接解析</h2><p class="section-description">管理触发规则、媒体处理和各平台解析器。保存后重启机器人生效。</p></div></div><p class="hint">群聊默认自动解析链接；白名单与黑名单每行填写 group:群号 或 private:QQ号。Cookie 和令牌留空时保持原值。</p><style>.bili-credentials{border:1px solid var(--line);border-radius:var(--r-12);padding:14px 16px;margin:14px 0;background:var(--surface-2)}.bili-credentials-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}.bili-credentials-head h3{margin:0 0 4px}.bili-qr-row{display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap}.bili-qr-row img{width:180px;height:180px;image-rendering:pixelated;background:#fff;border:1px solid var(--line-strong);border-radius:var(--r-9)}</style><div class="bili-credentials" id="biliCredentials"><div class="bili-credentials-head"><div><h3>B 站登录凭据</h3><p class="hint">粘贴 Cookie 字符串或浏览器导出的 JSON；至少需要 <code>SESSDATA</code> 和 <code>bili_jct</code>。导入成功会立即写入配置和登录态文件，不需要重启。也可以扫码登录。</p></div><span id="biliCookieState" class="hint" role="status">未加载</span></div><div class="parser-grid"><label class="parser-field" for="biliCookieInput"><span>Cookie / JSON</span><textarea id="biliCookieInput" rows="3" placeholder="SESSDATA=...; bili_jct=...; DedeUserID=... 或 {&quot;SESSDATA&quot;: ...}"></textarea><small>导入失败不会覆盖已有凭据；错误会指出缺少哪个字段。</small></label><div class="parser-field"><span>扫码登录</span><div class="bili-qr-row"><img id="biliQrImage" alt="B站登录二维码" hidden><div><button id="biliQrStart" type="button" onclick="run(startBiliQr)">生成二维码</button><p id="biliQrState" class="hint" role="status">未生成</p><small>二维码约 2 分钟内有效；登录成功后凭据立即生效。</small></div></div></div></div><div class="parser-actions"><button id="biliCookieImport" class="primary" type="button" onclick="run(importBiliCookies)">导入 Cookie</button></div></div><div class="parser-overview"><span id="parserCount" class="parser-count">—</span><span id="parserDirty" class="parser-dirty" hidden></span><span class="parser-overview-actions"><button type="button" onclick="parserSetAll(true)">全部开启</button><button type="button" onclick="parserSetAll(false)">全部关闭</button></span></div><div class="parser-toolbar"><input id="parserSearch" type="search" placeholder="搜索设置项，如 cookies、超时、代理" aria-label="搜索设置项" oninput="parserFilter()"><label class="parser-toggle"><input id="parserOnlyEnabled" type="checkbox" onchange="parserFilter()">只看已启用平台</label><label class="parser-toggle"><input id="parserOnlyChanged" type="checkbox" onchange="parserFilter()">只看已改动</label><span id="parserFilterState" class="hint" role="status"></span></div><div class="subsection"><h3>解析仲裁</h3><p class="section-description">群内多个机器人参与时，通过表情协调由谁解析；关闭后可能重复发送。修改后保存并重启机器人生效。</p><div id="parserArbiter" class="parser-grid"></div></div><h3>通用设置</h3><div id="parserGeneral" class="parser-grid"></div><div id="parserNoGeneral" class="parser-empty" hidden>通用设置里没有匹配项。</div><div class="subsection"><h3>平台设置 <span id="parserPlatformCount" class="hint"></span></h3><p class="section-description">展开平台设置启用状态、Cookie 和专属选项。改动过的字段左侧有标记。</p><div id="parserPlatforms" class="parser-platforms"></div><div id="parserNoPlatform" class="parser-empty" hidden>没有匹配的平台。</div></div><div class="parser-actions"><button class="primary" onclick="saveParser()">保存解析设置</button><button onclick="run(loadParser)">重新加载</button><span id="parserSaved" class="hint" role="status"></span></div></section><section id="events" class="card"><div class="card-head"><div class="card-icon" aria-hidden="true">≡</div><div><h2>运行日志</h2><p class="section-description">查看机器人运行日志与解析事件；运行日志支持按错误、解析错误筛选，只读且自动掩码密钥。</p></div></div>
+<section id="parser" class="card"><div class="card-head"><div class="card-icon" aria-hidden="true">↗</div><div><h2>链接解析</h2><p class="section-description">管理触发规则、媒体处理和各平台解析器。保存后重启机器人生效。</p></div></div><p class="hint">群聊默认自动解析链接；白名单与黑名单每行填写 group:群号 或 private:QQ号。Cookie 和令牌留空时保持原值。</p><style>.parser-tabs{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0 16px;padding:6px;background:var(--surface-2);border:1px solid var(--line-soft);border-radius:var(--r-12)}.parser-tab{min-height:34px;padding:5px 12px;border:1px solid transparent;background:transparent;color:var(--text-6);font-size:var(--fs-13);border-radius:var(--r-9)}.parser-tab:hover{background:var(--surface-hover);border-color:var(--line)}.parser-tab[aria-selected="true"]{background:var(--paper);border-color:var(--line-strong);color:var(--ink);font-weight:650;box-shadow:0 1px 2px var(--shadow-card)}.parser-tab[hidden]{display:none}.parser-tab[data-changed="true"]::after{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--accent);margin-left:6px;vertical-align:1px}.parser-platform-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:4px 16px 0;font-weight:600}.parser-credentials{margin:14px 16px 0;padding:12px 14px;border:1px solid var(--line);border-radius:var(--r-10);background:var(--surface-2)}.parser-credentials h3{margin:0 0 8px}.parser-tab-panel .bili-credentials{border:0;padding:0;margin:0;background:transparent}.parser-login{margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}.parser-login-head{display:flex;justify-content:space-between;gap:10px;align-items:baseline;flex-wrap:wrap}.parser-login img{width:180px;height:180px;image-rendering:pixelated;background:#fff;border:1px solid var(--line-strong);border-radius:var(--r-9);margin-top:8px}.parser-login-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}</style><div id="parserTabs" class="parser-tabs" role="tablist" aria-label="链接解析设置"></div><style>.bili-credentials{border:1px solid var(--line);border-radius:var(--r-12);padding:14px 16px;margin:14px 0;background:var(--surface-2)}.bili-credentials-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}.bili-credentials-head h3{margin:0 0 4px}.bili-qr-row{display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap}.bili-qr-row img{width:180px;height:180px;image-rendering:pixelated;background:#fff;border:1px solid var(--line-strong);border-radius:var(--r-9)}</style><template id="biliCredentialsTemplate"><div class="bili-credentials" id="biliCredentials"><div class="bili-credentials-head"><div><h3>B 站登录凭据</h3><p class="hint">粘贴 Cookie 字符串或浏览器导出的 JSON；至少需要 <code>SESSDATA</code> 和 <code>bili_jct</code>。导入成功会立即写入配置和登录态文件，不需要重启。也可以扫码登录。</p></div><span id="biliCookieState" class="hint" role="status">未加载</span></div><div class="parser-grid"><label class="parser-field" for="biliCookieInput"><span>Cookie / JSON</span><textarea id="biliCookieInput" rows="3" placeholder="SESSDATA=...; bili_jct=...; DedeUserID=... 或 {&quot;SESSDATA&quot;: ...}"></textarea><small>导入失败不会覆盖已有凭据；错误会指出缺少哪个字段。</small></label><div class="parser-field"><span>扫码登录</span><div class="bili-qr-row"><img id="biliQrImage" alt="B站登录二维码" hidden><div><button id="biliQrStart" type="button" onclick="run(startBiliQr)">生成二维码</button><p id="biliQrState" class="hint" role="status">未生成</p><small>二维码约 2 分钟内有效；登录成功后凭据立即生效。</small></div></div></div></div><div class="parser-actions"><button id="biliCookieImport" class="primary" type="button" onclick="run(importBiliCookies)">导入 Cookie</button></div></div></template><div class="parser-overview"><span id="parserCount" class="parser-count">—</span><span id="parserDirty" class="parser-dirty" hidden></span><span class="parser-overview-actions"><button type="button" onclick="parserSetAll(true)">全部开启</button><button type="button" onclick="parserSetAll(false)">全部关闭</button></span></div><div class="parser-toolbar"><input id="parserSearch" type="search" placeholder="搜索设置项，如 cookies、超时、代理" aria-label="搜索设置项" oninput="parserFilter()"><label class="parser-toggle"><input id="parserOnlyEnabled" type="checkbox" onchange="parserFilter()">只看已启用平台</label><label class="parser-toggle"><input id="parserOnlyChanged" type="checkbox" onchange="parserFilter()">只看已改动</label><span id="parserFilterState" class="hint" role="status"></span></div><div id="parserGeneralPanel" class="parser-tab-panel" role="tabpanel" aria-labelledby="parserTab-general"><div class="subsection"><h3>解析仲裁</h3><p class="section-description">群内多个机器人参与时，通过表情协调由谁解析；关闭后可能重复发送。修改后保存并重启机器人生效。</p><div id="parserArbiter" class="parser-grid"></div></div><h3>通用设置</h3><div id="parserGeneral" class="parser-grid"></div><div id="parserNoGeneral" class="parser-empty" hidden>通用设置里没有匹配项。</div></div><div id="parserPlatformPanel" class="parser-tab-panel" hidden><div class="subsection"><h3>平台设置 <span id="parserPlatformCount" class="hint"></span></h3><p class="section-description">展开平台设置启用状态、Cookie 和专属选项。改动过的字段左侧有标记。</p><div id="parserPlatforms" class="parser-platforms"></div><div id="parserNoPlatform" class="parser-empty" hidden>没有匹配的平台。</div></div></div><div class="parser-actions"><button id="parserSave" class="primary" onclick="saveParser()">保存解析设置</button><button id="parserReload" onclick="run(loadParser)">重新加载</button><span id="parserSaved" class="hint" role="status"></span></div></section><section id="events" class="card"><div class="card-head"><div class="card-icon" aria-hidden="true">≡</div><div><h2>运行日志</h2><p class="section-description">查看机器人运行日志与解析事件；运行日志支持按错误、解析错误筛选，只读且自动掩码密钥。</p></div></div>
 <div class="parser-toolbar"><label class="parser-toggle">日志类型<select id="logMode" onchange="switchLogMode()"><option value="runtime" selected>运行日志</option><option value="parser">解析事件</option></select></label></div>
 <div id="runtimeLogPanel">
   <div class="parser-toolbar">
@@ -1787,24 +1787,69 @@ function parserIsChanged(f){
   if(f.spec.type==='int')return String(current)!==String(original??'');
   return String(current)!==String(original??'');
 }
-function parserRefresh(){
-  let changedCount=0,changedPlatforms=new Set();
-  for(const f of parserFields){
-    let changed=parserIsChanged(f);f.el.dataset.changed=changed;
-    if(changed){changedCount++;if(f.scope!=='general')changedPlatforms.add(f.scope)}
+let parserActiveScope='general',parserTabEls={};
+const parserXhsLogin={id:'',phase:'idle',qr:'',code:'',message:'',timer:null,generation:0};
+function parserTab(scope,label,controls){
+  const button=document.createElement('button');
+  button.type='button';button.className='parser-tab';button.id=`parserTab-${scope}`;
+  button.dataset.scope=scope;button.setAttribute('role','tab');
+  button.setAttribute('aria-selected','false');button.setAttribute('aria-controls',controls);
+  button.tabIndex=-1;button.textContent=label;
+  button.addEventListener('click',()=>parserSelectScope(scope,true));
+  button.addEventListener('keydown',parserTabKey);
+  parserTabEls[scope]=button;return button;
+}
+function parserTabKey(event){
+  const tabs=[...document.querySelectorAll('.parser-tab')].filter(tab=>!tab.hidden);
+  const index=tabs.indexOf(event.currentTarget);
+  if(index<0)return;
+  let next=null;
+  if(event.key==='ArrowRight')next=tabs[(index+1)%tabs.length];
+  else if(event.key==='ArrowLeft')next=tabs[(index-1+tabs.length)%tabs.length];
+  else if(event.key==='Home')next=tabs[0];
+  else if(event.key==='End')next=tabs[tabs.length-1];
+  else return;
+  event.preventDefault();parserSelectScope(next.dataset.scope,false);next.focus();
+}
+function parserSelectScope(scope,focus=false){
+  if(scope!=='general'&&!parserPlatformEls[scope])scope='general';
+  parserActiveScope=scope;
+  for(const [name,tab] of Object.entries(parserTabEls)){
+    const active=name===scope;
+    tab.setAttribute('aria-selected',String(active));
+    tab.tabIndex=active?0:-1;
+    if(active&&focus)tab.focus();
   }
+  const general=$('parserGeneralPanel'),platforms=$('parserPlatformPanel');
+  if(general)general.hidden=scope!=='general';
+  if(platforms)platforms.hidden=scope==='general';
+  for(const [name,el] of Object.entries(parserPlatformEls))el.panel.hidden=scope!==name;
+  if(scope==='xhs')renderXhsLogin();
+}
+function parserRefresh(){
+  let changedCount=0,changedPlatforms=new Set(),generalChanged=false;
+  for(const f of parserFields){
+    const changed=parserIsChanged(f);f.el.dataset.changed=changed;
+    if(changed){changedCount++;if(f.scope==='general')generalChanged=true;else changedPlatforms.add(f.scope)}
+  }
+  if(parserXhsLogin.phase==='ready'){changedCount++;changedPlatforms.add('xhs')}
   for(const [name,el] of Object.entries(parserPlatformEls)){
-    let on=parserFields.find(f=>f.scope===name&&f.key==='enable')?.input.checked;
-    el.details.dataset.changed=changedPlatforms.has(name);
+    const on=parserFields.find(f=>f.scope===name&&f.key==='enable')?.input.checked;
+    el.panel.dataset.changed=changedPlatforms.has(name);
     el.state.textContent=on?'已开启':'已关闭';
-    el.details.dataset.enabled=on;
+    el.panel.dataset.enabled=on;
+  }
+  if(parserTabEls.general)parserTabEls.general.dataset.changed=generalChanged;
+  for(const [name,tab] of Object.entries(parserTabEls)){
+    if(name!=='general')tab.dataset.changed=changedPlatforms.has(name);
   }
   const total=Object.keys(parserPlatformEls).length;
-  const onCount=Object.values(parserPlatformEls).filter(x=>x.details.dataset.enabled==='true').length;
+  const onCount=Object.values(parserPlatformEls).filter(x=>x.panel.dataset.enabled==='true').length;
   $('parserCount').innerHTML=`已启用 <b>${onCount}</b> / ${total} 个平台`;
   $('parserPlatformCount').textContent=`· ${onCount} / ${total} 个已启用`;
   const dirty=$('parserDirty');dirty.hidden=!changedCount;
   dirty.textContent=`${changedCount} 项未保存改动`;
+  renderXhsLogin();
   parserFilter();
 }
 function parserFilter(){
@@ -1820,18 +1865,20 @@ function parserFilter(){
   $('parserNoGeneral').hidden=generalShown>0;
   let platformShown=0;
   for(const [name,el] of Object.entries(parserPlatformEls)){
-    const nameHit=!q||`${el.title} ${name}`.toLowerCase().includes(q);
+    const nameHit=!q||`${el.title} ${name} ${el.searchText||''}`.toLowerCase().includes(q);
     let fieldHit=false;
     for(const f of parserFields){
       if(f.scope!==name)continue;
-      const show=hit(f)&&(!onlyChanged||parserIsChanged(f));
+      const show=(nameHit||hit(f))&&(!onlyChanged||parserIsChanged(f));
       f.el.hidden=!show;if(show)fieldHit=true;
     }
-    const enabled=el.details.dataset.enabled==='true',changed=el.details.dataset.changed==='true';
-    const show=(q?(nameHit||fieldHit):true)&&(!onlyEnabled||enabled)&&(!onlyChanged||changed);
-    el.details.hidden=!show;
-    if(show){platformShown++;if(q||onlyChanged)el.details.open=true}
+    const enabled=el.panel.dataset.enabled==='true',changed=el.panel.dataset.changed==='true';
+    const show=(!q||nameHit||fieldHit)&&(!onlyEnabled||enabled)&&(!onlyChanged||changed);
+    if(parserTabEls[name])parserTabEls[name].hidden=!show;
+    if(show)platformShown++;
   }
+  if(parserTabEls.general)parserTabEls.general.hidden=false;
+  if(parserActiveScope!=='general'&&parserTabEls[parserActiveScope]?.hidden)parserSelectScope('general');
   $('parserNoPlatform').hidden=platformShown>0;
   $('parserFilterState').textContent=(q||onlyEnabled||onlyChanged)?`筛选中：显示 ${platformShown} 个平台`:'';
 }
@@ -1887,6 +1934,8 @@ async function importBiliCookies(){
 function stopBiliQr(){
   if(biliQrTimer){clearInterval(biliQrTimer);biliQrTimer=null}
   biliQrPolling=false;
+  if(biliQrUrl){URL.revokeObjectURL(biliQrUrl);biliQrUrl=''}
+  const image=$('biliQrImage');if(image){image.hidden=true;image.removeAttribute('src')}
 }
 async function startBiliQr(){
   stopBiliQr();
@@ -1928,13 +1977,198 @@ async function pollBiliQr(){
   }catch(e){stopBiliQr();biliSetState('biliQrState','状态读取失败：'+e.message)}
   finally{biliQrPolling=false}
 }
-async function loadParser(){let data=await api('/api/parser');parserData=data;parserVersion=data.version;parserBaseline=data.baseline||{};parserFields=[];parserPlatformEls={};$('parserArbiter').replaceChildren();$('parserGeneral').replaceChildren();$('parserPlatforms').replaceChildren();$('parserSearch').value='';$('parserOnlyEnabled').checked=false;$('parserOnlyChanged').checked=false;$('parserSaved').textContent='';
-  Object.entries(data.schema).forEach(([key,spec])=>{if(key!=='parsers_template')$(key==='arbiter'?'parserArbiter':'parserGeneral').append(parserField('general',key,spec,data.general[key],data.secrets))});
-  Object.entries(data.schema.parsers_template.templates).forEach(([name,spec])=>{let values=data.platforms[name];if(!values)return;let details=document.createElement('details'),summary=document.createElement('summary'),state=document.createElement('span'),grid=document.createElement('div');details.className='parser-platform';summary.textContent=spec.name||name;state.className='parser-summary-state';summary.append(state);grid.className='parser-grid';details.append(summary,grid);$('parserPlatforms').append(details);parserPlatformEls[name]={details,state,title:spec.name||name};Object.entries(spec.items).forEach(([key,item])=>grid.append(parserField(name,key,item,values[key]??item.default,data.secrets)))})
+function xhsField(){return parserFields.find(f=>f.secretKey==='xhs.cookies')}
+function xhsSetState(text){const el=$('xhsLoginState');if(el)el.textContent=text}
+function renderXhsLogin(){
+  const state=parserXhsLogin,field=xhsField();
+  const busy=['starting','waiting','scanned','ready','saving'].includes(state.phase);
+  if(field){field.input.disabled=busy;if(field.clear)field.clear.disabled=busy}
+  const image=$('xhsLoginQr'),start=$('xhsLoginStart'),cancel=$('xhsLoginCancel');
+  if(image){
+    if(state.qr){image.src=`data:image/png;base64,${state.qr}`;image.hidden=false}
+    else{image.removeAttribute('src');image.hidden=true}
+  }
+  if(start){
+    start.textContent=state.phase==='idle'?'生成二维码':'刷新二维码';
+    start.disabled=state.phase==='starting'||state.phase==='saving';
+  }
+  if(cancel)cancel.hidden=!['waiting','scanned','ready'].includes(state.phase);
+  const labels={
+    idle:'未开始',starting:'正在生成二维码…',waiting:'请使用小红书 App 扫描并确认',
+    scanned:'已扫码，请在手机上确认',ready:'扫码成功，点击保存解析设置；重启机器人后生效',
+    saving:'正在保存…',expired:'二维码已过期，请重新生成',
+    error:state.code==='risk_control'?'登录页要求额外验证，请稍后重试或手动填写 Cookie':
+      state.code==='invalid_cookie'?'登录成功但未取得有效 Cookie，请重新扫码':
+      '登录失败，请稍后重试或手动填写 Cookie',
+  };
+  xhsSetState(state.message||labels[state.phase]||'未开始');
+}
+function stopXhsPolling(){if(parserXhsLogin.timer){clearTimeout(parserXhsLogin.timer);parserXhsLogin.timer=null}}
+function resetXhsLogin(){parserXhsLogin.generation++;stopXhsPolling();Object.assign(parserXhsLogin,{id:'',phase:'idle',qr:'',code:'',message:''});renderXhsLogin()}
+async function startXhsLogin(){
+  const field=xhsField();
+  if(field&&(field.input.value.trim()||field.clear?.checked)){
+    parserXhsLogin.phase='error';parserXhsLogin.code='';
+    parserXhsLogin.message='请先清空或取消手动 Cookie，再使用扫码登录';
+    renderXhsLogin();return
+  }
+  const previousId=parserXhsLogin.id,previousPhase=parserXhsLogin.phase;
+  parserXhsLogin.generation++;const generation=parserXhsLogin.generation;stopXhsPolling();
+  if(previousId&&['waiting','scanned','ready'].includes(previousPhase)){
+    try{await api('/api/parser/xhs-login/cancel',{id:previousId})}
+    catch(e){
+      if(generation!==parserXhsLogin.generation)return;
+      if(!String(e.message||'').includes('不存在或已过期')){
+        parserXhsLogin.message='刷新前取消失败：'+e.message;
+        renderXhsLogin();return
+      }
+    }
+    if(generation!==parserXhsLogin.generation)return;
+  }
+  Object.assign(parserXhsLogin,{id:'',phase:'starting',qr:'',code:'',message:''});renderXhsLogin();
+  try{
+    const data=await api('/api/parser/xhs-login/start',{});
+    if(generation!==parserXhsLogin.generation)return;
+    parserXhsLogin.id=data.id;parserXhsLogin.qr=data.qr_png;parserXhsLogin.phase='waiting';
+    parserXhsLogin.message='';
+    renderXhsLogin();parserRefresh();
+    parserXhsLogin.timer=setTimeout(()=>pollXhsLogin(generation),2000);
+  }catch(e){
+    if(generation!==parserXhsLogin.generation)return;
+    parserXhsLogin.phase='error';parserXhsLogin.code='';
+    parserXhsLogin.message='生成二维码失败：'+e.message;
+    renderXhsLogin();
+  }
+}
+async function pollXhsLogin(generation){
+  if(generation!==parserXhsLogin.generation)return;
+  try{
+    const data=await api('/api/parser/xhs-login/status',{id:parserXhsLogin.id});
+    if(generation!==parserXhsLogin.generation)return;
+    parserXhsLogin.phase=data.status;parserXhsLogin.code=data.code||'';
+    parserXhsLogin.message='';
+    if(data.status==='waiting'||data.status==='scanned'){
+      renderXhsLogin();parserRefresh();
+      parserXhsLogin.timer=setTimeout(()=>pollXhsLogin(generation),2000);return
+    }
+    if(data.status==='ready'){renderXhsLogin();parserRefresh();return}
+    stopXhsPolling();renderXhsLogin();
+  }catch(e){
+    if(generation!==parserXhsLogin.generation)return;
+    stopXhsPolling();parserXhsLogin.phase='error';parserXhsLogin.code='';
+    parserXhsLogin.message='状态读取失败：'+e.message;
+    renderXhsLogin();
+  }
+}
+async function cancelXhsLogin(){
+  const id=parserXhsLogin.id;
+  parserXhsLogin.generation++;const generation=parserXhsLogin.generation;stopXhsPolling();
+  if(!id){resetXhsLogin();return}
+  try{await api('/api/parser/xhs-login/cancel',{id})}
+  catch(e){
+    if(generation===parserXhsLogin.generation){
+      parserXhsLogin.message='取消失败：'+e.message;
+      renderXhsLogin()
+    }
+    return
+  }
+  if(generation!==parserXhsLogin.generation)return;
+  resetXhsLogin();parserRefresh();
+}
+function parserFocusField(f){
+  $('parserSearch').value='';$('parserOnlyEnabled').checked=false;$('parserOnlyChanged').checked=false;
+  parserFilter();
+  parserSelectScope(f.scope==='general'?'general':f.scope,true);
+  f.el.scrollIntoView({block:'center'});
+  f.input.focus();
+}
+async function loadParser(){
+  let data=await api('/api/parser');
+  parserData=data;parserVersion=data.version;parserBaseline=data.baseline||{};
+  parserFields=[];parserPlatformEls={};parserTabEls={};
+  stopBiliQr();
+  $('parserTabs').replaceChildren();$('parserArbiter').replaceChildren();
+  $('parserGeneral').replaceChildren();$('parserPlatforms').replaceChildren();
+  $('parserSearch').value='';$('parserOnlyEnabled').checked=false;
+  $('parserOnlyChanged').checked=false;$('parserSaved').textContent='';
+  $('parserTabs').append(parserTab('general','通用设置','parserGeneralPanel'));
+  Object.entries(data.schema).forEach(([key,spec])=>{
+    if(key!=='parsers_template')$(key==='arbiter'?'parserArbiter':'parserGeneral')
+      .append(parserField('general',key,spec,data.general[key],data.secrets))
+  });
+  Object.entries(data.schema.parsers_template.templates).forEach(([name,spec])=>{
+    const values=data.platforms[name];if(!values)return;
+    const title=String(spec.name||name).replace(/解析器$/,'').trim();
+    const panel=document.createElement('div');
+    panel.className='parser-platform parser-tab-panel';panel.id=`parserPanel-${name}`;
+    panel.setAttribute('role','tabpanel');panel.setAttribute('aria-labelledby',`parserTab-${name}`);
+    panel.hidden=true;
+    const head=document.createElement('div');head.className='parser-platform-head';
+    const nameEl=document.createElement('strong');nameEl.textContent=title;
+    const state=document.createElement('span');state.className='parser-summary-state';
+    head.append(nameEl,state);
+    const grid=document.createElement('div');grid.className='parser-grid';
+    panel.append(head,grid);$('parserPlatforms').append(panel);
+    parserPlatformEls[name]={panel,state,title};
+    if(name==='bilibili'||name==='xhs')parserPlatformEls[name].searchText='cookies cookie 登录凭据 扫码登录 二维码';
+    $('parserTabs').append(parserTab(name,title,panel.id));
+    const credentials=document.createElement('div');credentials.className='parser-credentials';
+    const credentialTitle=document.createElement('h3');credentialTitle.textContent='账号凭证';
+    credentials.append(credentialTitle);
+    let credentialCount=0;
+    Object.entries(spec.items).forEach(([key,item])=>{
+      if(name==='bilibili'&&key==='cookies')return;
+      const value=key==='enable'&&(values[key]===undefined||values[key]===null)
+        ?false:(values[key]??item.default);
+      const field=parserField(name,key,item,value,data.secrets);
+      const credential=key==='cookies'||(name==='qzone'&&key==='snowluma_access_token');
+      if(credential){credentials.append(field);credentialCount++}
+      else grid.append(field);
+    });
+    if(name==='xhs'){
+      const login=document.createElement('div');login.className='parser-login';login.id='xhsLogin';
+      login.innerHTML='<div class="parser-login-head"><strong>扫码登录</strong><span id="xhsLoginState" class="hint" role="status"></span></div><p class="hint">二维码约 2 分钟有效；成功后保存解析设置，重启机器人后生效。同一小红书账号的其他网页端可能被挤下线。</p><img id="xhsLoginQr" alt="小红书登录二维码" hidden><div class="parser-login-actions"><button type="button" id="xhsLoginStart" onclick="run(startXhsLogin)">生成二维码</button><button type="button" id="xhsLoginCancel" onclick="run(cancelXhsLogin)" hidden>取消扫码</button></div>';
+      credentials.append(login);
+    }
+    if(name==='bilibili'){
+      const template=$('biliCredentialsTemplate');
+      if(template)panel.append(template.content.cloneNode(true));
+    }else if(credentialCount){
+      panel.append(credentials);
+    }
+  });
+  if(!parserPlatformEls[parserActiveScope])parserActiveScope='general';
+  parserSelectScope(parserActiveScope,false);
+  renderXhsLogin();
   parserRefresh();
   biliApplyConfigured({version:parserVersion,secrets:data.secrets});
 }
-async function saveParser(){run(async()=>{let data={version:parserVersion,general:{},platforms:{},clear_secrets:[]};for(let f of parserFields){if(f.readonly)continue;if(f.clear?.checked){data.clear_secrets.push(f.secretKey);continue}let v;if(f.spec.type==='bool')v=f.input.checked;else if(f.spec.type==='int'){if(!f.input.value||!f.input.checkValidity())throw Error(`${f.spec.description||f.key}须填写范围内的整数`);v=Number(f.input.value);if(!Number.isInteger(v))throw Error(`${f.spec.description||f.key}须为整数`)}else if(f.spec.type==='list')v=f.input.value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);else v=f.input.value;if(f.scope==='general')data.general[f.key]=v;else{data.platforms[f.scope]??={};data.platforms[f.scope][f.key]=v}}await api('/api/parser',data);await loadParser();$('parserSaved').textContent='已保存；重启机器人后生效'})}
+async function saveParser(){run(async()=>{
+  const data={version:parserVersion,general:{},platforms:{},clear_secrets:[]};
+  for(const f of parserFields){
+    if(f.readonly)continue;
+    if(f.clear?.checked){data.clear_secrets.push(f.secretKey);continue}
+    let v;
+    if(f.spec.type==='bool')v=f.input.checked;
+    else if(f.spec.type==='int'){
+      if(!f.input.value||!f.input.checkValidity()){
+        parserFocusField(f);throw Error(`${f.spec.description||f.key}须填写范围内的整数`)
+      }
+      v=Number(f.input.value);
+      if(!Number.isInteger(v)){parserFocusField(f);throw Error(`${f.spec.description||f.key}须为整数`)}
+    }else if(f.spec.type==='list')v=f.input.value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+    else v=f.input.value;
+    if(f.scope==='general')data.general[f.key]=v;
+    else{data.platforms[f.scope]??={};data.platforms[f.scope][f.key]=v}
+  }
+  if(parserXhsLogin.phase==='ready'&&parserXhsLogin.id)data.xhs_login_id=parserXhsLogin.id;
+  const saved=await api('/api/parser',data);
+  resetXhsLogin();
+  await loadParser();
+  $('parserSaved').textContent=saved?.qr_cleanup_pending
+    ?'已保存；重启机器人后生效；扫码会话将在几分钟内自动清理'
+    :'已保存；重启机器人后生效';
+})}
 const SVG_NS='http://www.w3.org/2000/svg';
 function statusPct(v){return v==null?'—':`${Number(v).toFixed(1)}%`}
 function statusBytes(v){if(v==null)return '—';let n=Number(v),u=['B','KB','MB','GB','TB','PB'],i=0;while(n>=1024&&i<u.length-1){n/=1024;i++}return `${i?n.toFixed(2):Math.round(n)} ${u[i]}`}
