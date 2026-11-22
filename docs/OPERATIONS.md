@@ -449,6 +449,7 @@ journalctl -u qqbot -n 80 --no-pager | grep -i epic
 
 首次登录面板会先显示分步 Bot 基本设置引导，完成或跳过后再显示一次插件引导，可选择要启用的可选插件。之后在侧栏「插件管理」中修改；开关保存在 `nonebot/data/plugins.json`（0600，Git 忽略），普通 `git pull` 不会覆盖。
 
+- 插件引导的「完成并重启bot」会先保存开关再重启机器人；「稍后设置」只保存，之后可在「插件管理」中修改并手动重启。
 - 核心插件（消息入口、模型接线、提示词/引用/图片保护、QQ 超级管理员、主人识别等）在面板中锁定，不能关闭。
 - 关闭插件不会删除插件代码、数据或配置；机器人下次启动时不再加载。
 - `gsuid` 开关还会尝试处理对应的外部服务：Linux 优先停止并禁用 `qqbot-gsuid-core.service`（或 Docker 容器 `gsuid_core`），Windows 停止 `logs/gsuid-core.pid`/命令行匹配的 gsuid_core 进程；重新启用时再启动。服务操作失败会在面板显示原因，不会静默忽略。

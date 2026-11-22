@@ -157,6 +157,8 @@ def test_bot_basics_is_renamed_tokens_last_and_first_run_guide_is_wired():
     assert 'await run(loadOnboarding)' in text
     assert "'/api/onboarding'" in text
     assert 'syncBasicsGuideStepFromHash' in text
+    assert '完成并重启bot' in text
+    assert 'await restartBotNow()' in text
 
 
 def test_mobile_layout_hooks_remain_present():
