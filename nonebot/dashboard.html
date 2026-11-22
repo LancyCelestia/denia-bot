@@ -1003,7 +1003,7 @@ html[data-skin="academia"] #app .head-right .btn:hover{background:#5c4033;border
 </div>
 <div class="weather-actions"><button class="primary" onclick="saveDisaster()">保存灾害预警配置</button><button onclick="run(loadDisaster)">重新加载</button><span id="disasterState" class="hint" role="status"></span></div>
 <p class="hint">保存到 <code>nonebot/data/disaster_warning.json</code>；令牌不会回显。配置保存后由机器人侧读取；数据源接入前不会推送。</p></section>
-<section id="parser" class="card"><div class="card-head"><div class="card-icon" aria-hidden="true">↗</div><div><h2>链接解析</h2><p class="section-description">管理触发规则、媒体处理和各平台解析器。保存后重启机器人生效。</p></div></div><p class="hint">群聊默认自动解析链接；白名单与黑名单每行填写 group:群号 或 private:QQ号。Cookie 和令牌留空时保持原值。</p><div class="parser-overview"><span id="parserCount" class="parser-count">—</span><span id="parserDirty" class="parser-dirty" hidden></span><span class="parser-overview-actions"><button type="button" onclick="parserSetAll(true)">全部开启</button><button type="button" onclick="parserSetAll(false)">全部关闭</button></span></div><div class="parser-toolbar"><input id="parserSearch" type="search" placeholder="搜索设置项，如 cookies、超时、代理" aria-label="搜索设置项" oninput="parserFilter()"><label class="parser-toggle"><input id="parserOnlyEnabled" type="checkbox" onchange="parserFilter()">只看已启用平台</label><label class="parser-toggle"><input id="parserOnlyChanged" type="checkbox" onchange="parserFilter()">只看已改动</label><span id="parserFilterState" class="hint" role="status"></span></div><div class="subsection"><h3>解析仲裁</h3><p class="section-description">群内多个机器人参与时，通过表情协调由谁解析；关闭后可能重复发送。修改后保存并重启机器人生效。</p><div id="parserArbiter" class="parser-grid"></div></div><h3>通用设置</h3><div id="parserGeneral" class="parser-grid"></div><div id="parserNoGeneral" class="parser-empty" hidden>通用设置里没有匹配项。</div><div class="subsection"><h3>平台设置 <span id="parserPlatformCount" class="hint"></span></h3><p class="section-description">展开平台设置启用状态、Cookie 和专属选项。改动过的字段左侧有标记。</p><div id="parserPlatforms" class="parser-platforms"></div><div id="parserNoPlatform" class="parser-empty" hidden>没有匹配的平台。</div></div><div class="parser-actions"><button class="primary" onclick="saveParser()">保存解析设置</button><button onclick="run(loadParser)">重新加载</button><span id="parserSaved" class="hint" role="status"></span></div></section><section id="events" class="card"><div class="card-head"><div class="card-icon" aria-hidden="true">≡</div><div><h2>运行日志</h2><p class="section-description">查看机器人运行日志与解析事件；运行日志支持按错误、解析错误筛选，只读且自动掩码密钥。</p></div></div>
+<section id="parser" class="card"><div class="card-head"><div class="card-icon" aria-hidden="true">↗</div><div><h2>链接解析</h2><p class="section-description">管理触发规则、媒体处理和各平台解析器。保存后重启机器人生效。</p></div></div><p class="hint">群聊默认自动解析链接；白名单与黑名单每行填写 group:群号 或 private:QQ号。Cookie 和令牌留空时保持原值。</p><style>.bili-credentials{border:1px solid var(--line);border-radius:var(--r-12);padding:14px 16px;margin:14px 0;background:var(--surface-2)}.bili-credentials-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}.bili-credentials-head h3{margin:0 0 4px}.bili-qr-row{display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap}.bili-qr-row img{width:180px;height:180px;image-rendering:pixelated;background:#fff;border:1px solid var(--line-strong);border-radius:var(--r-9)}</style><div class="bili-credentials" id="biliCredentials"><div class="bili-credentials-head"><div><h3>B 站登录凭据</h3><p class="hint">粘贴 Cookie 字符串或浏览器导出的 JSON；至少需要 <code>SESSDATA</code> 和 <code>bili_jct</code>。导入成功会立即写入配置和登录态文件，不需要重启。也可以扫码登录。</p></div><span id="biliCookieState" class="hint" role="status">未加载</span></div><div class="parser-grid"><label class="parser-field" for="biliCookieInput"><span>Cookie / JSON</span><textarea id="biliCookieInput" rows="3" placeholder="SESSDATA=...; bili_jct=...; DedeUserID=... 或 {&quot;SESSDATA&quot;: ...}"></textarea><small>导入失败不会覆盖已有凭据；错误会指出缺少哪个字段。</small></label><div class="parser-field"><span>扫码登录</span><div class="bili-qr-row"><img id="biliQrImage" alt="B站登录二维码" hidden><div><button id="biliQrStart" type="button" onclick="run(startBiliQr)">生成二维码</button><p id="biliQrState" class="hint" role="status">未生成</p><small>二维码约 2 分钟内有效；登录成功后凭据立即生效。</small></div></div></div></div><div class="parser-actions"><button id="biliCookieImport" class="primary" type="button" onclick="run(importBiliCookies)">导入 Cookie</button></div></div><div class="parser-overview"><span id="parserCount" class="parser-count">—</span><span id="parserDirty" class="parser-dirty" hidden></span><span class="parser-overview-actions"><button type="button" onclick="parserSetAll(true)">全部开启</button><button type="button" onclick="parserSetAll(false)">全部关闭</button></span></div><div class="parser-toolbar"><input id="parserSearch" type="search" placeholder="搜索设置项，如 cookies、超时、代理" aria-label="搜索设置项" oninput="parserFilter()"><label class="parser-toggle"><input id="parserOnlyEnabled" type="checkbox" onchange="parserFilter()">只看已启用平台</label><label class="parser-toggle"><input id="parserOnlyChanged" type="checkbox" onchange="parserFilter()">只看已改动</label><span id="parserFilterState" class="hint" role="status"></span></div><div class="subsection"><h3>解析仲裁</h3><p class="section-description">群内多个机器人参与时，通过表情协调由谁解析；关闭后可能重复发送。修改后保存并重启机器人生效。</p><div id="parserArbiter" class="parser-grid"></div></div><h3>通用设置</h3><div id="parserGeneral" class="parser-grid"></div><div id="parserNoGeneral" class="parser-empty" hidden>通用设置里没有匹配项。</div><div class="subsection"><h3>平台设置 <span id="parserPlatformCount" class="hint"></span></h3><p class="section-description">展开平台设置启用状态、Cookie 和专属选项。改动过的字段左侧有标记。</p><div id="parserPlatforms" class="parser-platforms"></div><div id="parserNoPlatform" class="parser-empty" hidden>没有匹配的平台。</div></div><div class="parser-actions"><button class="primary" onclick="saveParser()">保存解析设置</button><button onclick="run(loadParser)">重新加载</button><span id="parserSaved" class="hint" role="status"></span></div></section><section id="events" class="card"><div class="card-head"><div class="card-icon" aria-hidden="true">≡</div><div><h2>运行日志</h2><p class="section-description">查看机器人运行日志与解析事件；运行日志支持按错误、解析错误筛选，只读且自动掩码密钥。</p></div></div>
 <div class="parser-toolbar"><label class="parser-toggle">日志类型<select id="logMode" onchange="switchLogMode()"><option value="runtime" selected>运行日志</option><option value="parser">解析事件</option></select></label></div>
 <div id="runtimeLogPanel">
   <div class="parser-toolbar">
@@ -1861,10 +1861,78 @@ function parserField(scope,key,spec,value,secrets){
   label.dataset.fieldKey=secretKey;
   parserFields.push(field);return label
 }
+let biliQrTimer=null,biliQrUrl='',biliQrPolling=false;
+function biliSetState(id,text){const el=$(id);if(el)el.textContent=text}
+function biliApplyConfigured(data){
+  if(!data)return;
+  if(data.version)parserVersion=data.version;
+  if(data.secrets&&parserData)parserData.secrets=data.secrets;
+  const secrets=(data.secrets&&data.secrets)||(parserData&&parserData.secrets)||{};
+  const configured=!!secrets['bilibili.cookies'];
+  biliSetState('biliCookieState',configured?'已配置':'未配置');
+  const field=parserFields.find(f=>f.secretKey==='bilibili.cookies');
+  if(field&&configured)field.input.placeholder='已配置，留空保持不变';
+}
+async function importBiliCookies(){
+  const raw=$('biliCookieInput').value.trim();
+  if(!raw)throw Error('请先粘贴 Cookie 或 JSON');
+  biliSetState('biliCookieState','正在导入…');
+  try{
+    const result=await api('/api/parser/bilibili/cookies',{cookies:raw});
+    $('biliCookieInput').value='';
+    biliApplyConfigured(result);
+    biliSetState('biliCookieState',result.message||'已导入');
+  }catch(e){biliSetState('biliCookieState','导入失败：'+e.message);throw e}
+}
+function stopBiliQr(){
+  if(biliQrTimer){clearInterval(biliQrTimer);biliQrTimer=null}
+  biliQrPolling=false;
+}
+async function startBiliQr(){
+  stopBiliQr();
+  const button=$('biliQrStart');
+  button.disabled=true;
+  biliSetState('biliQrState','正在生成二维码…');
+  try{
+    const response=await fetch('/api/parser/bilibili/qr',{method:'POST',headers:{'X-CSRF-Token':csrf}});
+    if(!response.ok){let detail='生成失败';try{detail=(await response.json()).detail||detail}catch(e){}throw Error(detail)}
+    const blob=await response.blob();
+    if(biliQrUrl)URL.revokeObjectURL(biliQrUrl);
+    biliQrUrl=URL.createObjectURL(blob);
+    $('biliQrImage').src=biliQrUrl;
+    $('biliQrImage').hidden=false;
+    button.textContent='刷新二维码';
+    biliSetState('biliQrState','请用 B 站 App 扫码；二维码约 2 分钟内有效');
+    biliQrTimer=setInterval(pollBiliQr,2000);
+  }catch(e){biliSetState('biliQrState','生成失败：'+e.message)}
+  finally{button.disabled=false}
+}
+async function pollBiliQr(){
+  if(!biliQrTimer||biliQrPolling)return;
+  biliQrPolling=true;
+  try{
+    const response=await fetch('/api/parser/bilibili/qr/status',{method:'POST',headers:{'X-CSRF-Token':csrf}});
+    const result=await response.json();
+    if(!response.ok)throw Error(result.detail||'状态读取失败');
+    biliSetState('biliQrState',result.message||result.status);
+    if(result.status==='success'){
+      stopBiliQr();
+      $('biliQrImage').hidden=true;
+      $('biliQrStart').textContent='重新生成二维码';
+      biliApplyConfigured(result);
+      biliSetState('biliCookieState',result.message||'登录成功');
+    }else if(result.status==='expired'||result.status==='error'||result.status==='missing'){
+      stopBiliQr();
+      $('biliQrStart').textContent='刷新二维码';
+    }
+  }catch(e){stopBiliQr();biliSetState('biliQrState','状态读取失败：'+e.message)}
+  finally{biliQrPolling=false}
+}
 async function loadParser(){let data=await api('/api/parser');parserData=data;parserVersion=data.version;parserBaseline=data.baseline||{};parserFields=[];parserPlatformEls={};$('parserArbiter').replaceChildren();$('parserGeneral').replaceChildren();$('parserPlatforms').replaceChildren();$('parserSearch').value='';$('parserOnlyEnabled').checked=false;$('parserOnlyChanged').checked=false;$('parserSaved').textContent='';
   Object.entries(data.schema).forEach(([key,spec])=>{if(key!=='parsers_template')$(key==='arbiter'?'parserArbiter':'parserGeneral').append(parserField('general',key,spec,data.general[key],data.secrets))});
   Object.entries(data.schema.parsers_template.templates).forEach(([name,spec])=>{let values=data.platforms[name];if(!values)return;let details=document.createElement('details'),summary=document.createElement('summary'),state=document.createElement('span'),grid=document.createElement('div');details.className='parser-platform';summary.textContent=spec.name||name;state.className='parser-summary-state';summary.append(state);grid.className='parser-grid';details.append(summary,grid);$('parserPlatforms').append(details);parserPlatformEls[name]={details,state,title:spec.name||name};Object.entries(spec.items).forEach(([key,item])=>grid.append(parserField(name,key,item,values[key]??item.default,data.secrets)))})
   parserRefresh();
+  biliApplyConfigured({version:parserVersion,secrets:data.secrets});
 }
 async function saveParser(){run(async()=>{let data={version:parserVersion,general:{},platforms:{},clear_secrets:[]};for(let f of parserFields){if(f.readonly)continue;if(f.clear?.checked){data.clear_secrets.push(f.secretKey);continue}let v;if(f.spec.type==='bool')v=f.input.checked;else if(f.spec.type==='int'){if(!f.input.value||!f.input.checkValidity())throw Error(`${f.spec.description||f.key}须填写范围内的整数`);v=Number(f.input.value);if(!Number.isInteger(v))throw Error(`${f.spec.description||f.key}须为整数`)}else if(f.spec.type==='list')v=f.input.value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);else v=f.input.value;if(f.scope==='general')data.general[f.key]=v;else{data.platforms[f.scope]??={};data.platforms[f.scope][f.key]=v}}await api('/api/parser',data);await loadParser();$('parserSaved').textContent='已保存；重启机器人后生效'})}
 const SVG_NS='http://www.w3.org/2000/svg';
