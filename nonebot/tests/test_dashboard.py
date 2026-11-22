@@ -262,15 +262,27 @@ class DashboardTest(unittest.TestCase):
 
                     fresh = client.post('/api/login', json={'password': 'new-secret-pass-456'})
                     fresh_headers = {'Origin': 'http://testserver', 'X-CSRF-Token': fresh.json()['csrf']}
-                    self.assertEqual(client.get('/api/onboarding').json(), {'basics_pending': True})
+                    self.assertEqual(client.get('/api/onboarding').json(),
+                                     {'basics_pending': True, 'basics_step': 0})
                     self.assertEqual(client.post('/api/onboarding', json={'basics_done': True}).status_code, 403)
                     self.assertEqual(client.post('/api/onboarding', json={'basics_done': False},
                                                  headers=fresh_headers).status_code, 400)
+                    self.assertEqual(client.post('/api/onboarding', json={'basics_step': 99},
+                                                 headers=fresh_headers).status_code, 400)
+                    stepped = client.post('/api/onboarding', json={'basics_step': 2},
+                                          headers=fresh_headers)
+                    self.assertEqual(stepped.status_code, 200)
+                    self.assertEqual(stepped.json(), {'basics_pending': True, 'basics_step': 2})
                     completed = client.post('/api/onboarding', json={'basics_done': True},
                                             headers=fresh_headers)
                     self.assertEqual(completed.status_code, 200)
-                    self.assertEqual(completed.json(), {'basics_pending': False})
-                    self.assertEqual(client.get('/api/onboarding').json(), {'basics_pending': False})
+                    self.assertEqual(completed.json(), {'basics_pending': False, 'basics_step': 0})
+                    self.assertEqual(client.get('/api/onboarding').json(),
+                                     {'basics_pending': False, 'basics_step': 0})
+                    # 完成后的步骤写入不能重新打开引导
+                    self.assertEqual(client.post('/api/onboarding', json={'basics_step': 3},
+                                                 headers=fresh_headers).json(),
+                                     {'basics_pending': False, 'basics_step': 0})
 
     def test_normal_password_change_requires_auth_and_csrf(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -614,14 +614,17 @@ svg.liquid-filter-defs{position:absolute;width:0;height:0;overflow:hidden}
 #botBasicsNav .nav-link:hover{background:var(--surface-hover);color:var(--ink)}
 #botBasicsNav .nav-link.active{background:var(--paper);border-color:var(--line-strong);color:var(--ink);font-weight:500}
 #botBasicsNav .nav-link.active::before{display:none}
-.subsection.basics-guide{border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:var(--r-12);background:var(--accent-soft);padding:16px 18px;margin:0 0 20px}
-.basics-guide h3{margin:0 0 6px;font-size:var(--fs-16)}
-.basics-guide p{margin:0}
-.basics-guide-steps{margin:12px 0 14px;padding-left:22px;color:var(--text-3);font-size:var(--fs-14);line-height:1.75}
-.basics-guide-steps li+li{margin-top:4px}
-.basics-guide-steps a{color:var(--accent);font-weight:600;text-decoration:none}
-.basics-guide-steps a:hover{text-decoration:underline}
-.basics-guide-steps small{display:block;color:var(--muted);font-size:var(--fs-12);line-height:1.5}
+.basics-guide-bar{position:fixed;left:244px;right:0;bottom:18px;margin:0 auto;width:min(920px,calc(100% - 244px - 32px));display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 18px;border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:var(--r-12);background:var(--paper);box-shadow:0 18px 50px var(--shadow-dialog);z-index:40}
+.basics-guide-bar[hidden]{display:none}
+.basics-guide-copy{min-width:0;display:grid;gap:2px}
+.basics-guide-progress{color:var(--accent);font-size:var(--fs-12);font-weight:600;letter-spacing:.04em}
+.basics-guide-copy strong{font-size:var(--fs-16);line-height:1.3}
+.basics-guide-copy .hint{margin:0;line-height:1.45}
+.basics-guide-dots{display:flex;gap:4px;margin-top:4px}
+.basics-guide-dots i{display:block;width:22px;height:3px;border-radius:999px;background:var(--line)}
+.basics-guide-dots i.on{background:var(--accent)}
+.basics-guide-actions{display:flex;gap:8px;flex:none;flex-wrap:wrap}
+@media(max-width:800px){.basics-guide-bar{left:10px;right:10px;bottom:10px;width:auto;margin:0;flex-direction:column;align-items:stretch;gap:10px}.basics-guide-actions{justify-content:flex-end}}
 #panelGrid{display:block;margin-top:18px}
 #panelGrid > .card{min-width:0;margin:0;scroll-margin-top:124px;outline:4px solid var(--tray);outline-offset:0}
 body[data-page="overview"] #panelGrid{margin-top:0}
@@ -785,18 +788,6 @@ html[data-skin="academia"] #app .head-right .btn:hover{background:#5c4033;border
 <div id="panelGrid" class="panel-grid">
 <section id="bot-info" class="card" data-page-title="Bot 基本设置">
   <div class="card-head"><div class="card-icon" aria-hidden="true">◈</div><div><h2>bot基本信息</h2><p class="section-description">设置机器人在状态卡、日报、集群卡、灾害卡和指令菜单中显示的 bot-name。保存后立即生效，不需要重启机器人。</p></div></div>
-  <div id="basicsGuide" class="subsection basics-guide" hidden>
-    <h3>首次启动：完成 Bot 基本设置</h3>
-    <p class="section-description">管理员密码已设置。请按顺序完成以下五项；之后可随时在「Bot 基本设置」中修改。</p>
-    <ol class="basics-guide-steps">
-      <li><a href="#bot-info">Bot 名称</a><small>状态卡、日报、集群卡、灾害卡和指令菜单中显示的名字。</small></li>
-      <li><a href="#persona">人格模板</a><small>选择预设并加载到 current.jinja2，或直接编辑当前人格正文。</small></li>
-      <li><a href="#model-pref">模型设置</a><small>维护提供商 Base URL / API Key，并选择首选与次选模型。</small></li>
-      <li><a href="#master">主人识别</a><small>设置主人 QQ 号与称呼；身份识别始终生效。</small></li>
-      <li><a href="#superusers">超级管理员</a><small>添加可以使用管理指令的 QQ 号。</small></li>
-    </ol>
-    <div class="parser-actions"><button class="primary" type="button" onclick="run(finishBasicsGuide)">完成引导</button><button type="button" onclick="run(skipBasicsGuide)">稍后设置</button></div>
-  </div>
   <div class="controls"><input id="botNameInput" maxlength="40" placeholder="如：达妮娅" aria-label="机器人名称"><button class="primary" type="button" onclick="run(saveBotName)">保存名称</button><button type="button" onclick="run(resetBotName)">恢复默认</button><span id="botNameState" class="hint" role="status"></span></div>
   <p class="hint">只改显示名称，不改人格、唤醒词或模型设置；默认名称为「达妮娅」。名称最多 40 个字符。</p>
 </section>
@@ -1093,6 +1084,19 @@ html[data-skin="academia"] #app .head-right .btn:hover{background:#5c4033;border
 </div>
 </div>
 <footer class="page-footer"><span>达妮娅控制台 · {{APP_VERSION}}</span><span>本地管理空间 · 仅管理员</span></footer></main>
+<div id="basicsGuide" class="basics-guide-bar" role="region" aria-label="首次启动引导" hidden>
+  <div class="basics-guide-copy">
+    <span id="basicsGuideProgress" class="basics-guide-progress">第 1 步，共 5 步</span>
+    <strong id="basicsGuideTitle">Bot 名称</strong>
+    <span id="basicsGuideDesc" class="hint">设置机器人在状态卡、日报和指令菜单中显示的名字。</span>
+    <span id="basicsGuideDots" class="basics-guide-dots" aria-hidden="true"></span>
+  </div>
+  <div class="basics-guide-actions">
+    <button type="button" id="basicsGuidePrev" onclick="run(basicsGuidePrev)">上一步</button>
+    <button type="button" class="primary" id="basicsGuideNext" onclick="run(basicsGuideNext)">下一步</button>
+    <button type="button" id="basicsGuideSkip" onclick="run(skipBasicsGuide)">跳过引导</button>
+  </div>
+</div>
 </div>
 <script id="appScript">
 let csrf='';const $=x=>document.getElementById(x);
@@ -1157,24 +1161,91 @@ async function saveEmbedding(){let key=$('embeddingKey').value.trim();if(!key)th
 async function login(){run(async()=>{let x=await api('/api/login',{password:$('password').value});csrf=x.csrf;$('password').value='';$('login').hidden=true;if(x.must_change){showFirstRun();return}await enterApp()})}
 function showFirstRun(){$('app').hidden=true;$('auth').hidden=false;$('login').hidden=true;$('firstRun').hidden=false;$('setupPassword').focus()}
 async function setupPassword(){run(async()=>{const p=$('setupPassword').value,c=$('setupPasswordConfirm').value;if(p.length<12||p.length>256)throw Error('密码长度须为 12 到 256 位');if(p!==c)throw Error('两次输入的密码不一致');await api('/api/setup-password',{password:p,confirm:c});$('setupPassword').value='';$('setupPasswordConfirm').value='';csrf='';$('firstRun').hidden=true;$('login').hidden=false;notice('密码已设置，请使用新密码登录')})}
-let basicsGuidePending=false;
+let basicsGuidePending=false,basicsGuideStep=0,basicsStepSaveTimer=null;
+const basicsSteps=[
+  {hash:'#bot-info',title:'Bot 名称',desc:'设置状态卡、日报、集群卡、灾害卡和指令菜单中显示的名字。'},
+  {hash:'#persona',title:'人格模板',desc:'选择预设并加载到 current.jinja2，或直接编辑当前人格正文。'},
+  {hash:'#model-pref',title:'模型设置',desc:'维护提供商 Base URL / API Key，并选择首选与次选模型。'},
+  {hash:'#master',title:'主人识别',desc:'设置主人 QQ 号与称呼；身份识别始终生效。'},
+  {hash:'#superusers',title:'超级管理员',desc:'添加可以使用管理指令的 QQ 号。'},
+];
+function clampBasicsStep(value){
+  const step=Number(value);
+  if(!Number.isInteger(step))return 0;
+  return Math.max(0,Math.min(step,basicsSteps.length-1));
+}
+function renderBasicsGuide(){
+  const bar=$('basicsGuide');
+  if(!bar)return;
+  bar.hidden=!basicsGuidePending;
+  if(!basicsGuidePending)return;
+  basicsGuideStep=clampBasicsStep(basicsGuideStep);
+  const step=basicsSteps[basicsGuideStep];
+  $('basicsGuideProgress').textContent=`第 ${basicsGuideStep+1} 步，共 ${basicsSteps.length} 步`;
+  $('basicsGuideTitle').textContent=step.title;
+  $('basicsGuideDesc').textContent=step.desc;
+  $('basicsGuidePrev').disabled=basicsGuideStep===0;
+  $('basicsGuideNext').textContent=basicsGuideStep===basicsSteps.length-1?'完成引导':'下一步';
+  const dots=$('basicsGuideDots');
+  if(dots){
+    dots.replaceChildren();
+    basicsSteps.forEach((_,index)=>{
+      const dot=document.createElement('i');
+      if(index<=basicsGuideStep)dot.className='on';
+      dots.append(dot);
+    });
+  }
+}
+function goToBasicsStep(step){
+  basicsGuideStep=clampBasicsStep(step);
+  const target=basicsSteps[basicsGuideStep].hash;
+  if(location.hash!==target)location.hash=target;
+  else showWorkspaceSection(false);
+  renderBasicsGuide();
+}
+async function saveBasicsStep(step){
+  try{await api('/api/onboarding',{basics_step:step})}
+  catch(e){notice('引导进度未保存：'+e.message)}
+}
 async function loadOnboarding(){
   const data=await api('/api/onboarding');
   basicsGuidePending=data.basics_pending===true;
-  const guide=$('basicsGuide');
-  if(guide)guide.hidden=!basicsGuidePending;
+  basicsGuideStep=clampBasicsStep(data.basics_step);
+  if(!basicsGuidePending){renderBasicsGuide();return}
+  goToBasicsStep(basicsGuideStep);
+}
+function syncBasicsGuideStepFromHash(){
   if(!basicsGuidePending)return;
-  if(location.hash!=='#bot-info')location.hash='#bot-info';
-  else showWorkspaceSection(false);
+  const index=basicsSteps.findIndex(step=>step.hash===location.hash);
+  if(index<0||index===basicsGuideStep)return;
+  basicsGuideStep=index;
+  renderBasicsGuide();
+  clearTimeout(basicsStepSaveTimer);
+  basicsStepSaveTimer=setTimeout(()=>{saveBasicsStep(basicsGuideStep)},500);
+}
+async function basicsGuideNext(){
+  if(basicsGuideStep>=basicsSteps.length-1){
+    await markBasicsGuideDone('Bot 基本设置引导已完成');
+    return;
+  }
+  const next=basicsGuideStep+1;
+  await saveBasicsStep(next);
+  goToBasicsStep(next);
+}
+async function basicsGuidePrev(){
+  if(basicsGuideStep<=0)return;
+  const prev=basicsGuideStep-1;
+  await saveBasicsStep(prev);
+  goToBasicsStep(prev);
 }
 async function markBasicsGuideDone(message){
+  clearTimeout(basicsStepSaveTimer);
   await api('/api/onboarding',{basics_done:true});
   basicsGuidePending=false;
-  $('basicsGuide').hidden=true;
+  renderBasicsGuide();
   notice(message);
   if(pluginGuidePending){pluginGuidePending=false;$('pluginGuide').showModal()}
 }
-async function finishBasicsGuide(){await markBasicsGuideDone('Bot 基本设置引导已完成')}
 async function skipBasicsGuide(){await markBasicsGuideDone('已跳过 Bot 基本设置引导；之后可在「Bot 基本设置」中修改')}
 async function enterApp(){$('auth').hidden=true;$('app').hidden=false;await run(loadOnboarding);await run(loadEmbedding);await run(loadBotName);await run(loadPersona);await run(loadModelPref);await loadBotStatus();await loadBotUpdate();await loadPlugins();startStatusPolling();await refresh();await loadMaster();await loadParser();await loadEvents();await loadTokens();await loadStatus();await loadSuperusers();await loadEpic();await run(loadRenderer);await run(loadDisaster);await run(loadGameEvents);await run(loadBilibili);await run(loadMemes)}
 async function resumeSession(){try{let r=await fetch('/api/session');if(!r.ok)return;let x=await r.json();csrf=x.csrf;if(x.must_change){showFirstRun();return}await enterApp()}catch(e){/* 未登录，停在登录框 */}}
@@ -2303,7 +2374,7 @@ function showWorkspaceSection(refreshSection) {
     window.scrollTo({ top: 0, behavior: 'auto' });
   }
 }
-window.addEventListener('hashchange', () => showWorkspaceSection(true));
+window.addEventListener('hashchange', () => { showWorkspaceSection(true); syncBasicsGuideStepFromHash(); });
 for (const link of sectionLinks) {
   // A repeat click doesn't fire hashchange; keep the existing click-to-refresh behavior.
   link.addEventListener('click', () => {

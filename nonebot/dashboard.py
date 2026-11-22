@@ -356,10 +356,17 @@ def onboarding_state(req: Request):
 async def set_onboarding_state(req: Request):
     mutate(req)
     body = await req.json()
-    if not isinstance(body, dict) or body.get('basics_done') is not True:
+    if not isinstance(body, dict):
         raise HTTPException(400, '请求内容无效')
+    if body.get('basics_done') is True:
+        try:
+            return dashboard_onboarding.complete(onboarding_path())
+        except OSError:
+            raise HTTPException(503, '引导状态无法保存')
     try:
-        return dashboard_onboarding.complete(onboarding_path())
+        return dashboard_onboarding.set_step(onboarding_path(), body.get('basics_step'))
+    except ValueError:
+        raise HTTPException(400, '引导步骤无效')
     except OSError:
         raise HTTPException(503, '引导状态无法保存')
 

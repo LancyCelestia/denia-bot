@@ -59,9 +59,10 @@
 
 ## 首次启动引导
 
-- 首次改密成功后写入 `data/dashboard-onboarding.json`；下次进入面板自动跳到 `#bot-info`。
-- `#basicsGuide` 是 `#bot-info` 卡片内的 `.subsection`，不是新的 `section.card`，因此不改变页面骨架和导航契约。
-- 引导按基本信息 / 人格模板 / 模型设置 / 主人识别 / 超级管理员排列；完成或跳过时调用 `POST /api/onboarding`，之后不再显示。
+- 首次改密成功后写入 `data/dashboard-onboarding.json`；下次进入面板自动跳到当前步骤对应的 hash（第一步为 `#bot-info`）。
+- `#basicsGuide` 是 `#app` 内的固定底部引导条，不是 `section.card`，也不属于 `#panelGrid`；不改变页面骨架和导航契约。
+- 引导分五步：基本信息 / 人格模板 / 模型设置 / 主人识别 / 超级管理员。上一步、下一步切换并持久化 `basics_step`；最后一步完成或跳过时调用 `POST /api/onboarding`，之后不再显示。
+- 手动点击 Bot 二级导航时，引导条同步到对应步骤；切换步骤会短暂防抖后保存进度。
 - 引导未完成时，插件首次引导延后到 Bot 基本设置引导完成或跳过后再显示。
 
 ## 允许的改动

@@ -12,11 +12,18 @@ import tempfile
 from pathlib import Path
 
 FILENAME = 'dashboard-onboarding.json'
-DEFAULT = {'basics_pending': False}
+DEFAULT = {'basics_pending': False, 'basics_step': 0}
+MAX_STEP = 4
 
 
 def path_for(auth_file) -> Path:
     return Path(auth_file).parent / FILENAME
+
+
+def _step(value) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        return 0
+    return max(0, min(value, MAX_STEP))
 
 
 def load(path) -> dict:
@@ -26,7 +33,10 @@ def load(path) -> dict:
         return dict(DEFAULT)
     if not isinstance(raw, dict):
         return dict(DEFAULT)
-    return {'basics_pending': raw.get('basics_pending') is True}
+    return {
+        'basics_pending': raw.get('basics_pending') is True,
+        'basics_step': _step(raw.get('basics_step')),
+    }
 
 
 def _write(data, path) -> None:
@@ -50,10 +60,20 @@ def _write(data, path) -> None:
 
 
 def mark_pending(path) -> dict:
-    _write({'basics_pending': True}, path)
+    _write({'basics_pending': True, 'basics_step': 0}, path)
+    return load(path)
+
+
+def set_step(path, step) -> dict:
+    if isinstance(step, bool) or not isinstance(step, int) or not 0 <= step <= MAX_STEP:
+        raise ValueError('引导步骤无效')
+    current = load(path)
+    if not current['basics_pending']:
+        return current
+    _write({'basics_pending': True, 'basics_step': step}, path)
     return load(path)
 
 
 def complete(path) -> dict:
-    _write({'basics_pending': False}, path)
+    _write({'basics_pending': False, 'basics_step': 0}, path)
     return load(path)
