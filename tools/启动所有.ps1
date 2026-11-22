@@ -41,8 +41,8 @@ $preflight = Join-Path $PSScriptRoot 'startup-preflight.ps1'
 if (-not (Test-Path -LiteralPath $preflight -PathType Leaf)) {
     throw "缺少依赖检查脚本：$preflight"
 }
-$preflightArgs = @('-Root', $ROOT, '-NoPause')
-if ($SnowLumaPath) { $preflightArgs += @('-SnowLumaPath', $SnowLumaPath) }
+$preflightArgs = @{ Root = $ROOT; NoPause = $true }
+if ($SnowLumaPath) { $preflightArgs['SnowLumaPath'] = $SnowLumaPath }
 if (Test-Listening 8080) {
     Write-Host '[deps] NoneBot 已在 8080 运行，只做只读依赖检查（-SkipInstall）。' -ForegroundColor Yellow
     & $preflight @preflightArgs -SkipInstall

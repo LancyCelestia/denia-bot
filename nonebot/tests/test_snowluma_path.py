@@ -119,3 +119,18 @@ def test_missing_runtime_fails(tmp_path: Path) -> None:
     assert result.returncode == 1
     assert 'SnowLuma runtime is missing' in result.stderr
     assert not (root / 'logs' / 'snowluma-home.txt').exists()
+
+
+def test_no_extract_blocks_zip(tmp_path: Path) -> None:
+    root = tmp_path / 'repo'
+    root.mkdir()
+    archive = root / 'SnowLuma-v2.4.2-win-x64.zip'
+    with zipfile.ZipFile(archive, 'w') as zf:
+        zf.writestr('SnowLuma/node.exe', b'')
+        zf.writestr('SnowLuma/index.mjs', b'')
+
+    result = _run(root, tmp_path, '-NoExtract')
+
+    assert result.returncode == 1
+    assert 'NoExtract' in result.stderr
+    assert not (root / 'snowluma' / 'node.exe').exists()

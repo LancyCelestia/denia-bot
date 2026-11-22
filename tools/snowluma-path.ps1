@@ -2,7 +2,8 @@
 [CmdletBinding()]
 param(
     [string]$Root = (Split-Path -Parent $PSScriptRoot),
-    [string]$SnowLumaPath = ''
+    [string]$SnowLumaPath = '',
+    [switch]$NoExtract
 )
 
 $ErrorActionPreference = 'Continue'
@@ -123,7 +124,7 @@ foreach ($candidate in $candidates) {
     if (Test-SnowLumaRoot $resolved) { $snowHome = $resolved; break }
 }
 
-if (-not $snowHome) {
+if (-not $snowHome -and -not $NoExtract) {
     $archive = Find-SnowLumaArchive
     if ($archive) { $snowHome = Expand-SnowLumaArchive $archive }
 }
@@ -132,6 +133,12 @@ if (-not $snowHome) {
     Write-Note '  [!!] SnowLuma runtime is missing.'
     Write-Note '  Tried:'
     foreach ($path in $tried) { Write-Note "    - $path" }
+    if ($NoExtract) {
+        $archive = Find-SnowLumaArchive
+        if ($archive) {
+            Write-Note "  A SnowLuma archive is available but -NoExtract prevented extraction: $($archive.FullName)"
+        }
+    }
     Write-Note '  Set SNOWLUMA_HOME (or QQBOT_SNOWLUMA) to the SnowLuma folder, pass -SnowLumaPath,'
     Write-Note "  or place SnowLuma-v$version-win-x64.zip in the repo root, downloads, tools, parent, or %USERPROFILE%\Downloads."
     exit 1

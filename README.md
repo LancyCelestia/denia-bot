@@ -221,7 +221,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\启动所有.ps1 -Snow
 
 或设置用户环境变量 `SNOWLUMA_HOME` 后直接运行 `启动所有.bat`（批处理不转发 `-SnowLumaPath`）。
 
-`-CheckOnly` 和 `-SkipInstall` 都不会下载 Python。这两个开关仅供 `tools\startup-preflight.ps1` 使用，`tools\启动所有.bat` 不会转发。请在仓库根目录的 PowerShell 中按需运行其一：
+`-CheckOnly` 和 `-SkipInstall` 都不会下载 Python，也不会解压 SnowLuma zip；需要 zip 回退时请正常启动。这两个开关仅供 `tools\startup-preflight.ps1` 使用，`tools\启动所有.bat` 不会转发。请在仓库根目录的 PowerShell 中按需运行其一：
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\startup-preflight.ps1 -Root (Get-Location).Path -CheckOnly

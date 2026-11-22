@@ -217,7 +217,9 @@ $snowHelper = Join-Path $PSScriptRoot 'snowluma-path.ps1'
 if (-not (Test-Path -LiteralPath $snowHelper -PathType Leaf)) {
     Stop-Check "Missing SnowLuma path resolver: $snowHelper"
 }
-$snowHome = (& $snowHelper -Root $rootPath -SnowLumaPath $SnowLumaPath)
+$snowArgs = @{ Root = $rootPath; SnowLumaPath = $SnowLumaPath }
+if ($CheckOnly -or $SkipInstall) { $snowArgs['NoExtract'] = $true }
+$snowHome = (& $snowHelper @snowArgs)
 if ($LASTEXITCODE -ne 0 -or -not $snowHome) {
     Stop-Check 'SnowLuma runtime is missing. Set SNOWLUMA_HOME (or QQBOT_SNOWLUMA), pass -SnowLumaPath, or place SnowLuma-v2.4.2-win-x64.zip in the repo root/downloads.'
 }
