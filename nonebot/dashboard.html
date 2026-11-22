@@ -614,6 +614,17 @@ svg.liquid-filter-defs{position:absolute;width:0;height:0;overflow:hidden}
 #botBasicsNav .nav-link:hover{background:var(--surface-hover);color:var(--ink)}
 #botBasicsNav .nav-link.active{background:var(--paper);border-color:var(--line-strong);color:var(--ink);font-weight:500}
 #botBasicsNav .nav-link.active::before{display:none}
+.basics-guide-bar{position:fixed;left:244px;right:0;bottom:18px;margin:0 auto;width:min(920px,calc(100% - 244px - 32px));display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 18px;border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:var(--r-12);background:var(--paper);box-shadow:0 18px 50px var(--shadow-dialog);z-index:40}
+.basics-guide-bar[hidden]{display:none}
+.basics-guide-copy{min-width:0;display:grid;gap:2px}
+.basics-guide-progress{color:var(--accent);font-size:var(--fs-12);font-weight:600;letter-spacing:.04em}
+.basics-guide-copy strong{font-size:var(--fs-16);line-height:1.3}
+.basics-guide-copy .hint{margin:0;line-height:1.45}
+.basics-guide-dots{display:flex;gap:4px;margin-top:4px}
+.basics-guide-dots i{display:block;width:22px;height:3px;border-radius:999px;background:var(--line)}
+.basics-guide-dots i.on{background:var(--accent)}
+.basics-guide-actions{display:flex;gap:8px;flex:none;flex-wrap:wrap}
+@media(max-width:800px){.basics-guide-bar{left:10px;right:10px;bottom:10px;width:auto;margin:0;flex-direction:column;align-items:stretch;gap:10px}.basics-guide-actions{justify-content:flex-end}}
 #panelGrid{display:block;margin-top:18px}
 #panelGrid > .card{min-width:0;margin:0;scroll-margin-top:124px;outline:4px solid var(--tray);outline-offset:0}
 body[data-page="overview"] #panelGrid{margin-top:0}
@@ -735,12 +746,12 @@ html[data-skin="academia"] #app .head-right .btn:hover{background:#5c4033;border
 <div id="shaderField" aria-hidden="true"><canvas id="shaderCanvas"></canvas></div>
 <svg class="liquid-filter-defs" width="0" height="0" aria-hidden="true" focusable="false"><defs><filter id="liquidGlassFilter" x="-10%" y="-10%" width="120%" height="120%" color-interpolation-filters="sRGB"><feTurbulence type="fractalNoise" baseFrequency="0.012 0.018" numOctaves="2" seed="5" result="noise"/><feGaussianBlur in="noise" stdDeviation="1.2" result="soft"/><feDisplacementMap in="SourceGraphic" in2="soft" scale="14" xChannelSelector="R" yChannelSelector="G"/></filter></defs></svg>
 <div id="auth" class="auth-wrap"><div class="auth-card"><div class="brand-mark" aria-hidden="true">✳</div><section id="login"><h1>欢迎回来</h1><p>登录管理控制台，继续照看你的机器人。</p><form onsubmit="login();return false"><label class="auth-label" for="password">管理员密码</label><input id="password" type="password" autocomplete="current-password" placeholder="请输入密码" required><button class="primary" type="submit">登录控制台　→</button></form></section>
-<section id="firstRun" hidden><h1>首次设置密码</h1><p>这是首次登录。请设置新的管理员密码（12 至 256 位），完成后所有设备都需要用新密码重新登录，一次性临时密码文件会被删除。</p><form onsubmit="setupPassword();return false"><label class="auth-label" for="setupPassword">新密码</label><input id="setupPassword" type="password" autocomplete="new-password" minlength="12" maxlength="256" placeholder="至少 12 位" required><label class="auth-label" for="setupPasswordConfirm">确认新密码</label><input id="setupPasswordConfirm" type="password" autocomplete="new-password" minlength="12" maxlength="256" placeholder="再次输入密码" required><button class="primary" type="submit">完成设置并重新登录　→</button></form></section><p id="message" role="status" aria-live="polite"></p><p class="auth-foot">QQ BOT · 管理员控制台 · {{APP_VERSION}}</p></div></div>
+<section id="firstRun" hidden><h1>首次设置密码</h1><p>这是首次登录。请设置新的管理员密码（12 至 256 位），完成后所有设备都需要用新密码重新登录，一次性临时密码文件会被删除。密码设置完成后，面板还会引导你完成 Bot 名称、人格模板、模型设置、主人识别和超级管理员等基本设置。</p><form onsubmit="setupPassword();return false"><label class="auth-label" for="setupPassword">新密码</label><input id="setupPassword" type="password" autocomplete="new-password" minlength="12" maxlength="256" placeholder="至少 12 位" required><label class="auth-label" for="setupPasswordConfirm">确认新密码</label><input id="setupPasswordConfirm" type="password" autocomplete="new-password" minlength="12" maxlength="256" placeholder="再次输入密码" required><button class="primary" type="submit">完成设置并重新登录　→</button></form></section><p id="message" role="status" aria-live="polite"></p><p class="auth-foot">QQ BOT · 管理员控制台 · {{APP_VERSION}}</p></div></div>
 <div id="app" class="shell" hidden><div id="navOverlay" class="nav-overlay" hidden></div><aside class="sidebar" id="appSidebar"><button type="button" class="sb-close" id="navClose" aria-label="关闭导航">×</button><div class="brand"><span class="brand-mark" aria-hidden="true">✳</span><span><span id="botBrandName">达妮娅</span> <span style="color:var(--text-10);font-weight:400">/</span> 控制台</span></div>
 <div class="bot-card"><span class="avatar" id="shellAvatar">达</span><span class="bot-copy"><strong class="bot-name" id="shellBotName">达妮娅</strong><span class="bot-sub" id="shellBotVersion">OneBot · 本地控制台</span></span><span class="bot-live" id="shellBotLive" data-tone="unknown" aria-hidden="true"></span></div>
 <nav class="nav" aria-label="管理导航">
 <div class="nav-caption">工作台</div><a id="overviewLink" class="nav-link active" href="#overview"><span class="nav-icon">▦</span>概览</a>
-<a id="botBasicsLink" class="nav-link" href="#bot-info"><span class="nav-icon">◈</span>Bot 基本情况</a>
+<a id="botBasicsLink" class="nav-link" href="#bot-info"><span class="nav-icon">◈</span>Bot 基本设置</a>
 <a class="nav-link" href="#memes"><span class="nav-icon">☺</span>表情包</a>
 <a class="nav-link" href="#memory"><span class="nav-icon">◈</span>用户记忆</a>
 <a class="nav-link" href="#group"><span class="nav-icon">◉</span>群聊话题</a>
@@ -766,16 +777,16 @@ html[data-skin="academia"] #app .head-right .btn:hover{background:#5c4033;border
 <div id="appMessage" class="notice-slot" role="status" aria-live="polite"></div>
 <div id="overview" class="overview-page"><section class="hero" aria-labelledby="heroVerdict"><div class="hero-core"><div class="hero-main"><div class="hero-bot"><span class="avatar" id="heroAvatar">达</span><span id="heroBotLine">达妮娅 · OneBot</span><span class="pill" id="heroConnection"><span class="dot" data-tone="unknown"></span>连接中</span></div><div class="verdict-row"><div class="eyebrow" id="heroKicker">CURRENT STATUS</div><h2 class="verdict" id="heroVerdict" aria-live="polite">—</h2><p class="hero-sub" id="heroSub" aria-live="polite">正在读取状态…</p></div><div class="hero-actions"><a class="btn btn-primary" href="#status">查看运行详情 →</a><a class="link" href="#status">状态历史</a></div></div><aside class="hero-side"><div class="side-head"><h2>24h 采样</h2><span class="pill" id="heroHeartbeat"><span class="dot" data-tone="ok"></span>等待</span></div><p class="hb-note" id="heroHbNote">采集于 —</p><div class="ruler-plot" id="heroRuler" role="img" aria-label="过去 24 小时的资源采样"></div><div class="ruler-axis" aria-hidden="true"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div><div class="side-facts"><div class="row"><span>连续运行</span><b id="heroStartedAt">—</b></div><div class="row"><span>最近采集</span><b id="heroLastRefresh">—</b></div><div class="row"><span>当前版本</span><b>{{APP_VERSION}}</b></div></div></aside></div></section>
 <div class="kpis" aria-label="运行概览"><div class="kpi"><span>CPU</span><b id="kpiCpu">—</b><small id="kpiCpuSmall">当前采样</small></div><div class="kpi"><span>内存</span><b id="kpiMem">—</b><small id="kpiMemSmall">已用 / 总量</small></div><div class="kpi"><span>磁盘</span><b id="kpiDisk">—</b><small id="kpiDiskSmall">已用 / 总量</small></div><div class="kpi"><span>今日 Token</span><b id="kpiTokens">—</b><small id="kpiTokensSmall">近 7 天 —</small></div><div class="kpi"><span>p95 延迟</span><b id="kpiP95">—</b><small id="kpiP95Small">暂无数据</small></div><div class="kpi"><span>消息速率</span><b id="kpiRate">—</b><small id="kpiRateSmall">暂无数据</small></div></div></div>
-<nav id="botBasicsNav" class="basics-nav" aria-label="Bot 基本情况" hidden>
+<nav id="botBasicsNav" class="basics-nav" aria-label="Bot 基本设置" hidden>
 <a class="nav-link" href="#bot-info"><span class="nav-icon">◈</span>基本信息</a>
 <a class="nav-link" href="#persona"><span class="nav-icon">✎</span>人格模板</a>
 <a class="nav-link" href="#model-pref"><span class="nav-icon">⇄</span>模型设置</a>
-<a class="nav-link" href="#tokens"><span class="nav-icon">◫</span>Token 消耗</a>
 <a class="nav-link" href="#master"><span class="nav-icon">◇</span>主人识别</a>
 <a class="nav-link" href="#superusers"><span class="nav-icon">⚑</span>超级管理员</a>
+<a class="nav-link" href="#tokens"><span class="nav-icon">◫</span>Token 消耗</a>
 </nav>
 <div id="panelGrid" class="panel-grid">
-<section id="bot-info" class="card" data-page-title="Bot 基本情况">
+<section id="bot-info" class="card" data-page-title="Bot 基本设置">
   <div class="card-head"><div class="card-icon" aria-hidden="true">◈</div><div><h2>bot基本信息</h2><p class="section-description">设置机器人在状态卡、日报、集群卡、灾害卡和指令菜单中显示的 bot-name。保存后立即生效，不需要重启机器人。</p></div></div>
   <div class="controls"><input id="botNameInput" maxlength="40" placeholder="如：达妮娅" aria-label="机器人名称"><button class="primary" type="button" onclick="run(saveBotName)">保存名称</button><button type="button" onclick="run(resetBotName)">恢复默认</button><span id="botNameState" class="hint" role="status"></span></div>
   <p class="hint">只改显示名称，不改人格、唤醒词或模型设置；默认名称为「达妮娅」。名称最多 40 个字符。</p>
@@ -839,7 +850,7 @@ html[data-skin="academia"] #app .head-right .btn:hover{background:#5c4033;border
 <section id="status" class="card"><div class="card-head"><div class="card-icon" aria-hidden="true">◧</div><div><h2>服务器状态</h2><p class="section-description">实时资源与历史趋势；采样由机器人每 5 分钟写入，QQ 数据来自最近一次落盘。</p></div></div><div class="status-toolbar"><label class="parser-toggle"><input id="statusEnabled" type="checkbox" role="switch" onchange="run(toggleStatusEnabled)" disabled>服务器状态总开关</label><button id="statusRefresh" type="button" onclick="run(loadStatus)">刷新</button><span id="statusMode" class="hint" role="status">正在读取状态…</span></div>
 <div id="statusDetails" hidden><div class="status-toolbar"><select id="statusRange" onchange="run(loadStatus)"><option value="1">最近 24 小时</option><option value="7">最近 7 天</option><option value="30">最近 30 天</option></select><span id="statusStamp" class="hint"></span></div><div class="status-grid" id="statusMetrics"></div><div class="subsection"><h3>历史趋势 <span id="statusRangeNote" class="hint"></span></h3><div class="status-chart"><svg id="statusChart" viewBox="0 0 600 150" preserveAspectRatio="none" role="img" aria-label="资源趋势"></svg></div><div class="status-legend"><span><i style="background:var(--chart-cpu)"></i>CPU</span><span><i style="background:var(--chart-mem)"></i>内存</span></div></div><div class="subsection"><h3>磁盘与进程</h3><div class="status-kv" id="statusDisks"></div><ol id="statusProcs" class="topic-ranking"></ol></div><div class="subsection"><h3>异常事件 <span class="hint">最近 20 条</span></h3><p id="statusEventsEmpty" class="parser-empty" hidden>这个区间没有异常。</p><ul id="statusEvents" class="topic-ranking event-list"></ul></div><div class="subsection"><h3>推送与报表</h3><div class="status-kv" id="statusDelivery"></div></div><div class="subsection"><h3>状态卡设置</h3><div class="status-redact" id="statusRedact"></div><div class="status-toolbar" style="margin-top:14px"><label class="parser-toggle">告警<select id="statusAlertsEnabled"><option value="false">关闭</option><option value="true">开启</option></select></label><label class="parser-toggle">日报<select id="statusReportEnabled"><option value="false">关闭</option><option value="true">开启</option></select></label><label class="parser-toggle">日报时间<input id="statusReportTime" type="time" style="min-height:36px"></label><label class="parser-toggle">推送目标<input id="statusTargets" placeholder="群号，多个用逗号隔开" style="min-height:36px"></label><button class="primary" type="button" onclick="saveStatusConfig()">保存</button><span id="statusSaved" class="hint" role="status"></span></div><div class="subsection"><h3>Grafana CPU 温度</h3><p class="section-description">从 Grafana 的 Prometheus 数据源读取温度；查询失败时状态卡省略温度，不影响其他内容。</p><div class="parser-grid"><label class="parser-field"><span>启用</span><select id="statusGrafanaEnabled"><option value="false">关闭</option><option value="true">开启</option></select></label><label class="parser-field"><span>Grafana 地址</span><input id="statusGrafanaUrl" placeholder="http://grafana:3000"></label><label class="parser-field"><span>Datasource UID</span><input id="statusGrafanaUid" placeholder="Prometheus 数据源 UID"></label><label class="parser-field"><span>查询语句（PromQL / Flux）</span><input id="statusGrafanaQuery" placeholder="PromQL 或 Flux；Flux 可用 {window} 占位符"></label><label class="parser-field"><span>平均窗口（分钟）</span><input id="statusGrafanaWindow" type="number" min="1" max="1440"></label><label class="parser-field"><span>API Key</span><input id="statusGrafanaToken" type="password" autocomplete="new-password" placeholder="已配置则留空保持不变"></label></div><div class="status-toolbar" style="margin-top:10px"><button type="button" onclick="loadStatusGrafanaSources()">读取数据源</button><button type="button" onclick="testStatusGrafana()">测试连接</button><span id="statusGrafanaResult" class="hint" role="status"></span></div></div><div class="subsection"><h3>Proxmox VE 集群</h3><p class="section-description">从同一个 Grafana 的 InfluxDB（Flux）读取节点、访客与存储；只有最近窗口内有采样的节点和访客才会出现，已停止的访客通常没有数据。修改后点此保存；测试查询不保存。</p><div class="parser-grid"><label class="parser-field"><span>启用</span><select id="statusClusterEnabled"><option value="false">关闭</option><option value="true">开启</option></select></label><label class="parser-field"><span>卡片标题</span><input id="statusClusterTitle" placeholder="Proxmox VE"></label><label class="parser-field"><span>Bucket</span><input id="statusClusterBucket" placeholder="proxmox"></label><label class="parser-field"><span>Datasource UID</span><input id="statusClusterUid" placeholder="留空沿用上方 Grafana 数据源"></label><label class="parser-field"><span>数据窗口（分钟）</span><input id="statusClusterWindow" type="number" min="1" max="1440"></label><label class="parser-field"><span>节点筛选</span><input id="statusClusterNodes" placeholder="逗号分隔；留空表示全部节点"></label><label class="parser-field"><span>CPU 温度</span><select id="statusClusterTemp"><option value="false">关闭</option><option value="true">开启</option></select></label></div><div class="status-toolbar" style="margin-top:10px"><button class="primary" type="button" onclick="saveStatusConfig()">保存</button><button type="button" onclick="testStatusCluster()">测试集群查询</button><span id="statusClusterResult" class="hint" role="status"></span></div></div><p class="hint">基础配置在插件目录的 data/statuscard.json；监测条目等高级项请直接改该文件。</p></div></div></section>
 <section id="tokens" class="card"><div class="card-head"><div class="card-icon" aria-hidden="true">◫</div><div><h2>Token 消耗</h2><p class="section-description">按天累计的模型用量，以及各模型的消耗排名。</p></div></div><div class="token-toolbar"><label class="parser-toggle">统计区间<select id="tokenDays" onchange="run(loadTokens)"><option value="1">今天</option><option value="7" selected>近 7 天</option><option value="30">近 30 天</option><option value="90">近 90 天</option></select></label><button type="button" onclick="run(loadTokens)">刷新</button><button type="button" onclick="confirmClearTokens()">清空统计</button><span id="tokenRange" class="hint"></span></div><div class="token-cards"><div class="token-card"><span>今日</span><strong id="tkToday">—</strong></div><div class="token-card"><span>昨日</span><strong id="tkYesterday">—</strong></div><div class="token-card"><span>近 7 天</span><strong id="tkWeek">—</strong></div><div class="token-card"><span>近 30 天</span><strong id="tkMonth">—</strong></div><div class="token-card"><span>累计</span><strong id="tkAll">—</strong></div></div><div class="subsection"><h3>模型排名 <span id="tokenModelNote" class="hint"></span></h3><p id="tokenEmpty" class="parser-empty" hidden>这个区间还没有记录。发出一次对话后就会开始统计。</p><ol id="tokenModels" class="topic-ranking"></ol></div><div class="subsection"><h3>每日用量</h3><div id="tokenDaily" class="token-daily"></div></div></section>
-<dialog id="pluginGuide" class="confirm-dialog" aria-labelledby="pluginGuideTitle"><h2 id="pluginGuideTitle">首次启动引导</h2><p>选择要启用的可选插件。现在关闭的插件不会在机器人下次启动时加载，之后可以在「插件管理」中修改。</p><div id="pluginGuideList" style="max-height:44vh;overflow:auto;text-align:left"></div><p class="hint">设置保存在 <code>nonebot/data/plugins.json</code>；关闭 gsuid 时会尝试同步停止对应外部服务。</p><div class="confirm-actions"><button type="button" onclick="run(skipPluginGuide)">稍后设置</button><button class="primary" type="button" onclick="run(finishPluginGuide)">完成引导</button></div></dialog>
+<dialog id="pluginGuide" class="confirm-dialog" aria-labelledby="pluginGuideTitle"><h2 id="pluginGuideTitle">首次启动引导</h2><p>选择要启用的可选插件。现在关闭的插件不会在机器人下次启动时加载，之后可以在「插件管理」中修改。完成后会重启机器人让开关生效，服务会短暂中断。</p><div id="pluginGuideList" style="max-height:44vh;overflow:auto;text-align:left"></div><p class="hint">设置保存在 <code>nonebot/data/plugins.json</code>；关闭 gsuid 时会尝试同步停止对应外部服务。</p><div class="confirm-actions"><button type="button" onclick="run(skipPluginGuide)">稍后设置</button><button class="primary" type="button" onclick="run(finishPluginGuide)">完成并重启bot</button></div></dialog>
 <dialog id="restartDialog" class="confirm-dialog" aria-labelledby="restartTitle"><h2 id="restartTitle">确认重启机器人？</h2><p>机器人服务将短暂中断，正在处理的消息可能被中止。SnowLuma、QQ 和知识库服务继续运行。</p><div class="confirm-actions"><button onclick="$('restartDialog').close()">取消</button><button class="primary" onclick="restartBotNow()">确认重启</button></div></dialog>
 <section id="master" class="card"><div class="card-head"><div class="card-icon" aria-hidden="true">◇</div><div><h2>主人识别</h2><p class="section-description">设置主人 QQ 号与称呼；身份识别始终生效。</p></div></div><div class="weather-grid"><label>主人 QQ 号（多个用逗号隔开）<input id="masterOwners" inputmode="numeric" placeholder="留空沿用已有主人配置"></label><label>主人称呼<input id="masterTitle" placeholder="留空沿用人格配置"></label></div><p class="hint">留空使用原有配置；修改主人身份不会授予管理权限。保存后直接生效。</p><button class="primary" onclick="saveMaster()">保存主人识别设置</button><span id="masterSaved" class="hint" role="status"></span></section>
 <section id="superusers" class="card"><div class="card-head"><div class="card-icon" aria-hidden="true">⚑</div><div><h2>超级管理员</h2><p class="section-description">能用「限流」「换模型」「查看状态」「解析开关」等管理指令的 QQ 号。改完最多 30 秒生效，不用重启机器人。</p></div></div><div class="controls"><input id="superuserInput" inputmode="numeric" placeholder="QQ 号" aria-label="新增管理员 QQ 号"><button class="primary" type="button" onclick="addSuperuser()">添加</button><button type="button" onclick="run(loadSuperusers)">刷新</button><button type="button" class="danger" onclick="resetSuperusers()">回退到 .env</button><span id="superuserSource" class="hint" role="status"></span></div><p id="superuserState" class="status"></p><ul id="superuserList" class="list"></ul><p class="hint">面板第一次保存后以这份名单为准；<code>nonebot/.env</code> 的 <code>SUPERUSERS</code> 只在还没有名单文件时作为初始值。面板登录密码与这里的 QQ 号是两套东西，改名单不会影响登录。</p></section><section id="memory" class="card"><div class="card-head"><div class="card-icon" aria-hidden="true">◈</div><div><h2>用户记忆</h2><p class="section-description">查看和管理机器人为每位用户保存的记忆。</p></div></div><div class="controls"><select id="users" aria-label="选择用户" onchange="loadUser()"></select><button onclick="memoryAction('开启')">开启记忆</button><button onclick="memoryAction('关闭')">关闭记忆</button></div><p id="userState" class="status"></p><ul id="memories" class="list"></ul><div class="subsection"><h3>待处理候选</h3><p class="section-description">检查可能重复或冲突的记忆，再决定如何处理。</p><ul id="candidates" class="list"></ul></div></section>
@@ -1073,6 +1084,19 @@ html[data-skin="academia"] #app .head-right .btn:hover{background:#5c4033;border
 </div>
 </div>
 <footer class="page-footer"><span>达妮娅控制台 · {{APP_VERSION}}</span><span>本地管理空间 · 仅管理员</span></footer></main>
+<div id="basicsGuide" class="basics-guide-bar" role="region" aria-label="首次启动引导" hidden>
+  <div class="basics-guide-copy">
+    <span id="basicsGuideProgress" class="basics-guide-progress">第 1 步，共 5 步</span>
+    <strong id="basicsGuideTitle">Bot 名称</strong>
+    <span id="basicsGuideDesc" class="hint">设置机器人在状态卡、日报和指令菜单中显示的名字。</span>
+    <span id="basicsGuideDots" class="basics-guide-dots" aria-hidden="true"></span>
+  </div>
+  <div class="basics-guide-actions">
+    <button type="button" id="basicsGuidePrev" onclick="run(basicsGuidePrev)">上一步</button>
+    <button type="button" class="primary" id="basicsGuideNext" onclick="run(basicsGuideNext)">下一步</button>
+    <button type="button" id="basicsGuideSkip" onclick="run(skipBasicsGuide)">跳过引导</button>
+  </div>
+</div>
 </div>
 <script id="appScript">
 let csrf='';const $=x=>document.getElementById(x);
@@ -1137,7 +1161,93 @@ async function saveEmbedding(){let key=$('embeddingKey').value.trim();if(!key)th
 async function login(){run(async()=>{let x=await api('/api/login',{password:$('password').value});csrf=x.csrf;$('password').value='';$('login').hidden=true;if(x.must_change){showFirstRun();return}await enterApp()})}
 function showFirstRun(){$('app').hidden=true;$('auth').hidden=false;$('login').hidden=true;$('firstRun').hidden=false;$('setupPassword').focus()}
 async function setupPassword(){run(async()=>{const p=$('setupPassword').value,c=$('setupPasswordConfirm').value;if(p.length<12||p.length>256)throw Error('密码长度须为 12 到 256 位');if(p!==c)throw Error('两次输入的密码不一致');await api('/api/setup-password',{password:p,confirm:c});$('setupPassword').value='';$('setupPasswordConfirm').value='';csrf='';$('firstRun').hidden=true;$('login').hidden=false;notice('密码已设置，请使用新密码登录')})}
-async function enterApp(){$('auth').hidden=true;$('app').hidden=false;await run(loadEmbedding);await run(loadBotName);await run(loadPersona);await run(loadModelPref);await loadBotStatus();await loadBotUpdate();await loadPlugins();startStatusPolling();await refresh();await loadMaster();await loadParser();await loadEvents();await loadTokens();await loadStatus();await loadSuperusers();await loadEpic();await run(loadRenderer);await run(loadDisaster);await run(loadGameEvents);await run(loadBilibili);await run(loadMemes)}
+let basicsGuidePending=false,basicsGuideStep=0,basicsStepSaveTimer=null;
+const basicsSteps=[
+  {hash:'#bot-info',title:'Bot 名称',desc:'设置状态卡、日报、集群卡、灾害卡和指令菜单中显示的名字。'},
+  {hash:'#persona',title:'人格模板',desc:'选择预设并加载到 current.jinja2，或直接编辑当前人格正文。'},
+  {hash:'#model-pref',title:'模型设置',desc:'维护提供商 Base URL / API Key，并选择首选与次选模型。'},
+  {hash:'#master',title:'主人识别',desc:'设置主人 QQ 号与称呼；身份识别始终生效。'},
+  {hash:'#superusers',title:'超级管理员',desc:'添加可以使用管理指令的 QQ 号。'},
+];
+function clampBasicsStep(value){
+  const step=Number(value);
+  if(!Number.isInteger(step))return 0;
+  return Math.max(0,Math.min(step,basicsSteps.length-1));
+}
+function renderBasicsGuide(){
+  const bar=$('basicsGuide');
+  if(!bar)return;
+  bar.hidden=!basicsGuidePending;
+  if(!basicsGuidePending)return;
+  basicsGuideStep=clampBasicsStep(basicsGuideStep);
+  const step=basicsSteps[basicsGuideStep];
+  $('basicsGuideProgress').textContent=`第 ${basicsGuideStep+1} 步，共 ${basicsSteps.length} 步`;
+  $('basicsGuideTitle').textContent=step.title;
+  $('basicsGuideDesc').textContent=step.desc;
+  $('basicsGuidePrev').disabled=basicsGuideStep===0;
+  $('basicsGuideNext').textContent=basicsGuideStep===basicsSteps.length-1?'完成引导':'下一步';
+  const dots=$('basicsGuideDots');
+  if(dots){
+    dots.replaceChildren();
+    basicsSteps.forEach((_,index)=>{
+      const dot=document.createElement('i');
+      if(index<=basicsGuideStep)dot.className='on';
+      dots.append(dot);
+    });
+  }
+}
+function goToBasicsStep(step){
+  basicsGuideStep=clampBasicsStep(step);
+  const target=basicsSteps[basicsGuideStep].hash;
+  if(location.hash!==target)location.hash=target;
+  else showWorkspaceSection(false);
+  renderBasicsGuide();
+}
+async function saveBasicsStep(step){
+  try{await api('/api/onboarding',{basics_step:step})}
+  catch(e){notice('引导进度未保存：'+e.message)}
+}
+async function loadOnboarding(){
+  const data=await api('/api/onboarding');
+  basicsGuidePending=data.basics_pending===true;
+  basicsGuideStep=clampBasicsStep(data.basics_step);
+  if(!basicsGuidePending){renderBasicsGuide();return}
+  goToBasicsStep(basicsGuideStep);
+}
+function syncBasicsGuideStepFromHash(){
+  if(!basicsGuidePending)return;
+  const index=basicsSteps.findIndex(step=>step.hash===location.hash);
+  if(index<0||index===basicsGuideStep)return;
+  basicsGuideStep=index;
+  renderBasicsGuide();
+  clearTimeout(basicsStepSaveTimer);
+  basicsStepSaveTimer=setTimeout(()=>{saveBasicsStep(basicsGuideStep)},500);
+}
+async function basicsGuideNext(){
+  if(basicsGuideStep>=basicsSteps.length-1){
+    await markBasicsGuideDone('Bot 基本设置引导已完成');
+    return;
+  }
+  const next=basicsGuideStep+1;
+  await saveBasicsStep(next);
+  goToBasicsStep(next);
+}
+async function basicsGuidePrev(){
+  if(basicsGuideStep<=0)return;
+  const prev=basicsGuideStep-1;
+  await saveBasicsStep(prev);
+  goToBasicsStep(prev);
+}
+async function markBasicsGuideDone(message){
+  clearTimeout(basicsStepSaveTimer);
+  await api('/api/onboarding',{basics_done:true});
+  basicsGuidePending=false;
+  renderBasicsGuide();
+  notice(message);
+  if(pluginGuidePending&&!$('pluginGuide').open){pluginGuidePending=false;$('pluginGuide').showModal()}
+}
+async function skipBasicsGuide(){await markBasicsGuideDone('已跳过 Bot 基本设置引导；之后可在「Bot 基本设置」中修改')}
+async function enterApp(){$('auth').hidden=true;$('app').hidden=false;await run(loadOnboarding);await loadPlugins();await run(loadEmbedding);await run(loadBotName);await run(loadPersona);await run(loadModelPref);await loadBotStatus();await loadBotUpdate();startStatusPolling();await refresh();await loadMaster();await loadParser();await loadEvents();await loadTokens();await loadStatus();await loadSuperusers();await loadEpic();await run(loadRenderer);await run(loadDisaster);await run(loadGameEvents);await run(loadBilibili);await run(loadMemes)}
 async function resumeSession(){try{let r=await fetch('/api/session');if(!r.ok)return;let x=await r.json();csrf=x.csrf;if(x.must_change){showFirstRun();return}await enterApp()}catch(e){/* 未登录，停在登录框 */}}
 async function changePassword(){run(async()=>{const p=$('newPassword').value,c=$('confirmPassword').value;if(p.length<12||p.length>256)throw Error('密码长度须为 12 到 256 位');if(p!==c)throw Error('两次输入的密码不一致');await api('/api/password',{password:p});$('newPassword').value='';$('confirmPassword').value='';$('accountMessage').textContent='';csrf='';if(statusTimer){clearInterval(statusTimer);statusTimer=null}$('app').hidden=true;$('auth').hidden=false;$('login').hidden=false;$('firstRun').hidden=true;notice('密码已修改，请使用新密码登录')})}
 function options(id,items){let el=$(id),old=el.value;el.replaceChildren();items.forEach(x=>{let o=document.createElement('option');o.value=x.value;o.textContent=x.label;el.append(o)});if(items.some(x=>x.value===old))el.value=old}
@@ -1213,7 +1323,7 @@ async function applyBotUpdate(){
   }catch(e){$('updateState').textContent='更新失败：'+e.message}
   finally{$('updateCheck').disabled=false}
 }
-let pluginSettings=null,pluginDraft=new Set();
+let pluginSettings=null,pluginDraft=new Set(),pluginGuidePending=false;
 function syncPluginChecks(){
   document.querySelectorAll('input[data-plugin-id]').forEach(box=>{
     box.checked=!pluginDraft.has(box.dataset.pluginId);
@@ -1245,7 +1355,10 @@ async function loadPlugins(){
     pluginSettings=await api('/api/plugins');
     pluginDraft=new Set(pluginSettings.disabled||[]);
     renderPluginPanels();
-    if(!pluginSettings.onboarded)$('pluginGuide').showModal();
+    if(!pluginSettings.onboarded){
+      if(basicsGuidePending)pluginGuidePending=true;
+      else if(!$('pluginGuide').open)$('pluginGuide').showModal();
+    }
   }catch(e){$('pluginSaveState').textContent='插件设置读取失败：'+e.message}
 }
 async function persistPlugins(onboarded){
@@ -1261,7 +1374,8 @@ async function savePlugins(){await persistPlugins(true)}
 async function finishPluginGuide(){
   const data=await persistPlugins(true);
   $('pluginGuide').close();
-  if(!data.warning)$('pluginSaveState').textContent='引导已完成；修改后重启机器人生效';
+  if(!data.warning)$('pluginSaveState').textContent='引导已完成，正在重启机器人';
+  await restartBotNow();
 }
 async function skipPluginGuide(){
   const data=await persistPlugins(true);
@@ -2159,7 +2273,7 @@ const sectionLoaders = new Map([
   ['#epic', loadEpic], ['#bilibili', loadBilibili], ['#disaster', loadDisaster],
 ]);
 function basicsHashSet(){
-  const hashes=new Set(['#bot-info','#persona','#model-pref','#tokens','#master','#superusers']);
+  const hashes=new Set(['#bot-info','#persona','#model-pref','#master','#superusers','#tokens']);
   if(basicsNav&&typeof basicsNav.querySelectorAll==='function'){
     const links=Array.from(basicsNav.querySelectorAll('a'));
     if(links.length){hashes.clear();links.forEach(link=>{if(link.hash)hashes.add(link.hash)})}
@@ -2249,7 +2363,7 @@ function showWorkspaceSection(refreshSection) {
       if (basicsNav) basicsNav.hidden = !inBasics;
       const heading = target.querySelector('h2');
       const title = (target.dataset.pageTitle || (heading && heading.textContent) || target.id || '章节').trim();
-      const group = hash === '#bot-info' ? navGroupLabel(hash) : (inBasics ? 'Bot 基本情况' : navGroupLabel(hash));
+      const group = hash === '#bot-info' ? navGroupLabel(hash) : (inBasics ? 'Bot 基本设置' : navGroupLabel(hash));
       setPageHeading(title, group || '控制台');
       markActive(hash);
       if (document.body) document.body.dataset.page = 'section';
@@ -2261,7 +2375,7 @@ function showWorkspaceSection(refreshSection) {
     window.scrollTo({ top: 0, behavior: 'auto' });
   }
 }
-window.addEventListener('hashchange', () => showWorkspaceSection(true));
+window.addEventListener('hashchange', () => { showWorkspaceSection(true); syncBasicsGuideStepFromHash(); });
 for (const link of sectionLinks) {
   // A repeat click doesn't fire hashchange; keep the existing click-to-refresh behavior.
   link.addEventListener('click', () => {

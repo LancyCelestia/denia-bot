@@ -269,6 +269,7 @@ python dashboard.py --init
 |---|---|
 | `data/dashboard-auth.json` | 0600；只存 scrypt 盐和哈希，以及 `must_change` 标记 |
 | `data/dashboard-initial-password` | 0600 的明文一次性密码；首次改密成功后自动删除 |
+| `data/dashboard-onboarding.json` | 首次改密后写入的引导状态；完成或跳过后保留 `basics_pending:false` |
 | 未初始化就登录 | `POST /api/login` 返回 401「密码错误或后台尚未配置」 |
 | 未登录访问管理接口 | 401「请登录」 |
 | 首次登录后 | 改密前其他接口返回 403「请先修改初始密码」 |
@@ -277,7 +278,9 @@ python dashboard.py --init
 | 暴力尝试 | 同一 IP 5 分钟内失败 8 次后返回 429 |
 | 会话 | Cookie `admin_session`，8 小时；面板重启后仍然有效，改密后全部失效 |
 
-两个文件权限必须是 0600；Windows 上至少保证 `nonebot/data/` 不对其他用户共享。不要删除认证文件来「重置」面板——那会让面板回到未初始化状态，所有登录继续 401。
+认证文件、一次性密码文件和引导状态文件权限必须是 0600；Windows 上至少保证 `nonebot/data/` 不对其他用户共享。不要删除认证文件来「重置」面板——那会让面板回到未初始化状态，所有登录继续 401。
+
+首次改密成功后，面板会在下次登录时自动跳到「Bot 基本设置」并显示分步引导（第 1/5 步至第 5/5 步）：Bot 名称、人格模板、模型设置、主人识别、超级管理员，用「上一步 / 下一步」切换。步骤进度和完成状态写入同目录的 `data/dashboard-onboarding.json`，完成或跳过后不再显示；引导未完成时，插件首次引导会延后到它之后。
 
 面板默认地址是 `http://127.0.0.1:8092`。机器人与面板共用同一组进程环境变量 `DASHBOARD_HOST` / `DASHBOARD_PORT`（写在 `nonebot/.env` 里不会生效，systemd 用 `Environment=`，Windows 用系统环境变量或启动前 `set`）：
 
@@ -444,8 +447,9 @@ journalctl -u qqbot -n 80 --no-pager | grep -i epic
 
 ## 8.9.1 插件管理与首次引导
 
-首次登录面板会显示一次插件引导，可选择要启用的可选插件。之后在侧栏「插件管理」中修改；开关保存在 `nonebot/data/plugins.json`（0600，Git 忽略），普通 `git pull` 不会覆盖。
+首次登录面板会先显示分步 Bot 基本设置引导，完成或跳过后再显示一次插件引导，可选择要启用的可选插件。之后在侧栏「插件管理」中修改；开关保存在 `nonebot/data/plugins.json`（0600，Git 忽略），普通 `git pull` 不会覆盖。
 
+- 插件引导的「完成并重启bot」会先保存开关再重启机器人；「稍后设置」只保存，之后可在「插件管理」中修改并手动重启。
 - 核心插件（消息入口、模型接线、提示词/引用/图片保护、QQ 超级管理员、主人识别等）在面板中锁定，不能关闭。
 - 关闭插件不会删除插件代码、数据或配置；机器人下次启动时不再加载。
 - `gsuid` 开关还会尝试处理对应的外部服务：Linux 优先停止并禁用 `qqbot-gsuid-core.service`（或 Docker 容器 `gsuid_core`），Windows 停止 `logs/gsuid-core.pid`/命令行匹配的 gsuid_core 进程；重新启用时再启动。服务操作失败会在面板显示原因，不会静默忽略。

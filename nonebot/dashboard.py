@@ -3,6 +3,7 @@ import asyncio
 import hashlib
 import hmac
 import json
+import logging
 import os
 import secrets
 import sqlite3
@@ -16,6 +17,7 @@ import app_version
 import bilibili_panel
 import bot_updater
 import bot_identity
+import dashboard_onboarding
 import meme_logic
 import memory_logic as memory
 import model_pref_panel
@@ -45,6 +47,14 @@ from bot_monitor import Monitor, Restart, RestartController, WindowsRestart  # n
 ROOT = Path(__file__).resolve().parent
 AUTH_FILE = ROOT / 'data' / 'dashboard-auth.json'
 attempts = {}
+log = logging.getLogger(__name__)
+
+
+def onboarding_path() -> Path:
+    """First-run guide state lives beside the auth file for test isolation."""
+    return dashboard_onboarding.path_for(AUTH_FILE)
+
+
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 meme_library = meme_logic.Library()
 monitor = Monitor()
@@ -324,12 +334,42 @@ async def setup_password(req: Request):
     if password_matches(password, saved):
         raise HTTPException(400, '新密码不能与原密码相同')
     set_password(password, must_change=False)
+    try:
+        dashboard_onboarding.mark_pending(onboarding_path())
+    except OSError:
+        log.warning('无法写入首次设置引导状态', exc_info=True)
     sessions.clear()
     save_sessions(sessions)
     (AUTH_FILE.parent / INITIAL_PASSWORD_FILE).unlink(missing_ok=True)
     response = JSONResponse({'ok': True})
     response.delete_cookie('admin_session', path='/')
     return response
+
+
+@app.get('/api/onboarding')
+def onboarding_state(req: Request):
+    authorized(req)
+    return dashboard_onboarding.load(onboarding_path())
+
+
+@app.post('/api/onboarding')
+async def set_onboarding_state(req: Request):
+    mutate(req)
+    body = await req.json()
+    if not isinstance(body, dict):
+        raise HTTPException(400, '请求内容无效')
+    if body.get('basics_done') is True:
+        try:
+            return dashboard_onboarding.complete(onboarding_path())
+        except OSError:
+            raise HTTPException(503, '引导状态无法保存')
+    try:
+        return dashboard_onboarding.set_step(onboarding_path(), body.get('basics_step'))
+    except ValueError:
+        raise HTTPException(400, '引导步骤无效')
+    except OSError:
+        raise HTTPException(503, '引导状态无法保存')
+
 
 @app.post('/api/password')
 async def change_password(req: Request):

@@ -132,6 +132,35 @@ def test_model_settings_page_is_wired_to_the_basics_nav_and_loader():
     assert 'id="modelPrimary"' in panel and 'id="modelSecondary"' in panel
 
 
+def test_bot_basics_is_renamed_tokens_last_and_first_run_guide_is_wired():
+    text = _html()
+    basics = re.search(r'<nav id="botBasicsNav".*?</nav>', text, re.S).group(0)
+    basics_links = re.findall(r'<a [^>]*href="#([^"]+)"', basics)
+    assert basics_links == ['bot-info', 'persona', 'model-pref', 'master', 'superusers', 'tokens']
+    assert 'aria-label="Bot 基本设置"' in basics
+    assert 'Bot 基本设置' in text
+    assert 'Bot 基本情况' not in text
+    assert 'data-page-title="Bot 基本设置"' in text
+
+    assert 'class="basics-guide-bar"' in text
+    assert 'id="basicsGuideNext"' in text
+    assert 'id="basicsGuidePrev"' in text
+    assert 'id="basicsGuideSkip"' in text
+    assert 'basics-guide-steps' not in text
+    steps = re.search(r'const basicsSteps=\[(.*?)\];', text, re.S).group(1)
+    positions = [steps.index(href) for href in
+                 ('#bot-info', '#persona', '#model-pref', '#master', '#superusers')]
+    assert positions == sorted(positions)
+    assert 'async function basicsGuideNext' in text
+    assert 'async function basicsGuidePrev' in text
+    assert 'async function loadOnboarding' in text
+    assert 'await run(loadOnboarding)' in text
+    assert "'/api/onboarding'" in text
+    assert 'syncBasicsGuideStepFromHash' in text
+    assert '完成并重启bot' in text
+    assert 'await restartBotNow()' in text
+
+
 def test_mobile_layout_hooks_remain_present():
     text = _html()
     styles = _styles(text)
