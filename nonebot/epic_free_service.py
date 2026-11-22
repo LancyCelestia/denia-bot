@@ -123,6 +123,63 @@ async def fetch_view(country='CN', locale='zh-CN', client=None, now=None, upcomi
     return logic.build_view(elements, now=now, upcoming_limit=upcoming_limit)
 
 
+COVER_MAX_BYTES = 6 * 1024 * 1024
+COVER_TIMEOUT = 6
+COVER_LIMIT = 8
+
+
+async def _cover_bytes(client, url):
+    if not logic._allowed_image_url(url):
+        return None
+    try:
+        async with client.stream('GET', url, headers={'User-Agent': USER_AGENT}) as response:
+            if response.status_code != 200:
+                return None
+            if not str(response.headers.get('content-type', '')).startswith('image/'):
+                return None
+            declared = response.headers.get('content-length')
+            if declared and declared.isdigit() and int(declared) > COVER_MAX_BYTES:
+                return None
+            chunks, size = [], 0
+            async for chunk in response.aiter_bytes():
+                size += len(chunk)
+                if size > COVER_MAX_BYTES:
+                    return None
+                chunks.append(chunk)
+            return b''.join(chunks) or None
+    except (httpx.HTTPError, OSError):
+        return None
+
+
+async def fetch_covers(games, client=None, timeout=COVER_TIMEOUT):
+    """并发下载封面：返回 {cover_url: bytes}。任何一张失败只是不显示，不影响出卡。
+
+    只请求 Epic 自家 CDN（logic._allowed_image_url）；不跟随跳转，单张最多 6 MiB，
+    整体在 timeout 秒内结束，超时的直接放弃。
+    """
+    urls = list(dict.fromkeys(
+        game.get('cover_url') for game in games or () if game.get('cover_url')))[:COVER_LIMIT]
+    if not urls:
+        return {}
+    own = client is None
+    client = client or httpx.AsyncClient(timeout=timeout, follow_redirects=False)
+    try:
+        tasks = [asyncio.ensure_future(_cover_bytes(client, url)) for url in urls]
+        done, pending = await asyncio.wait(tasks, timeout=timeout)
+        for task in pending:
+            task.cancel()
+        if pending:
+            await asyncio.gather(*pending, return_exceptions=True)
+        result = {}
+        for url, task in zip(urls, tasks):
+            if task in done and not task.cancelled() and task.exception() is None and task.result():
+                result[url] = task.result()
+        return result
+    finally:
+        if own:
+            await client.aclose()
+
+
 class StateStore:
     """``data/epic_free_state.json``：每个推送目标各自保存 last_key。
 

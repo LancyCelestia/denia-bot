@@ -6,6 +6,8 @@
 
 ### 新增
 
+- 卡片排版改版：天气实况/预报、群话题（新模板 `group_topics_image.py`）、Epic（内嵌 `keyImages` 封面，领取链接只放随附文字）统一为状态卡 D 的浅色配色（`card_theme.py`）；`weather_service.fetch_view()` 返回结构化视图，`query()` 文字输出不变。
+- 渲染服务分页规则：`<footer>` 与 `data-keep-with-prev` 块不单独开页；末页不足单页 1/4 时从上一页回挪；根元素带 `data-page-label` 时续页顶部显示「标签 · 第 2/3 页」。需重建渲染容器生效。
 - Linux 一键部署：新增 `deploy-linux/install.sh` / `start.sh` / `stop.sh` / `status.sh`，默认用 Docker 跑 SnowLuma、systemd 跑 NoneBot/面板/gsuid；安装脚本创建 `.venv`、按 `requirements.lock` 安装依赖、复制缺失配置、生成 OneBot token 与 SnowLuma VNC 密码、执行迁移和面板初始化，并安装主 `qqbot.service`、面板/gsuid 单元及启动顺序 drop-in。
 - SnowLuma 的 `docker/snowluma/` compose 模板纳入版本控制；`.gitignore` 只忽略仓库根 `snowluma/`，并忽略部署本地的 `docker/snowluma/.env.local`。模板默认把数据放在根 `snowluma/`、端口绑 `127.0.0.1`，支持 `BIND_ADDR` / `SNOWLUMA_DATA_DIR` / `SNOWLUMA_HOOK_AUTOLOAD` / `SNOWLUMA_IMAGE`；镜像 pull 失败但本地已缓存时安装继续。
 - 管理面板「运行日志」：新增机器人运行日志 tail 查看，支持来源、行数、关键词、错误/解析错误/警告筛选和自动滚动；接口只读、白名单限定并自动掩码 Bearer/Key/Cookie 等敏感值。
@@ -17,6 +19,9 @@
 
 ### 变更
 
+- 灾害 B 卡（地震/台风/海啸）：印章与标题同行，去掉与数据无关的示意图和开发占位文字，改为三个关键数字；台风按真实经纬度绘制当前→预报位置；最小字号 16px；改走 `/render-card`，高度随内容。气象预警卡不变。
+- 链接解析预览卡：转发内容拼成连续引用框并以竖条表示层级；网格图按格子实际像素裁切，行列距统一 8px；长正文按段落/句号分块。
+- 服务器状态卡与日报/周报：资源卡等宽，均温移出圆环；磁盘路径中间省略；网络图标注时间窗；日报每章一块面板，表格数字列右对齐，百分比折线固定 0–100% 纵轴；默认页脚改为「本机容器渲染」。
 - 达妮娅人格模板补充陪伴语义：睡前被要求陪伴时明确答应，不再用「我没说陪你」推开；「陪我睡」按陪伴入睡理解；安慰、陪伴场景放宽到 120 字。
 - 原「解析日志」页更名为「运行日志」；解析事件保留为独立视图，并支持按报错/超阈值/提示筛选。
 - 管理面板「Bot 基本情况」更名为「Bot 基本设置」，二级导航顺序调整为基本信息、人格模板、模型设置、主人识别、超级管理员、Token 消耗（Token 消耗移至最后）。
@@ -27,6 +32,7 @@
 
 ### 修复与加固
 
+- 卡片次要文字与等级色在浅底上的对比度统一提高到 ≥ 4.5:1；台风卡不再把西移路径画成东北向；长正文不再被固定 1200 高度静默裁切。
 - Windows 一键启动不再把 SnowLuma 固定为仓库根 `snowluma\`：支持 `-SnowLumaPath`、`SNOWLUMA_HOME` / `QQBOT_SNOWLUMA`、上级目录 `SnowLuma\`，并会在仓库根、`downloads\`、`tools\`、上级目录或 `%USERPROFILE%\Downloads` 找到 `SnowLuma-v2.4.2-win-x64.zip` 时自动解压；已有 `config\` / `data\` 保留。解析结果缓存到 `logs\snowluma-home.txt`，启停脚本都按该路径识别进程，修复 #55。
 - 插件首次引导设置提前到面板进入时加载；完成 Bot 基本设置后立即弹出插件引导，不再等待运行状态和更新检查。
 - 模型首选/次选状态文件被管理面板等外部进程改写后，机器人下一条回复会自动重读；不再需要重启才能应用新的首选/次选。

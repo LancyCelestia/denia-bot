@@ -4,14 +4,22 @@
 
 """远程 Playwright 渲染客户端 + B Bulletin 灾害卡片 HTML。
 
-用户已选 B Bulletin；卡片为 900×1200 浅色公告：左色轨、官方抬头、印章、
-双栏字段、内联 SVG 示意、正文与来源。tone 由调用方传入；自动播报统一使用达妮娅口吻。
+用户已选 B Bulletin：900 宽浅色公告，左色轨、官方抬头、印章、关键数字、双栏字段、正文与来源。
+2026-11 改版：
+- 印章与标题同一行排版，不再绝对定位压住字段表；
+- 去掉与数据无关的示意图（固定坐标的「震中」「台风路径」），改为关键数字；
+  台风有当前与预报坐标时，按经纬度比例画出真实的移动方向与距离；
+- 字号按 900 宽重排（最小 16px），强调色文字统一满足 4.5:1；
+- 地震、台风、海啸卡走 /render-card，高度随内容，长文本不再被固定 1200 高度悄悄裁掉。
+气象预警卡（disaster_weather_card）保持原样。
 
 卡片自包含（内联 CSS/SVG，无外部图片/字体链接）；渲染端默认禁 JS、拦外网。
 """
 from __future__ import annotations
 
 import html
+import math
+import re
 from typing import Any, Mapping
 from urllib.parse import urlsplit
 
@@ -21,7 +29,7 @@ import bot_identity
 import disaster_china_logic as china
 import disaster_weather_card as weather_card
 import disaster_weather_map as weather_map_mod
-from disaster_logic import EarthquakeEvent, SOURCE_LABELS, event_lead, local_distance
+from disaster_logic import EarthquakeEvent, SOURCE_LABELS, distance_km, event_lead, local_distance
 
 
 class RenderError(RuntimeError):
@@ -48,7 +56,11 @@ def _fact(label: str, value: Any) -> str:
 
 
 def _facts(rows: list[tuple[str, Any]]) -> str:
-    return ''.join(_fact(label, value) for label, value in rows)
+    # 双栏网格：奇数个字段时最后一格占满一行，底边线才不会断在半空。
+    cells = [_fact(label, value) for label, value in rows]
+    if len(cells) % 2:
+        cells[-1] = cells[-1].replace('<div class="fact">', '<div class="fact wide">', 1)
+    return ''.join(cells)
 
 
 def _weather_accent(color: str) -> str:
@@ -81,91 +93,53 @@ def _weather_region(alert: china.WeatherAlert) -> str:
     return ' · '.join(part for part in (alert.province, alert.city, alert.district) if part)
 
 
-def _typhoon_visual(typhoon: china.Typhoon) -> str:
-    return """
-    <svg class="viz" viewBox="0 0 520 300" role="img" aria-label="台风路径与风圈示意">
-      <rect class="viz-bg" x="0" y="0" width="520" height="300" rx="10"/>
-      <g class="viz-grid">
-        <path d="M34 50H486M34 125H486M34 200H486M34 275H486"/>
-        <path d="M110 34V284M220 34V284M330 34V284M440 34V284"/>
-      </g>
-      <circle class="viz-wind" cx="340" cy="150" r="66"/>
-      <circle class="viz-wind" cx="340" cy="150" r="42"/>
-      <circle class="viz-wind" cx="340" cy="150" r="22"/>
-      <polyline class="viz-track" points="64,252 142,228 214,198 278,170 340,150 410,110 468,74"/>
-      <circle class="viz-now" cx="340" cy="150" r="7"/>
-      <circle class="viz-future" cx="468" cy="74" r="6"/>
-      <text class="viz-label" x="352" y="142">当前</text>
-      <text class="viz-label" x="478" y="68">预计</text>
-      <text class="viz-small" x="34" y="288">路径/风圈为示意，生产接台风图件</text>
-    </svg>
-    """
+# 强调色同时画色轨和文字；黄、橙、灰在米色底上达不到 4.5:1，文字改用同色系深一档。
+_INK = {'#b68a1e': '#86660f', '#c2711f': '#9e5814', '#7b7b7b': '#5f5f5f'}
 
 
-def _tsunami_visual(alert: china.TsunamiAlert) -> str:
-    return """
-    <svg class="viz" viewBox="0 0 520 300" role="img" aria-label="海啸影响沿海示意">
-      <rect class="viz-bg" x="0" y="0" width="520" height="300" rx="10"/>
-      <path class="viz-coast" d="M34 258 C110 226 158 240 214 210 S326 176 486 202 L486 288 L34 288 Z"/>
-      <path class="viz-wave" d="M34 170 C92 154 120 180 174 164 S258 140 316 158 S414 176 486 154"/>
-      <path class="viz-wave" d="M34 190 C92 174 120 200 174 184 S258 160 316 178 S414 196 486 174"/>
-      <circle class="viz-impact" cx="144" cy="238" r="5"/>
-      <circle class="viz-impact" cx="238" cy="218" r="5"/>
-      <circle class="viz-impact" cx="326" cy="198" r="5"/>
-      <text class="viz-label" x="112" y="266">沿海影响区</text>
-      <text class="viz-small" x="34" y="288">官方图件占位，生产接海啸中心图件</text>
-    </svg>
-    """
-
-
-def _earthquake_visual(event: EarthquakeEvent) -> str:
-    return """
-    <svg class="viz" viewBox="0 0 520 300" role="img" aria-label="地震位置示意">
-      <rect class="viz-bg" x="0" y="0" width="520" height="300" rx="10"/>
-      <path class="viz-map" d="M88 76 L150 54 L212 68 L260 54 L320 76 L378 116 L400 176 L374 228 L322 262 L260 254 L216 278 L160 258 L112 218 L82 164 Z"/>
-      <circle class="viz-ring" cx="286" cy="164" r="40"/>
-      <circle class="viz-ring" cx="286" cy="164" r="24"/>
-      <circle class="viz-now" cx="286" cy="164" r="7"/>
-      <text class="viz-label" x="300" y="158">震中</text>
-      <text class="viz-small" x="34" y="288">地图示意（非地理精确）· 生产接地图瓦片/列表</text>
-    </svg>
-    """
+def _ink(accent: str) -> str:
+    return _INK.get(accent, accent)
 
 
 BULLETIN_STYLE = """
 *{box-sizing:border-box}html,body{margin:0;padding:0}
 body{background:#f3efe4;color:#1b1b18;font-family:"Noto Sans CJK SC","Noto Sans SC","Microsoft YaHei",sans-serif;-webkit-font-smoothing:antialiased}
-.card{width:900px;height:1200px;display:flex;background:#f3efe4;color:#1b1b18;font-family:"Noto Serif CJK SC","Songti SC","Microsoft YaHei",serif;overflow:hidden}
+.card{width:900px;display:flex;background:#f3efe4;color:#1b1b18;font-family:"Noto Serif CJK SC","Songti SC","Microsoft YaHei",serif}
 .rail{width:16px;flex:0 0 16px;background:var(--accent)}
-.sheet{flex:1;min-width:0;padding:42px 52px 34px;display:flex;flex-direction:column;position:relative}
-.mast{display:flex;justify-content:space-between;gap:12px;font-size:11px;letter-spacing:.1em;color:#6b655b;border-bottom:2px solid #1b1b18;padding-bottom:10px}
-.title{font-size:40px;line-height:1.28;font-weight:750;margin:18px 0 14px;max-width:620px;letter-spacing:-.01em}
-.stamp{position:absolute;top:132px;right:52px;border:4px double var(--accent);color:var(--accent);padding:10px 16px;border-radius:8px;font-size:22px;font-weight:800;letter-spacing:.08em;transform:rotate(-7deg);background:rgba(255,255,255,.28);max-width:220px;text-align:center}
-.meta{display:grid;grid-template-columns:1fr 1fr;gap:0 24px;border-top:1px solid #d9d2c3;border-bottom:1px solid #d9d2c3;margin:4px 0 14px}
-.fact{display:flex;flex-direction:column;gap:4px;min-width:0;border-bottom:1px solid #e2dbcd;padding:7px 0}
-.fact:nth-last-child(-n+2){border-bottom:0}
-.fact-label{font-size:10px;letter-spacing:.12em;color:#6b655b;text-transform:uppercase}
-.fact-value{font-size:14px;line-height:1.4;font-weight:650;overflow-wrap:anywhere}
-.figure{flex:1 1 0;min-height:260px;max-height:700px;margin:4px 0 12px;border:1px solid #d9d2c3;border-radius:10px;overflow:hidden;background:#fffdf7}
-.voice{display:inline-block;align-self:flex-start;background:var(--accent);color:#fffdf7;font-size:10px;letter-spacing:.08em;padding:4px 8px;border-radius:4px;margin-bottom:6px}
-.lead{font-size:14px;line-height:1.85;margin:0;color:#1b1b18}
-.foot{display:flex;justify-content:space-between;gap:14px;border-top:1px solid #d9d2c3;margin-top:auto;padding-top:10px;font-size:10px;color:#6b655b}
-.viz{width:100%;height:100%;display:block}
-.viz-bg{fill:#fffdf7}.viz-grid{stroke:#e4ddcf;stroke-width:1;fill:none}
-.viz-track{fill:none;stroke:var(--accent);stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
-.viz-wind{fill:none;stroke:var(--accent);stroke-width:1.5;stroke-dasharray:5 6;opacity:.65}
-.viz-now{fill:var(--accent);stroke:#fffdf7;stroke-width:3}.viz-future{fill:#fffdf7;stroke:var(--accent);stroke-width:2}
-.viz-label{fill:#1b1b18;font-size:11px;font-family:inherit}.viz-small{fill:#6b655b;font-size:10px;font-family:inherit}
-.viz-coast{fill:#fffdf7;stroke:#d9d2c3;stroke-width:1.5}.viz-wave{fill:none;stroke:var(--accent);stroke-width:2;stroke-dasharray:7 6;opacity:.7}
-.viz-impact{fill:var(--accent);stroke:#fffdf7;stroke-width:2}.viz-map{fill:#fffdf7;stroke:#d9d2c3;stroke-width:1.5}
-.viz-ring{fill:none;stroke:var(--accent);stroke-width:1.5;opacity:.55}
-.weather-viz{height:100%;position:relative;background:linear-gradient(135deg,rgba(255,255,255,.55),transparent 65%),#fffdf7;overflow:hidden}
-.w-word{position:absolute;left:28px;top:24px;font-size:92px;line-height:.9;font-weight:800;letter-spacing:-.05em;color:var(--accent);font-family:"Noto Sans CJK SC","Microsoft YaHei",sans-serif}
-.w-sub{position:absolute;left:32px;bottom:58px;font-size:22px;font-weight:700;color:#1b1b18}
-.w-bars{position:absolute;left:32px;right:32px;bottom:22px;height:28px;display:flex;align-items:flex-end;gap:7px}
-.w-bars i{flex:1;background:var(--accent);opacity:.42;border-radius:3px 3px 0 0}
-.w-bars i:nth-child(1){height:30%}.w-bars i:nth-child(2){height:55%}.w-bars i:nth-child(3){height:38%}.w-bars i:nth-child(4){height:74%}.w-bars i:nth-child(5){height:48%}.w-bars i:nth-child(6){height:88%}.w-bars i:nth-child(7){height:60%}
+.sheet{flex:1;min-width:0;padding:40px 52px 34px}
+.mast{display:flex;justify-content:space-between;gap:16px;font-size:18px;letter-spacing:.06em;color:#5f594f;border-bottom:2px solid #1b1b18;padding-bottom:12px}
+.mast span:last-child{flex-shrink:0}
+.head{display:flex;align-items:flex-start;gap:28px;margin:22px 0 22px}
+.title{flex:1;min-width:0;font-size:46px;line-height:1.25;font-weight:750;margin:0;letter-spacing:-.01em;overflow-wrap:anywhere}
+.stamp{flex-shrink:0;margin:6px 6px 0 0;border:4px double var(--ink);color:var(--ink);padding:8px 18px;border-radius:8px;font-size:26px;font-weight:800;letter-spacing:.06em;transform:rotate(-6deg);background:#fffdf7;max-width:240px;text-align:center;line-height:1.3}
+.hero{display:grid;grid-template-columns:1.25fr 1fr 1fr;border-top:2px solid #1b1b18;border-bottom:1px solid #d9d2c3}
+.stat{padding:16px 0 18px 22px;min-width:0}.stat:first-child{padding-left:0}
+.stat+.stat{border-left:1px solid #d9d2c3}
+.stat-label{display:block;font-size:17px;color:#5f594f;letter-spacing:.04em}
+.stat-value{display:block;font-size:44px;line-height:1.15;font-weight:750;margin-top:6px;overflow-wrap:anywhere}
+.stat:first-child .stat-value{font-size:64px;color:var(--ink)}
+.stat .stat-value.small{font-size:30px;line-height:1.3;margin-top:12px}
+.head+.meta{border-top:2px solid #1b1b18}
+.meta{display:grid;grid-template-columns:1fr 1fr;column-gap:32px;margin:0 0 22px}
+.fact{display:flex;flex-direction:column;gap:4px;min-width:0;border-bottom:1px solid #e2dbcd;padding:14px 0}
+.fact.wide{grid-column:1/-1}
+.fact-label{font-size:16px;letter-spacing:.06em;color:#5f594f}
+.fact-value{font-size:24px;line-height:1.4;font-weight:650;overflow-wrap:anywhere}
+.track{margin:0 0 22px;border:1px solid #d9d2c3;border-radius:12px;background:#fffdf7;overflow:hidden}
+.track svg{display:block;width:100%;height:auto}
+.track-caption{display:flex;justify-content:space-between;gap:16px;padding:10px 18px 12px;font-size:16px;color:#5f594f;border-top:1px solid #e2dbcd}
+.t-grid{stroke:#e4ddcf;stroke-width:1}.t-tick{fill:#6b655b;font-size:15px;font-family:inherit}
+.t-path{fill:none;stroke:var(--ink);stroke-width:3;stroke-dasharray:10 8;stroke-linecap:round}
+.t-now{fill:var(--ink);stroke:#fffdf7;stroke-width:3}.t-future{fill:#fffdf7;stroke:var(--ink);stroke-width:3}
+.t-label{fill:#1b1b18;font-size:18px;font-family:inherit;font-weight:650}.t-sub{fill:#5f594f;font-size:15px;font-family:inherit}
+.voice{display:inline-block;background:var(--ink);color:#fffdf7;font-size:16px;letter-spacing:.06em;padding:4px 12px;border-radius:6px;margin-bottom:10px}
+.lead{font-size:24px;line-height:1.75;margin:0 0 6px;color:#1b1b18;overflow-wrap:anywhere}
+.more{font-size:16px;color:#5f594f;margin:0}
+.foot{display:flex;justify-content:space-between;gap:16px;border-top:1px solid #d9d2c3;margin-top:22px;padding-top:12px;font-size:17px;color:#5f594f}
+.foot span{min-width:0}.foot span:last-child{flex-shrink:0}
 """.strip()
+
+LEAD_LIMIT = 320
 
 
 def _source(kind: str, item: Any) -> str:
@@ -185,7 +159,9 @@ def _kicker(kind: str, item: Any) -> str:
         return '自然资源部海啸预警中心'
     if kind == 'typhoon':
         return '中国气象局 · 台风路径'
-    return '中国地震台网 · ' + ('地震预警' if str(item.source).endswith('_eew') else '地震情报')
+    # 发布机构跟随数据源：JMA 的地震不能写成「中国地震台网」。
+    agency = '日本气象厅' if str(item.source).startswith('jma') else '中国地震台网'
+    return agency + ' · ' + ('地震预警' if str(item.source).endswith('_eew') else '地震情报')
 
 
 def _stamp(kind: str, item: Any, stopped: bool = False) -> str:
@@ -194,7 +170,8 @@ def _stamp(kind: str, item: Any, stopped: bool = False) -> str:
     if kind == 'weather':
         return f'{item.color}预警' if item.color != '未知' else '气象预警'
     if kind == 'tsunami':
-        return item.level or '海啸'
+        level = item.level or ''
+        return f'{level}警报' if level in ('红色', '橙色', '黄色', '蓝色') else (level or '海啸')
     if kind == 'typhoon':
         return item.level or '台风'
     if str(item.source).endswith('_eew'):
@@ -216,7 +193,50 @@ def _title(kind: str, item: Any, stopped: bool = False) -> str:
     return f'{item.place or "震中调查中"} {magnitude}'
 
 
-def _meta(kind: str, item: Any, config: Mapping[str, Any]) -> list[tuple[str, Any]]:
+
+def _num(value: Any, unit: str, fmt: str = 'g') -> str:
+    return '—' if value is None else f'{value:{fmt}} {unit}'
+
+
+def _coord(lat: float | None, lon: float | None) -> str:
+    if lat is None or lon is None:
+        return '—'
+    return f'{abs(lat):.1f}°{"N" if lat >= 0 else "S"} {abs(lon):.1f}°{"E" if lon >= 0 else "W"}'
+
+
+def _short_time(value: Any) -> str:
+    """'2025/09/25 23:00:00' → '9/25 23:00'；认不出的原样返回。"""
+    match = re.search(r'(\d{4})[-/](\d{1,2})[-/](\d{1,2})[ T](\d{1,2}):(\d{2})', str(value or ''))
+    if not match:
+        return str(value or '')
+    _, month, day, hour, minute = match.groups()
+    return f'{int(month)}/{int(day)} {int(hour):02d}:{minute}'
+
+
+def _move(item: china.Typhoon) -> str:
+    speed = str(item.move_speed or '').strip()
+    if speed and re.fullmatch(r'\d+(?:\.\d+)?', speed):
+        speed += ' km/h'
+    return ' '.join(part for part in (item.move_direction, speed) if part) or '—'
+
+
+def _intensity_label(event: EarthquakeEvent) -> str:
+    return '最大震度' if str(event.source).startswith('jma') else '最大烈度'
+
+
+def _hero(kind: str, item: Any) -> list[tuple[str, str]]:
+    """三个关键数字：第一格最大、用强调色。"""
+    if kind == 'typhoon':
+        return [('最大风速', _num(item.wind_speed, 'm/s')), ('中心气压', _num(item.pressure, 'hPa')), ('移动', _move(item))]
+    if kind == 'tsunami':
+        return [('震级', f'M{item.magnitude:.1f}' if item.magnitude is not None else '—'),
+                ('深度', _num(item.depth, 'km')), ('报次', f'第 {item.number} 报')]
+    return [('震级', f'M{item.magnitude:.1f}' if item.magnitude is not None else '—'),
+            ('深度', _num(item.depth, 'km')), (_intensity_label(item), item.intensity or '—')]
+
+
+def _meta(kind: str, item: Any, config: Mapping[str, Any], stopped: bool = False) -> list[tuple[str, Any]]:
+    """关键数字以外的字段；已在标题、印章或关键数字里出现的不再重复。"""
     if kind == 'weather':
         return [
             ('等级', f'{item.color}预警' if item.color != '未知' else '未知'),
@@ -226,46 +246,103 @@ def _meta(kind: str, item: Any, config: Mapping[str, Any]) -> list[tuple[str, An
         ]
     if kind == 'tsunami':
         return [
-            ('等级', item.level or '—'),
-            ('报次', f'第 {item.number} 报'),
             ('震中', item.place or '—'),
             ('发震', _time(item.origin_time) if item.origin_time else '—'),
-            ('震级', f'M{item.magnitude:.1f}' if item.magnitude is not None else '—'),
-            ('深度', f'{item.depth:g} km' if item.depth is not None else '—'),
             ('发布', item.org_unit or '自然资源部海啸预警中心'),
             ('事件', item.alert_id or '—'),
         ]
     if kind == 'typhoon':
-        return [
+        rows = [
             ('编号', item.typhoon_id or '—'),
-            ('等级', item.level or '—'),
-            ('中心', f'{item.latitude:.1f}° / {item.longitude:.1f}°' if item.latitude is not None and item.longitude is not None else '—'),
-            ('中心气压', f'{item.pressure:g} hPa' if item.pressure is not None else '—'),
-            ('最大风速', f'{item.wind_speed:g} m/s' if item.wind_speed is not None else '—'),
-            ('移动', ' '.join(part for part in (item.move_direction, str(item.move_speed or '')) if part) or '—'),
+            ('中心位置', _coord(item.latitude, item.longitude)),
             ('更新', _time(item.updated_at) if item.updated_at else '—'),
-            ('预计', _time(item.future_time) if item.future_time else '—'),
         ]
-    intensity_label = '最大震度' if str(item.source).startswith('jma') else '最大烈度'
+        if not stopped:
+            future = ' · '.join(part for part in (_time(item.future_time) if item.future_time else '',
+                                                  item.future_level) if part)
+            rows.append(('预报', future or '—'))
+        return rows
+    # 报次已在印章上（含「最终报」），不再重复；没配置本地坐标时不出「距本地」。
     distance = local_distance(item, config)
-    return [
+    rows = [
         ('来源', SOURCE_LABELS.get(item.source, item.source)),
-        ('报次', f'第 {item.report_num} 报' + (' · 最终报' if item.is_final else '') if str(item.source).endswith('_eew') else '正式测定'),
-        ('震级', f'M{item.magnitude:.1f}' if item.magnitude is not None else '—'),
-        ('位置', item.place or '—'),
         ('发震', _time(item.occurred_at) if item.occurred_at else '—'),
-        ('深度', f'{item.depth:g} km' if item.depth is not None else '—'),
-        (intensity_label, item.intensity or '—'),
-        ('距本地', f'约 {distance:.0f} km' if distance is not None else '—'),
     ]
+    if distance is not None:
+        rows.append(('距本地', f'约 {distance:.0f} km'))
+    return rows
 
 
-def _visual(kind: str, item: Any) -> str:
-    if kind == 'typhoon':
-        return _typhoon_visual(item)
-    if kind == 'tsunami':
-        return _tsunami_visual(item)
-    return _earthquake_visual(item)
+def _step(span: float) -> float:
+    for step in (0.5, 1, 2, 5, 10, 20):
+        if span / step <= 7:
+            return step
+    return 30
+
+
+def _track(item: china.Typhoon) -> str:
+    """当前 → 预报位置，按经纬度等比例绘制（x 乘 cos 纬度），网格刻度是真实经纬度。
+    缺任一组坐标就不画：只有一个点的网格没有信息量，当前位置已在字段里。"""
+    if None in (item.latitude, item.longitude, item.future_latitude, item.future_longitude):
+        return ''
+    points = [(item.latitude, item.longitude), (item.future_latitude, item.future_longitude)]
+    width, height, pad = 794, 300, 100
+    k = math.cos(math.radians(sum(p[0] for p in points) / len(points)))
+    xs = [p[1] * k for p in points]
+    ys = [-p[0] for p in points]
+    dx = max(max(xs) - min(xs), 3 * k)
+    dy = max(max(ys) - min(ys), 3.0)
+    scale = min((width - 2 * pad) / dx, (height - 2 * pad) / dy)
+    top = 34  # 经度刻度放在顶部这条带里，不与底部的点标签相撞
+    cx, cy = (max(xs) + min(xs)) / 2, (max(ys) + min(ys)) / 2
+
+    def at(lat, lon):
+        return width / 2 + (lon * k - cx) * scale, height / 2 + (-lat - cy) * scale
+
+    lon_lo, lon_hi = (cx - width / 2 / scale) / k, (cx + width / 2 / scale) / k
+    lat_lo, lat_hi = -(cy + height / 2 / scale), -(cy - height / 2 / scale)
+    grid = []
+    step = _step(lon_hi - lon_lo)
+    lon = math.ceil(lon_lo / step) * step
+    while lon <= lon_hi:
+        x, _ = at(lat_lo, lon)
+        grid.append(f'<path class="t-grid" d="M{x:.1f} {top}V{height}"/>')
+        if 70 < x < width - 40:
+            grid.append(f'<text class="t-tick" x="{x:.1f}" y="{top - 10}" text-anchor="middle">{abs(lon):g}°{"E" if lon >= 0 else "W"}</text>')
+        lon += step
+    step = _step(lat_hi - lat_lo)
+    lat = math.ceil(lat_lo / step) * step
+    while lat <= lat_hi:
+        _, y = at(lat, lon_lo)
+        if top < y < height:
+            grid.append(f'<path class="t-grid" d="M0 {y:.1f}H{width}"/>')
+            if y > top + 24:
+                grid.append(f'<text class="t-tick" x="10" y="{y - 6:.1f}">{abs(lat):g}°{"N" if lat >= 0 else "S"}</text>')
+        lat += step
+
+    def label(x, y, title, sub, above=True):
+        anchor = 'end' if x > width * 0.6 else 'start'
+        tx = x - 20 if anchor == 'end' else x + 20
+        ty = y - 18 if above else y + 34
+        return (f'<text class="t-label" x="{tx:.1f}" y="{ty:.1f}" text-anchor="{anchor}">{_e(title)}</text>'
+                + (f'<text class="t-sub" x="{tx:.1f}" y="{ty + 20:.1f}" text-anchor="{anchor}">{_e(sub)}</text>' if sub else ''))
+
+    x0, y0 = at(*points[0])
+    x1, y1 = at(*points[1])
+    marks = [
+        f'<path class="t-path" d="M{x0:.1f} {y0:.1f}L{x1:.1f} {y1:.1f}"/>',
+        f'<circle class="t-future" cx="{x1:.1f}" cy="{y1:.1f}" r="9"/>',
+        label(x1, y1, '预报', ' · '.join(p for p in (_short_time(item.future_time), item.future_level) if p), above=y1 <= y0),
+        f'<circle class="t-now" cx="{x0:.1f}" cy="{y0:.1f}" r="10"/>',
+        # 两个点上下错开标注，避免文字叠在一起。
+        label(x0, y0, '当前', ' · '.join(p for p in (_short_time(item.updated_at), item.level) if p), above=y0 < y1),
+    ]
+    svg = (f'<svg viewBox="0 0 {width} {height}" role="img" aria-label="台风当前与预报位置">'
+           f'<path class="t-grid" d="M0 {top}H{width}"/>' + ''.join(grid) + ''.join(marks) + '</svg>')
+    km = distance_km(*points[0], *points[1])
+    right = f'预报移动约 {km:,.0f} km' if km is not None else ''
+    return (f'<section class="track">{svg}<div class="track-caption"><span>按经纬度比例绘制，未绘海岸线</span>'
+            f'<span>{_e(right)}</span></div></section>')
 
 
 def _lead(kind: str, item: Any, tone: str, stopped: bool = False) -> str:
@@ -304,19 +381,31 @@ def bulletin_html(kind: str, item: Any, config: Mapping[str, Any] | None = None,
         return weather_card.weather_html(item, tone, weather_map)
     accent = _accent(kind, item)
     voice = f'<div class="voice">{_e(bot_identity.display_name())} · 后续解读</div>' if tone == 'character' else ''
+    stats = _hero(kind, item)
+    # 后两格任一放不下大字号时一起缩小，同一行的数字保持同一字号。
+    small = ' small' if any(len(str(value)) > 6 for _, value in stats[1:]) else ''
+    hero = '' if stopped else '<section class="hero">' + ''.join(
+        f'<div class="stat"><span class="stat-label">{_e(label)}</span>'
+        f'<b class="stat-value{small if i else ""}">{_e(value)}</b></div>'
+        for i, (label, value) in enumerate(stats)) + '</section>'
+    track = _track(item) if kind == 'typhoon' and not stopped else ''
+    lead = ' '.join(_lead(kind, item, tone, stopped).split())
+    more = ''
+    if len(lead) > LEAD_LIMIT:
+        lead, more = lead[:LEAD_LIMIT - 1] + '…', '<p class="more">完整内容见随附文字。</p>'
     return f"""<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8">
 <style>{BULLETIN_STYLE}</style></head>
-<body><div class="card" style="--accent:{accent}">
+<body><div class="card" data-card style="--accent:{accent};--ink:{_ink(accent)}">
   <div class="rail"></div>
   <main class="sheet">
     <div class="mast"><span>{_e(_kicker(kind, item))}</span><span>公开数据</span></div>
-    <h1 class="title">{_e(_title(kind, item, stopped))}</h1>
-    <div class="stamp">{_e(_stamp(kind, item, stopped))}</div>
-    <section class="meta">{_facts(_meta(kind, item, config))}</section>
-    <section class="figure">{_visual(kind, item)}</section>
+    <div class="head"><h1 class="title">{_e(_title(kind, item, stopped))}</h1><div class="stamp">{_e(_stamp(kind, item, stopped))}</div></div>
+    {hero}
+    <section class="meta">{_facts(_meta(kind, item, config, stopped))}</section>
+    {track}
     {voice}
-    <p class="lead">{_e(_lead(kind, item, tone, stopped))}</p>
+    <p class="lead">{_e(lead)}</p>{more}
     <footer class="foot"><span>{_e(_source(kind, item))}</span><span>仅供参考，以官方发布为准</span></footer>
   </main>
 </div></body></html>"""
@@ -337,12 +426,13 @@ def _base_url(url: str) -> str:
 
 async def render_png(base_url: str, html_text: str, *, width: int = 900,
                      height: int = 1200, timeout: float = 20.0,
-                     token: str = '', client: httpx.AsyncClient | None = None) -> bytes:
+                     token: str = '', client: httpx.AsyncClient | None = None,
+                     whole_card: bool = False) -> bytes:
     import render_client as shared_render
     try:
         return await shared_render.render_html(html_text, url=_base_url(base_url),
             width=width, height=height, timeout_ms=int(timeout*1000),
-            source='disaster', token=token, client=client)
+            source='disaster', token=token, client=client, whole_card=whole_card)
     except shared_render.RenderError as exc:
         raise RenderError(str(exc)) from exc
 
@@ -379,12 +469,14 @@ async def render_bulletin(kind: str, item: Any, config: Mapping[str, Any],
     remote_url = shared_render.base_url()
     timeout = float(render.get('timeout_seconds') or 20)
     weather_map = await weather_map_mod.map_for_alert(item, client=client) if kind == 'weather' else None
+    # 气象卡保持原来的固定高度；地震/台风/海啸卡按内容截取整张 data-card。
     return await render_png(
         remote_url,
         bulletin_html(kind, item, config, tone, stopped, weather_map=weather_map),
         height=weather_card.card_height(item, tone) if kind == 'weather' else 1200,
         timeout=timeout,
         client=client,
+        whole_card=kind != 'weather',
     )
 
 
