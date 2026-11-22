@@ -45,6 +45,11 @@ need_file "$ROOT/nonebot/bot.py"
 need_file "$ROOT/requirements.lock"
 cd "$ROOT"
 
+if [ "$SKIP_INSTALL" -eq 0 ] && [ "$NO_SYSTEMD" -eq 0 ] && systemctl is-active --quiet qqbot 2>/dev/null; then
+    log "qqbot is already active; skipping install.sh (stop it first to update dependencies)"
+    SKIP_INSTALL=1
+fi
+
 if [ "$SKIP_INSTALL" -eq 0 ]; then
     log "checking installation (install.sh --no-pull)"
     install_args=(--root "$ROOT" --no-pull --yes)

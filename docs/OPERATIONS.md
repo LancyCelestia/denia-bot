@@ -26,7 +26,7 @@ sudo bash deploy-linux/start.sh     # 启动 SnowLuma → gsuid（可选）→ q
 
 `deploy-linux/README.md` 记录参数、首次扫码、配置和排障。以下手动顺序用于自定义部署或排查：
 
-1. `docker compose up -d`（SnowLuma，需要先有登录态；否则去 6081 扫码）
+1. `docker compose --env-file docker/snowluma/.env.local -f compose.yml up -d`（SnowLuma，需要先有登录态；否则去 6081 扫码）
 2. RAG（可选，需先按 §7 建独立环境与索引）：`rag/.venv/bin/python rag/serve.py`
 3. gsuid_core（启用游戏账号查询时）：先运行 `gsuid/install.sh` 完成安装；启动时 `cd gsuid/core && uv run core`（或 compose `docker compose up -d`）；**必须先于 NoneBot 启动**，否则适配器首连失败；core 启动后下一条消息会重试，必要时重启机器人
 4. NoneBot：`cd nonebot && ../.venv/bin/python bot.py`
@@ -73,7 +73,7 @@ SnowLuma 是**进程级注入**，同一 QQ 客户端里登录的所有号都会
 |---|---|
 | NoneBot 主日志（UTF-8 文件 sink） | `nonebot/logs/<日期>.log` |
 | RAG | `rag/logs/` |
-| 协议端 | `docker compose logs -f snowluma` |
+| 协议端 | `docker logs -f qqbot-snowluma`（或 `docker compose --env-file docker/snowluma/.env.local -f compose.yml logs -f snowluma`） |
 | 面板 | `journalctl -u qqbot-dashboard -f` |
 
 **优先看 loguru 自己的文件 sink**：重定向到控制台/文件的那份在非 UTF-8 环境下会因表情符号编码失败而丢行。
@@ -533,11 +533,12 @@ curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8092/api/bilibili   # 
 ```bash
 git -C /opt/qqbot fetch --all --prune
 git -C /opt/qqbot pull --ff-only
+sudo systemctl stop qqbot qqbot-dashboard
 sudo bash /opt/qqbot/deploy-linux/install.sh --no-pull
-sudo systemctl restart qqbot qqbot-dashboard
+sudo systemctl start qqbot qqbot-dashboard
 ```
 
-`install.sh` 会按 `requirements.lock` 的摘要判断是否需要更新 `.venv`，并重装 systemd 单元；不覆盖已有的 `.env`、模型/人格配置和 SnowLuma 数据。手动排查时也可以继续用 `cd /opt/qqbot/nonebot && ../.venv/bin/python migrate_db.py upgrade`。
+先停 qqbot/面板再跑安装脚本，避免迁移和 pip 安装与正在使用的进程并发；SnowLuma 容器可以保持运行。`install.sh` 会按 `requirements.lock` 的摘要判断是否需要更新 `.venv`，并重装 systemd 单元；不覆盖已有的 `.env`、模型/人格配置和 SnowLuma 数据。手动排查时也可以继续用 `cd /opt/qqbot/nonebot && ../.venv/bin/python migrate_db.py upgrade`。
 
 **禁止把下载的 zip/tar 解压覆盖到旧检出。** 覆盖不会删除旧检出里已从仓库移除的文件，`git status` / `git diff` 失去可比对基线，示例配置和旧数据还可能盖掉真实文件。需要全新目录时：
 
