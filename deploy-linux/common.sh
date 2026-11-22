@@ -47,7 +47,7 @@ copy_if_missing() {
     fi
     need_file "$src"
     log "create $dst"
-    run cp -n "$src" "$dst"
+    run cp "$src" "$dst"
 }
 
 render_unit() {
