@@ -1,0 +1,17 @@
+[Unit]
+Description=QQ bot NoneBot and MuiceBot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/qqbot/nonebot
+ExecStart=/opt/qqbot/.venv/bin/python bot.py
+Restart=on-failure
+RestartSec=5
+Environment=PYTHONUTF8=1
+Environment=PYTHONIOENCODING=utf-8
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
