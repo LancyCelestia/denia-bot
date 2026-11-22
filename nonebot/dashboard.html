@@ -1244,10 +1244,10 @@ async function markBasicsGuideDone(message){
   basicsGuidePending=false;
   renderBasicsGuide();
   notice(message);
-  if(pluginGuidePending){pluginGuidePending=false;$('pluginGuide').showModal()}
+  if(pluginGuidePending&&!$('pluginGuide').open){pluginGuidePending=false;$('pluginGuide').showModal()}
 }
 async function skipBasicsGuide(){await markBasicsGuideDone('已跳过 Bot 基本设置引导；之后可在「Bot 基本设置」中修改')}
-async function enterApp(){$('auth').hidden=true;$('app').hidden=false;await run(loadOnboarding);await run(loadEmbedding);await run(loadBotName);await run(loadPersona);await run(loadModelPref);await loadBotStatus();await loadBotUpdate();await loadPlugins();startStatusPolling();await refresh();await loadMaster();await loadParser();await loadEvents();await loadTokens();await loadStatus();await loadSuperusers();await loadEpic();await run(loadRenderer);await run(loadDisaster);await run(loadGameEvents);await run(loadBilibili);await run(loadMemes)}
+async function enterApp(){$('auth').hidden=true;$('app').hidden=false;await run(loadOnboarding);await loadPlugins();await run(loadEmbedding);await run(loadBotName);await run(loadPersona);await run(loadModelPref);await loadBotStatus();await loadBotUpdate();startStatusPolling();await refresh();await loadMaster();await loadParser();await loadEvents();await loadTokens();await loadStatus();await loadSuperusers();await loadEpic();await run(loadRenderer);await run(loadDisaster);await run(loadGameEvents);await run(loadBilibili);await run(loadMemes)}
 async function resumeSession(){try{let r=await fetch('/api/session');if(!r.ok)return;let x=await r.json();csrf=x.csrf;if(x.must_change){showFirstRun();return}await enterApp()}catch(e){/* 未登录，停在登录框 */}}
 async function changePassword(){run(async()=>{const p=$('newPassword').value,c=$('confirmPassword').value;if(p.length<12||p.length>256)throw Error('密码长度须为 12 到 256 位');if(p!==c)throw Error('两次输入的密码不一致');await api('/api/password',{password:p});$('newPassword').value='';$('confirmPassword').value='';$('accountMessage').textContent='';csrf='';if(statusTimer){clearInterval(statusTimer);statusTimer=null}$('app').hidden=true;$('auth').hidden=false;$('login').hidden=false;$('firstRun').hidden=true;notice('密码已修改，请使用新密码登录')})}
 function options(id,items){let el=$(id),old=el.value;el.replaceChildren();items.forEach(x=>{let o=document.createElement('option');o.value=x.value;o.textContent=x.label;el.append(o)});if(items.some(x=>x.value===old))el.value=old}
@@ -1357,7 +1357,7 @@ async function loadPlugins(){
     renderPluginPanels();
     if(!pluginSettings.onboarded){
       if(basicsGuidePending)pluginGuidePending=true;
-      else $('pluginGuide').showModal();
+      else if(!$('pluginGuide').open)$('pluginGuide').showModal();
     }
   }catch(e){$('pluginSaveState').textContent='插件设置读取失败：'+e.message}
 }
