@@ -10,7 +10,7 @@ Denia Bot 面向希望自行管理机器人的 QQ 群管理员和个人部署者
 
 机器人基于 NoneBot2 和 MuiceBot，QQ 协议端与模型服务需独立配置；知识库检索、游戏账号查询和 Playwright 图片渲染可按需部署。
 
-> 当前版本标识为 **V0.1 BETA2**（`0.1.0b2`）。本页描述当前源码，功能不一定都包含在已发布的源码包中；部署前请核对目标版本和 [更新记录](CHANGELOG.md)。账号、密钥及本地数据的保存与备份见 [数据与安全](#数据与安全)。
+> 当前版本标识为 **V0.1.0-RC1**（`0.1.0rc1`）。本页描述当前源码，功能不一定都包含在已发布的源码包中；部署前请核对目标版本和 [更新记录](CHANGELOG.md)。账号、密钥及本地数据的保存与备份见 [数据与安全](#数据与安全)。
 
 ## 核心能力
 
@@ -192,11 +192,11 @@ uvicorn dashboard:app --host 127.0.0.1 --port 8092
 
 ### 发布与打包
 
-推送 `v*` 标签会触发 `.github/workflows/release.yml`：先校验标签版本与 `nonebot/app_version.py` 的 `PACKAGE_VERSION` 一致并编译应用，再用 `git archive` 生成只包含 Git 跟踪文件的 `tar.gz`、`zip` 和 `SHA256SUMS`，最后附加到对应 GitHub Release。也可在 Actions 页面手动运行并填写已有标签，例如 `v0.1.0b2`。工作流不代替完整测试；发布前应在目标检出上单独运行 `python -m pytest tests -q`。
+推送 `v*` 标签会触发 `.github/workflows/release.yml`：先校验标签版本与 `nonebot/app_version.py` 的 `PACKAGE_VERSION` 一致并编译应用，再用 `git archive` 生成只包含 Git 跟踪文件的 `tar.gz`、`zip` 和 `SHA256SUMS`，最后附加到对应 GitHub Release。也可在 Actions 页面手动运行并填写已有标签，例如 `v0.1.0rc1`。工作流不代替完整测试；发布前应在目标检出上单独运行 `python -m pytest tests -q`。
 
 ```bash
-git tag -a v0.1.0b2 -m 'V0.1 BETA2'
-git push origin v0.1.0b2
+git tag -a v0.1.0rc1 -m 'V0.1.0-RC1'
+git push origin v0.1.0rc1
 ```
 
 发布包是应用源码部署包，不是 Python wheel：本项目依赖 `.env`、本地数据目录、可选 RAG 服务和独立 Playwright 渲染服务，不能仅靠 `pip install` 完成部署。
