@@ -6,11 +6,11 @@
 
 ## 一句话模型
 
-管理面板固定为：**概览 + 每个侧栏一级栏目一页 + Bot 基本情况二级页**。
+管理面板固定为：**概览 + 每个侧栏一级栏目一页 + Bot 基本设置二级页**。
 
 - 概览只放 page-head、hero、CPU/内存/磁盘/Token KPI 与 footer。
 - 每个一级栏目只显示一张全宽栏目卡片。
-- Bot 基本情况继续用二级导航：基本信息 / 人格模板 / 模型设置 / Token 消耗 / 主人识别 / 超级管理员。
+- Bot 基本设置继续用二级导航：基本信息 / 人格模板 / 模型设置 / 主人识别 / 超级管理员 / Token 消耗。
 
 ## 页面骨架
 
@@ -26,7 +26,7 @@
 硬约束：
 
 - `.page-head` 在所有页面可见，不得移进 `#overview` 或 `#panelGrid`。
-- `h1#pageTitle` 是页面唯一主标题；`p#pageDesc` 显示概览问候、一级页所属侧栏分组，或 Bot 子页的「Bot 基本情况」。
+- `h1#pageTitle` 是页面唯一主标题；`p#pageDesc` 显示概览问候、一级页所属侧栏分组，或 Bot 子页的「Bot 基本设置」（入口页显示侧栏分组「工作台」）。
 - `#overview` 只包含 `.hero` 与 `.kpis`；不得放入 `section.card`。
 - `#panelGrid` 必须使用块布局，直接子元素是每个栏目一个 `section.card`；`#appearancePopover` 是固定的浮层，不属于页面卡片。
 - `#botBasicsNav` 在概览和一级栏目页隐藏；仅当当前页是 `#bot-info`、`#persona`、`#model-pref`、`#tokens`、`#master`、`#superusers` 时显示。
@@ -36,7 +36,7 @@
 
 | 分组 | 一级页面 |
 | --- | --- |
-| 工作台 | 概览、Bot 基本情况、表情包、用户记忆、群聊话题、服务器状态、插件管理 |
+| 工作台 | 概览、Bot 基本设置、表情包、用户记忆、群聊话题、服务器状态、插件管理 |
 | 服务与订阅 | 天气助手、游戏活动、Epic 喜加一、B站动态、灾害预警、链接解析 |
 | 知识与渲染 | 知识库 Embedding、图片渲染服务 |
 | 运维 | 运行状态、解析日志 |
@@ -56,6 +56,13 @@
 - **sticky page-head**：栏目页可以滚动长表单，但 page-head 保持现有 sticky 外观；卡片保留 `scroll-margin-top`。
 - **移动端**：800px 断点沿用抽屉、遮罩、顶部主题按钮；概览 KPI 2 列；栏目卡片全宽；390px 不得出现横向溢出。
 - **主题**：12 套主题都必须保持卡片全宽、无横向溢出；圣杯布局只保留左侧 sidebar 和主内容，右侧不显示 context rail / 页内导航；其他主题不得为了布局单独破坏分页结构。
+
+## 首次启动引导
+
+- 首次改密成功后写入 `data/dashboard-onboarding.json`；下次进入面板自动跳到 `#bot-info`。
+- `#basicsGuide` 是 `#bot-info` 卡片内的 `.subsection`，不是新的 `section.card`，因此不改变页面骨架和导航契约。
+- 引导按基本信息 / 人格模板 / 模型设置 / 主人识别 / 超级管理员排列；完成或跳过时调用 `POST /api/onboarding`，之后不再显示。
+- 引导未完成时，插件首次引导延后到 Bot 基本设置引导完成或跳过后再显示。
 
 ## 允许的改动
 
@@ -82,7 +89,7 @@
 ## 新增/调整页面的流程
 
 1. **新增一级页面**：在正确分组插入 nav link；在 `#panelGrid` 加同 id 的 `section.card`，带 `h2` 作为页头标题和 card-head 说明；如需要加载数据，补 `sectionLoaders`。
-2. **新增 Bot 二级页面**：在 `#botBasicsNav` 插入链接，并加同 id 的 card；页面归属自动走「Bot 基本情况」。
+2. **新增 Bot 二级页面**：在 `#botBasicsNav` 插入链接，并加同 id 的 card；页面归属自动走「Bot 基本设置」。
 3. **新增分组**：加 `.nav-caption`；同步更新本文件的分组表、导航契约测试与验证记录。
 4. **调整顺序**：同步更新 `test_bilibili_panel.py` 中的明确主顺序和本文件；不得只改测试或只改页面。
 5. **布局变更**：必须先取得明确设计决定，再更新本文件、`2026-11-21-dashboard-category-pages-design.md`、契约测试和 PR 验证记录。
