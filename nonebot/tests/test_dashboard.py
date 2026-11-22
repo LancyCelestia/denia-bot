@@ -14,6 +14,7 @@ import weather_service as weather
 import master_settings
 import parser_settings
 import bot_identity
+import log_viewer
 from unittest.mock import AsyncMock, Mock, patch
 
 class DashboardTest(unittest.TestCase):
@@ -283,6 +284,33 @@ class DashboardTest(unittest.TestCase):
                     self.assertEqual(client.post('/api/onboarding', json={'basics_step': 3},
                                                  headers=fresh_headers).json(),
                                      {'basics_pending': False, 'basics_step': 0})
+
+    def test_runtime_logs_are_authorized_whitelisted_and_masked(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp)
+            (project/'logs').mkdir()
+            (project/'logs'/'nonebot.out.log').write_text(
+                'first\napi_key=secret123\nlast\n', encoding='utf-8')
+            (project/'nonebot'/'logs').mkdir(parents=True)
+            (project/'nonebot'/'logs'/'2026-11-22.log').write_text('daily\n', encoding='utf-8')
+            d.AUTH_FILE = project/'auth'
+            d.sessions.clear()
+            d.attempts.clear()
+            d.set_password('a-strong-test-password')
+            with patch.object(log_viewer, 'PROJECT_ROOT', project), \
+                 patch.object(log_viewer, 'NONEBBOT_ROOT', project/'nonebot'):
+                with TestClient(d.app) as client:
+                    self.assertEqual(client.get('/api/logs').status_code, 401)
+                    client.post('/api/login', json={'password':'a-strong-test-password'})
+                    data = client.get('/api/logs?name=nonebot.out.log&tail=2').json()
+                    self.assertTrue(data['available'])
+                    self.assertEqual(data['lines'][-1], 'last')
+                    self.assertIn('api_key=***', '\n'.join(data['lines']))
+                    self.assertNotIn('secret123', '\n'.join(data['lines']))
+                    self.assertEqual(client.get('/api/logs?name=../../etc/passwd').status_code, 400)
+                    self.assertEqual(client.get('/api/logs?name=foo.log').status_code, 400)
+                    daily = client.get('/api/logs?name=nonebot.log&tail=5').json()
+                    self.assertEqual(daily['lines'], ['daily'])
 
     def test_normal_password_change_requires_auth_and_csrf(self):
         with tempfile.TemporaryDirectory() as tmp:
