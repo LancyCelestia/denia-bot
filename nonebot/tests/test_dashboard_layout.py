@@ -215,3 +215,18 @@ def test_shader_primary_action_uses_readable_theme_colors():
     assert 'background:var(--accent)' in joined
     assert 'color:var(--on-accent)' in joined
     assert 'color:var(--paper)' not in joined
+
+
+def test_bilibili_credentials_import_and_qr_are_wired():
+    text = _html()
+    parser = _between(text, '<section id="parser"', '</section>')
+    assert 'id="biliCookieInput"' in parser
+    assert 'id="biliCookieImport"' in parser
+    assert 'id="biliQrImage"' in parser
+    assert 'id="biliQrStart"' in parser
+    assert 'id="biliCookieState"' in parser
+    assert 'importBiliCookies' in text
+    assert 'startBiliQr' in text
+    assert 'pollBiliQr' in text
+    assert '/api/parser/bilibili/cookies' in text
+    assert '/api/parser/bilibili/qr' in text

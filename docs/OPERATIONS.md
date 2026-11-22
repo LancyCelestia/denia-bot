@@ -490,6 +490,22 @@ curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8092/api/bilibili   # 
 
 2026-11-17 已在测试服务器完成部署，并修正侧栏与内容顺序不一致（「表情包」卡片在实际内容里排在「运行状态」前面）；面板、只读读取真实状态库与侧栏顺序均已验证。
 
+## 8.11 B站解析凭据
+
+面板「链接解析 → B站解析」维护 B 站解析所需凭据，不必再手工编辑数据目录：
+
+- **粘贴导入**：支持 `SESSDATA=...; bili_jct=...; DedeUserID=...`、JSON 对象、JSON 数组，以及带 `{"cookies": [...]}` 包装的 JSON。`SESSDATA`、`bili_jct`、`DedeUserID` 必填，`DedeUserID` 必须是数字；格式错误返回 400，原凭据保持不变。
+- **扫码登录**：点击「获取二维码」，用 B 站 App 扫码；二维码 2 分钟有效，过期或出错后可点「刷新二维码」重新获取。面板每 2 秒轮询一次状态，登录成功后显示「B 站 Cookie 已配置」。
+- **保存位置**：凭据写入 `nonebot/data/media_parser/cookies/bilibili_credential.json`（POSIX 0600，原子替换），同时更新 `nonebot/data/media_parser/config.json` 中 B 站 `cookies` 字段；面板不回显明文，日志不记录 Cookie。
+- **免重启**：解析器的 `BilibiliLogin` 在每次取 Cookie 前检查凭据文件 mtime，面板导入或扫码成功后，正在运行的机器人下一次解析请求即使用新凭据，无需重启。
+- **失败保护**：粘贴内容或二维码轮询失败不会覆盖已有凭据；只更新 B 站 `cookies` 字段，不覆盖其他解析器设置。
+
+相关接口（均要求面板登录 + CSRF）：`POST /api/parser/bilibili/cookies`、`POST /api/parser/bilibili/qr`、`POST /api/parser/bilibili/qr/status`。定向测试：
+
+```bash
+cd nonebot && python -m pytest tests/test_parser_credentials.py tests/test_parser_credentials_api.py -q
+```
+
 ## 9. 上线前检查
 
 - [ ] 5099 / 6081 / 8080 全都只绑内网或 `127.0.0.1`，**不要对公网开**

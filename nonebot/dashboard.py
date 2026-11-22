@@ -33,6 +33,7 @@ import render_settings
 import disaster_store as disaster_store_mod
 import log_viewer
 import master_settings
+import parser_credentials
 import parser_settings
 import persona_settings
 import plugin_control
@@ -675,6 +676,50 @@ async def set_parser_config(req: Request):
     except FileExistsError as e: raise HTTPException(409, str(e))
     except (ValueError, TypeError) as e: raise HTTPException(400, str(e))
     except (OSError, sqlite3.Error): raise HTTPException(503, '解析器配置无法保存，请稍后重试')
+
+@app.post('/api/parser/bilibili/cookies')
+async def import_bilibili_cookies(req: Request):
+    mutate(req)
+    try:
+        body = await req.json()
+    except (ValueError, TypeError):
+        raise HTTPException(400, '请求格式无效')
+    raw = body.get('cookies') if isinstance(body, dict) else None
+    if not isinstance(raw, str):
+        raise HTTPException(400, '请提供 Cookie 字符串或 JSON')
+    try:
+        cookies = parser_credentials.parse_cookie_input(raw)
+        return parser_credentials.save_bilibili_cookies(cookies)
+    except FileExistsError as e:
+        raise HTTPException(409, str(e))
+    except (ValueError, TypeError) as e:
+        raise HTTPException(400, str(e))
+    except OSError:
+        raise HTTPException(503, 'B 站 Cookie 无法保存，请稍后重试')
+
+
+@app.post('/api/parser/bilibili/qr')
+async def bilibili_qr(req: Request):
+    mutate(req)
+    try:
+        png = await parser_credentials.create_bilibili_qr()
+    except ImportError as e:
+        raise HTTPException(503, f'缺少 B 站登录依赖：{e}')
+    except Exception as e:
+        raise HTTPException(502, f'生成 B 站二维码失败：{e}')
+    return Response(content=png, media_type='image/png', headers={'Cache-Control': 'no-store'})
+
+
+@app.post('/api/parser/bilibili/qr/status')
+async def bilibili_qr_status(req: Request):
+    mutate(req)
+    try:
+        return await parser_credentials.poll_bilibili_qr()
+    except ImportError as e:
+        raise HTTPException(503, f'缺少 B 站登录依赖：{e}')
+    except Exception as e:
+        return {'status': 'error', 'message': f'读取二维码状态失败：{e}'}
+
 
 @app.get('/api/parser-events')
 def parser_events(req: Request, limit: int = 100):
