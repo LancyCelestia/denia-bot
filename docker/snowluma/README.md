@@ -33,6 +33,7 @@ docker compose --env-file docker/snowluma/.env.local \
 
 - **只 hook 目标账号**：`SNOWLUMA_HOOK_AUTOLOAD=0` 时只恢复之前成功接入过的账号。这个开关没有 UI，只能改配置后重启。
 - **注入粒度是 PID 不是 UIN**：同一客户端登录的多个号会被一起 hook，无法按号过滤。
+- **镜像不可拉取时**：在已有镜像的机器执行 `docker save motricseven7/snowluma:latest | gzip > snowluma-image.tar.gz`，在目标机 `docker load < snowluma-image.tar.gz`，再用 `deploy-linux/install.sh --no-pull`；或者在 `docker/snowluma/.env.local` 设置可访问的 `SNOWLUMA_IMAGE`。
 - **数据卷不能删**：`qqbot-qq-config` / `qqbot-qq-data` 存着登录态，删了要重新扫码；换设备指纹也可能要重扫。
 - **权限与网络**：`SYS_PTRACE` + `seccomp=unconfined` 是高风险配置；端口只绑内网或 `127.0.0.1`。
 - 必须宿主机 `sysctl kernel.yama.ptrace_scope` ≤ 2（= 3 会直接拒绝注入）。
