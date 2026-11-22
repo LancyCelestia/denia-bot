@@ -188,6 +188,22 @@ def test_holy_layout_has_no_right_context_rail():
     assert 'max-width:1440px' in workspace.group(1)
 
 
+def test_runtime_log_page_is_wired_to_the_whitelisted_api_and_filters():
+    text = _html()
+    assert '<h2>运行日志</h2>' in text
+    assert 'href="#events"' in text
+    assert 'id="logSource"' in text
+    assert 'id="logTail"' in text
+    assert 'id="logFilter"' in text
+    assert 'id="logAutoScroll"' in text
+    assert 'id="parserEventsPanel"' in text
+    assert 'id="eventKind"' in text
+    assert 'id="eventOnlyLimit"' not in text
+    assert 'async function loadRuntimeLogs' in text
+    assert '/api/logs' in text
+    assert 'async function loadLogsPage' in text
+
+
 def test_shader_primary_action_uses_readable_theme_colors():
     styles = _styles(_html())
     rules = re.findall(

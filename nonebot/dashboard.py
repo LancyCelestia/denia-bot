@@ -31,6 +31,7 @@ import disaster_config as disaster_config_mod
 import disaster_render as disaster_render_mod
 import render_settings
 import disaster_store as disaster_store_mod
+import log_viewer
 import master_settings
 import parser_settings
 import persona_settings
@@ -680,6 +681,17 @@ def parser_events(req: Request, limit: int = 100):
     authorized(req)
     try: return parser_settings.events(limit=max(1, min(limit, 500)))
     except (OSError, ValueError): raise HTTPException(503, '解析日志无法读取')
+
+
+@app.get('/api/logs')
+def runtime_logs(req: Request, name: str = 'nonebot.log', tail: int = 200):
+    authorized(req)
+    try:
+        return log_viewer.read_log(name, tail)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    except OSError:
+        raise HTTPException(503, '运行日志无法读取')
 
 @app.post('/api/parser-events/clear')
 async def clear_parser_events(req: Request):
