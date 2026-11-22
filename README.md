@@ -213,7 +213,15 @@ Windows 上使用 `tools\启动所有.bat` / `tools\停止所有.bat` 启停；�
 
 若 `runtime\python312` 已存在却缺少 `python.exe`，脚本会在下载解压后停止，不会覆盖该目录；若缓存解释器存在但无法运行或不是 Python 3.12，则直接停止，不下载。遇到这两种情况，请删除 `runtime\python312` 后重试；若虚拟环境也损坏，或要强制重新下载，请同时删除 `runtime\python312` 和 `nonebot\.venv` 后正常启动。
 
-`-CheckOnly` 和 `-SkipInstall` 都不会下载 Python。这两个开关仅供 `tools\startup-preflight.ps1` 使用，`tools\启动所有.bat` 不会转发。请在仓库根目录的 PowerShell 中按需运行其一：
+SnowLuma 运行时不再要求放在仓库根目录的 `snowluma\`。preflight 按以下顺序查找：`-SnowLumaPath`（`启动所有.ps1` 支持）、`SNOWLUMA_HOME`、`QQBOT_SNOWLUMA`、仓库根 `snowluma\`、上级目录的 `SnowLuma\`；都没有时，自动解压 `SnowLuma-v2.4.2-win-x64.zip`（依次查找仓库根、`downloads\`、`tools\`、上级目录和 `%USERPROFILE%\Downloads`）。解压目标固定为仓库根 `snowluma\`，已有 `config\` / `data\` 不覆盖。解析结果写入 `logs\snowluma-home.txt`（UTF-8）和 `logs\snowluma-home.ansi.txt`（供批处理读取），启动和停止脚本都从这些文件读取实际路径；删除它们即可让下次启动重新探测。示例：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\启动所有.ps1 -SnowLumaPath "D:\Apps\SnowLuma"
+```
+
+或设置用户环境变量 `SNOWLUMA_HOME` 后直接运行 `启动所有.bat`（批处理不转发 `-SnowLumaPath`）。
+
+`-CheckOnly` 和 `-SkipInstall` 都不会下载 Python，也不会解压 SnowLuma zip；需要 zip 回退时请正常启动。这两个开关仅供 `tools\startup-preflight.ps1` 使用，`tools\启动所有.bat` 不会转发。请在仓库根目录的 PowerShell 中按需运行其一：
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\startup-preflight.ps1 -Root (Get-Location).Path -CheckOnly

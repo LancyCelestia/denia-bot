@@ -5,6 +5,12 @@
 $ErrorActionPreference = 'Continue'
 
 $ROOT = Split-Path -Parent $PSScriptRoot
+$snowHome = "$ROOT\snowluma"
+$snowHomeFile = "$ROOT\logs\snowluma-home.txt"
+if (Test-Path -LiteralPath $snowHomeFile -PathType Leaf) {
+    $snowHome = ([IO.File]::ReadAllText($snowHomeFile, [Text.Encoding]::UTF8)).Trim()
+}
+$snowNode = Join-Path $snowHome 'node.exe'
 
 Write-Host "正在停止 QQ 机器人..." -ForegroundColor Cyan
 $killed = 0
@@ -59,7 +65,12 @@ Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
 
 # SnowLuma
 Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
-    Where-Object { $_.Name -eq 'node.exe' -and $_.CommandLine -match 'snowluma' } |
+    Where-Object {
+        $_.Name -eq 'node.exe' -and $_.CommandLine -and (
+            $_.CommandLine -match 'snowluma' -or
+            $_.CommandLine.IndexOf($snowNode, [StringComparison]::OrdinalIgnoreCase) -ge 0
+        )
+    } |
     ForEach-Object {
         Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
         Write-Host "  已停止 SnowLuma (PID $($_.ProcessId))" -ForegroundColor Green
