@@ -58,7 +58,7 @@ if [ "$SKIP_INSTALL" -eq 0 ]; then
     [ "$DRY_RUN" -eq 1 ] && install_args+=(--dry-run)
     bash "$SCRIPT_DIR/install.sh" "${install_args[@]}"
 else
-    log "skipping install.sh (--skip-install)"
+    log "skipping install.sh"
 fi
 
 if [ "$NO_DOCKER" -eq 0 ]; then

@@ -290,8 +290,16 @@ ensure_snowluma() {
         log "would validate docker compose config"
     fi
     if [ "$NO_PULL" -eq 0 ]; then
-        log "pulling SnowLuma image"
-        compose_run pull snowluma
+        log "pulling SnowLuma image (a cached image is enough)"
+        if ! compose_run pull snowluma; then
+            local snow_image
+            snow_image="$(compose_run config --images 2>/dev/null | head -1 || true)"
+            if [ -n "$snow_image" ] && docker image inspect "$snow_image" >/dev/null 2>&1; then
+                warn "SnowLuma image pull failed; using cached image: $snow_image"
+            else
+                die "SnowLuma image pull failed and no cached image is available; set SNOWLUMA_IMAGE in docker/snowluma/.env.local or run docker login"
+            fi
+        fi
     else
         log "skipping docker compose pull (--no-pull)"
     fi

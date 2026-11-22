@@ -15,7 +15,7 @@
 
 services:
   snowluma:
-    image: motricseven7/snowluma:latest
+    image: ${SNOWLUMA_IMAGE:-motricseven7/snowluma:latest}
     container_name: qqbot-snowluma
     restart: unless-stopped
     shm_size: 1gb

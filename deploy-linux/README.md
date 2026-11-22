@@ -15,7 +15,7 @@
 - Python 3.12（`python3.12`；也可以先安装 `uv`，脚本会用 uv 创建环境）。
 - `git`、`curl`。
 - Docker Engine + Compose v2（默认模式需要）。
-- 能访问 PyPI、Docker Hub/GitHub；首次安装会下载依赖和 SnowLuma 镜像。
+- 能访问 PyPI、Docker Hub/GitHub；首次安装会下载依赖和 SnowLuma 镜像。公开镜像不可用时，在 `docker/snowluma/.env.local` 设置 `SNOWLUMA_IMAGE`（私有仓库先 `docker login`）；`install.sh` 在 pull 失败但本地已有镜像时会继续。
 - 宿主机 `kernel.yama.ptrace_scope` ≤ 2（SnowLuma 注入需要）；脚本只警告，不自动改 sysctl。
 
 ## 首次安装

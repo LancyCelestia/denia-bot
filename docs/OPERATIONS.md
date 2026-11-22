@@ -24,7 +24,9 @@ sudo bash deploy-linux/install.sh   # 首次：venv、依赖、配置、迁移�
 sudo bash deploy-linux/start.sh     # 启动 SnowLuma → gsuid（可选）→ qqbot → 面板
 ```
 
-`deploy-linux/README.md` 记录参数、首次扫码、配置和排障。以下手动顺序用于自定义部署或排查：
+`deploy-linux/README.md` 记录参数、首次扫码、配置和排障。SnowLuma 镜像默认 `motricseven7/snowluma:latest`；公开镜像不可用时，在 `docker/snowluma/.env.local` 设置 `SNOWLUMA_IMAGE`（私有仓库先 `docker login`）。`install.sh` 在 pull 失败但本地已有镜像时会继续，不会覆盖缓存。
+
+以下手动顺序用于自定义部署或排查：
 
 1. `docker compose --env-file docker/snowluma/.env.local -f compose.yml up -d`（SnowLuma，需要先有登录态；否则去 6081 扫码）
 2. RAG（可选，需先按 §7 建独立环境与索引）：`rag/.venv/bin/python rag/serve.py`

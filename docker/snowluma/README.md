@@ -13,6 +13,7 @@ Linux 上官方只推荐 Docker 方式（镜像内置 Linux QQ + Xvfb + VNC + no
 ```bash
 cp -n docker/snowluma/.env.example docker/snowluma/.env.local
 # 编辑 docker/snowluma/.env.local：至少改 VNC_PASSWD；需要内网访问再改 BIND_ADDR
+# 公开镜像不可用时改 SNOWLUMA_IMAGE（私有仓库先 docker login）
 docker compose --env-file docker/snowluma/.env.local \
   -f docker/snowluma/docker-compose.yml --project-directory . up -d
 docker compose --env-file docker/snowluma/.env.local \
