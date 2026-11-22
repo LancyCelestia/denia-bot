@@ -5,7 +5,8 @@
 
 [CmdletBinding()]
 param(
-    [switch]$NoPause
+    [switch]$NoPause,
+    [string]$SnowLumaPath = ''
 )
 
 $ErrorActionPreference = 'Continue'
@@ -21,7 +22,6 @@ trap {
 }
 
 $ROOT       = Split-Path -Parent $PSScriptRoot
-$SNOWLUMA   = "$ROOT\snowluma\node.exe"
 $NONE_LUA   = "$ROOT\nonebot\.venv\Scripts\python.exe"
 $LOG        = "$ROOT\logs"
 $GSUID_CORE = "$ROOT\gsuid\core"
@@ -41,11 +41,13 @@ $preflight = Join-Path $PSScriptRoot 'startup-preflight.ps1'
 if (-not (Test-Path -LiteralPath $preflight -PathType Leaf)) {
     throw "缺少依赖检查脚本：$preflight"
 }
+$preflightArgs = @('-Root', $ROOT, '-NoPause')
+if ($SnowLumaPath) { $preflightArgs += @('-SnowLumaPath', $SnowLumaPath) }
 if (Test-Listening 8080) {
     Write-Host '[deps] NoneBot 已在 8080 运行，只做只读依赖检查（-SkipInstall）。' -ForegroundColor Yellow
-    & $preflight -Root $ROOT -NoPause -SkipInstall
+    & $preflight @preflightArgs -SkipInstall
 } else {
-    & $preflight -Root $ROOT -NoPause
+    & $preflight @preflightArgs
 }
 if ($LASTEXITCODE -ne 0) {
     throw '依赖检查未通过，未启动任何服务。'
@@ -73,6 +75,13 @@ if (Test-Path "$ROOT\rag\.venv-gpu\Scripts\python.exe") {
 }
 
 New-Item -ItemType Directory -Force -Path $LOG | Out-Null
+
+$SNOW_HOME = Join-Path $ROOT 'snowluma'
+$snowHomeFile = Join-Path $LOG 'snowluma-home.txt'
+if (Test-Path -LiteralPath $snowHomeFile -PathType Leaf) {
+    $SNOW_HOME = ([IO.File]::ReadAllText($snowHomeFile, [Text.Encoding]::UTF8)).Trim()
+}
+$SNOWLUMA = Join-Path $SNOW_HOME 'node.exe'
 
 function Get-LanIPv4 {
     Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
@@ -154,7 +163,7 @@ if (Test-Listening 5099) {
     Write-Host " 已在运行" -ForegroundColor Yellow
 } else {
     Start-Process -FilePath $SNOWLUMA -ArgumentList 'index.mjs' `
-        -WorkingDirectory "$ROOT\snowluma" `
+        -WorkingDirectory $SNOW_HOME `
         -RedirectStandardOutput "$LOG\snowluma.out.log" `
         -RedirectStandardError  "$LOG\snowluma.err.log" `
         -WindowStyle Hidden

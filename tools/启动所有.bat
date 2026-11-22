@@ -38,7 +38,6 @@ set "RAG_PY=%ROOT%\rag\.venv\Scripts\python.exe"
 if exist "%ROOT%\rag\.venv-gpu\Scripts\python.exe" set "RAG_PY=%ROOT%\rag\.venv-gpu\Scripts\python.exe"
 set "GS_PY=%ROOT%\gsuid\core\.venv\Scripts\python.exe"
 set "NONE_PY=%ROOT%\nonebot\.venv\Scripts\python.exe"
-set "SNOW_NODE=%ROOT%\snowluma\node.exe"
 
 rem Bot QQ comes from env / local\bot.env / nonebot\.env, only for display.
 rem Never hardcode an account id here.
@@ -87,6 +86,10 @@ if not exist "%LOG%" (
     echo [!!] Cannot create log dir: %LOG%
     exit /b 2
 )
+
+set "SNOW_HOME=%ROOT%\snowluma"
+if exist "%LOG%\snowluma-home.ansi.txt" set /p SNOW_HOME=<"%LOG%\snowluma-home.ansi.txt"
+set "SNOW_NODE=%SNOW_HOME%\node.exe"
 
 set "FAILED=0"
 set "RAG_EXPECT=0"
@@ -188,7 +191,7 @@ echo [4/4] SnowLuma (5099) ...
 call :is_listening 5099
 if not errorlevel 1 goto :snow_running
 if not exist "%SNOW_NODE%" goto :snow_missing
-call :start_service "%SNOW_NODE%" "index.mjs" "%ROOT%\snowluma" "snowluma" ""
+call :start_service "%SNOW_NODE%" "index.mjs" "%SNOW_HOME%" "snowluma" ""
 if errorlevel 1 (
     echo       [!!] failed to start, see log: %LOG%\snowluma.err.log
     set "FAILED=1"

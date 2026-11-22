@@ -25,6 +25,7 @@
 
 ### 修复与加固
 
+- Windows 一键启动不再把 SnowLuma 固定为仓库根 `snowluma\`：支持 `-SnowLumaPath`、`SNOWLUMA_HOME` / `QQBOT_SNOWLUMA`、上级目录 `SnowLuma\`，并会在仓库根、`downloads\`、`tools\`、上级目录或 `%USERPROFILE%\Downloads` 找到 `SnowLuma-v2.4.2-win-x64.zip` 时自动解压；已有 `config\` / `data\` 保留。解析结果缓存到 `logs\snowluma-home.txt`，启停脚本都按该路径识别进程，修复 #55。
 - 插件首次引导设置提前到面板进入时加载；完成 Bot 基本设置后立即弹出插件引导，不再等待运行状态和更新检查。
 - 模型首选/次选状态文件被管理面板等外部进程改写后，机器人下一条回复会自动重读；不再需要重启才能应用新的首选/次选。
 - 解析器：面板「解析日志」改为读取机器人数据目录中的 `data/media_parser/events.jsonl`；解析或发送失败会释放同链接/资源防抖，允许立即重试；防抖跳过写入「提示」事件；超过 20 MB 的原图自动改用已缓存的预览图，避免 QQ highway 323 导致原图图片发不出。
