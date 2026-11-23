@@ -8,6 +8,7 @@ import os
 import secrets
 import sqlite3
 import time
+from contextlib import asynccontextmanager
 from pathlib import Path
 from urllib.parse import urlsplit
 from fastapi import FastAPI, HTTPException, Request
@@ -58,7 +59,13 @@ def onboarding_path() -> Path:
     return dashboard_onboarding.path_for(AUTH_FILE)
 
 
-app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    yield
+    await xhs_login.close()
+
+
+app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
 meme_library = meme_logic.Library()
 monitor = Monitor()
 restart_worker = Restart(monitor)

@@ -16,7 +16,6 @@ COPY nonebot/media_parser/core/resources/HYSongYunLangHeiW-1.ttf /usr/local/shar
 RUN fc-cache -f
 
 COPY docker/playwright-renderer/server.js ./
-COPY docker/playwright-renderer/xhs-login-server.js ./
 USER pwuser
 EXPOSE 3000
 

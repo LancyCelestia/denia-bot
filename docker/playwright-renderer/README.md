@@ -22,27 +22,9 @@ RENDER_PORT=3101 RENDER_CONTAINER_NAME=qqbot-playwright-candidate docker compose
 QQBOT_RENDER_URL=http://127.0.0.1:3101 python -m pytest nonebot/tests -q --import-mode=importlib
 ```
 
-## 小红书扫码登录容器
+## 小红书扫码登录
 
-这是独立于图片渲染的第二个容器；图片渲染仍禁用页面 JS 和外网，不要用它的安全设置去跑登录。登录容器只驱动小红书官方网页的二维码登录，只绑定 `127.0.0.1:3102`，必须配置服务令牌。
-
-首次初始化令牌（用运行面板的账户执行一次）：
-
-```bash
-cd /opt/qqbot
-python nonebot/xhs_login.py --init-token
-```
-
-该命令写入 `nonebot/data/xhs-login-token.env`（POSIX 0600；已有有效文件不覆盖、不打印令牌）。启动：
-
-```bash
-docker compose -f docker/playwright-renderer/docker-compose.xhs-login.yml up -d --build
-curl --fail http://127.0.0.1:3102/health
-```
-
-容器名 `qqbot-xhs-login`，镜像 `qqbot-xhs-login:1`，只映射宿主机回环 3102；只读根文件系统、768 MiB 内存、1 CPU、同时只允许一个待扫码会话。面板通过 `/api/parser/xhs-login/*` 生成二维码、轮询状态和取消；扫码成功后用户点击「保存解析设置」，Cookie 才会写入 `nonebot/data/media_parser/config.json`，重启机器人后生效。网页和面板 API 都不返回 Cookie 明文。登录依赖官网页面结构与网络；遇到风控、页面变化或容器未启动时面板显示明确错误，手动 Cookie 仍可使用，不要绕过验证。
-
-令牌轮换：停止容器，移走 `nonebot/data/xhs-login-token.env`，重新执行 `--init-token`，再启动容器。令牌文件已被 `.gitignore` 覆盖，不要提交或写入日志。
+小红书扫码登录已内置在管理面板进程中使用 Playwright，不再由本渲染服务或独立容器提供。图片渲染服务继续禁用页面 JS 和外网；两者的安全设置不要合并。部署、依赖与失败行为见 `docs/OPERATIONS.md` 的「二维码登录与 Cookie 路径」。
 
 ## 接口与失败行为
 

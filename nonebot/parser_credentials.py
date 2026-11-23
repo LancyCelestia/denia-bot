@@ -11,9 +11,18 @@ from __future__ import annotations
 import asyncio
 import json
 import re
+import sys
 from collections.abc import Mapping
+from pathlib import Path
 
 import parser_settings
+
+# The dashboard is a separate process from the bot. Add the parser's vendored
+# dependency directory the same way plugins/media_parser.py does, so the
+# Bilibili QR path works without installing parser extras into the app venv.
+_PARSER_DEPS = Path(__file__).resolve().parent / 'parser_deps'
+if _PARSER_DEPS.is_dir() and str(_PARSER_DEPS) not in sys.path:
+    sys.path.append(str(_PARSER_DEPS))
 
 BILI_KEYS = ('SESSDATA', 'bili_jct', 'DedeUserID')
 BILI_REQUIRED = ('SESSDATA', 'bili_jct')

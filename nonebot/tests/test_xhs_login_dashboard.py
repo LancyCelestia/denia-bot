@@ -246,60 +246,219 @@ class XhsLoginDashboardTest(unittest.TestCase):
             self.assertNotIn('web_session=real', response.text)
 
 
-class XhsClientTest(unittest.IsolatedAsyncioTestCase):
-    async def test_start_accepts_a_real_png_and_rejects_garbage(self):
-        response = {'id': 'a' * 64, 'qr_png': VALID_QR, 'expires_in': 180}
-        with patch.object(xhs_login, '_request', AsyncMock(return_value=response)):
-            started = await xhs_login.start('admin')
-        self.assertEqual(started['id'], 'a' * 64)
-        self.assertEqual(started['qr_png'], VALID_QR)
-        with patch.object(
-            xhs_login, '_request',
-            AsyncMock(return_value={**response, 'qr_png': 'AAAA'}),
-        ):
-            with self.assertRaises(xhs_login.XhsLoginError):
-                await xhs_login.start('admin')
+class FakeClock:
+    def __init__(self, now: float = 1000.0):
+        self.now = now
 
-    async def test_status_only_exposes_known_error_codes(self):
-        with patch.object(
-            xhs_login, '_request',
-            AsyncMock(return_value={'status': 'error', 'code': 'risk_control'}),
-        ):
-            result = await xhs_login.status('admin', 'a' * 64)
-        self.assertEqual(result, {'status': 'error', 'code': 'risk_control'})
-        with patch.object(
-            xhs_login, '_request',
-            AsyncMock(return_value={'status': 'error', 'code': 'other'}),
-        ):
-            result = await xhs_login.status('admin', 'a' * 64)
-        self.assertEqual(result, {'status': 'error'})
+    def __call__(self) -> float:
+        return self.now
 
 
-class XhsTokenTest(unittest.TestCase):
-    def test_init_token_is_one_line_and_idempotent(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            target = Path(tmp) / 'token.env'
-            with patch.object(xhs_login, 'TOKEN_PATH', target):
-                path = xhs_login.init_token()
-                first = path.read_text(encoding='utf-8')
-                self.assertRegex(first, r'^XHS_LOGIN_TOKEN=[0-9a-f]{64}\n$')
-                self.assertEqual(xhs_login.init_token(), path)
-                self.assertEqual(path.read_text(encoding='utf-8'), first)
-                if os.name != 'nt':
-                    self.assertEqual(path.stat().st_mode & 0o777, 0o600)
-                target.write_text('bad\n', encoding='utf-8')
-                with self.assertRaises(xhs_login.XhsLoginError):
-                    xhs_login.init_token()
+def login_cookies(value: str = 'real') -> list[dict[str, str]]:
+    return [{
+        'name': 'web_session',
+        'value': value,
+        'domain': '.xiaohongshu.com',
+        'path': '/',
+    }]
 
-    def test_cookie_header_validation(self):
-        self.assertEqual(
-            xhs_login._cookie_header('web_session=real; a1=device'),
-            'web_session=real; a1=device',
+
+class FakeBrowser:
+    def __init__(self, qr: str = VALID_QR, steps=None, open_error=None):
+        self.qr = qr
+        self.steps = list(steps or [{'status': 'waiting'}])
+        self.open_error = open_error
+        self.closed = False
+
+    async def open(self):
+        if self.open_error is not None:
+            raise self.open_error
+        return self.qr
+
+    async def poll(self):
+        if not self.steps:
+            return {'status': 'waiting'}
+        step = self.steps.pop(0)
+        if isinstance(step, Exception):
+            raise step
+        return step
+
+    async def close(self):
+        self.closed = True
+
+
+class XhsManagerTest(unittest.IsolatedAsyncioTestCase):
+    def manager(self, browser, clock=None):
+        return xhs_login._LoginManager(
+            browser_factory=lambda: browser,
+            clock=clock or FakeClock(),
         )
+
+    async def test_start_wait_scan_ready_claim_and_commit(self):
+        browser = FakeBrowser(steps=[
+            {'status': 'waiting'},
+            {'status': 'scanned'},
+            {'status': 'ready', 'cookies': login_cookies()},
+        ])
+        manager = self.manager(browser)
+        started = await manager.start('admin')
+        self.assertTrue(xhs_login.valid_session_id(started['id']))
+        self.assertEqual(started['qr_png'], VALID_QR)
+        self.assertEqual(started['expires_in'], xhs_login.QR_TTL)
+        session_id = started['id']
+        self.assertEqual(await manager.status('admin', session_id), {'status': 'waiting'})
+        self.assertEqual(await manager.status('admin', session_id), {'status': 'scanned'})
+        self.assertEqual(await manager.status('admin', session_id), {'status': 'ready'})
+        self.assertTrue(browser.closed)
+        claim = await manager.claim('admin', session_id)
+        self.assertTrue(xhs_login.valid_session_id(claim['claim_id']))
+        self.assertEqual(claim['cookies'], 'web_session=real')
+        self.assertEqual(await manager.status('admin', session_id), {'status': 'saving'})
+        await manager.settle('admin', session_id, claim['claim_id'], True)
+        with self.assertRaises(xhs_login.XhsLoginError) as ctx:
+            await manager.status('admin', session_id)
+        self.assertEqual(ctx.exception.status, 404)
+
+    async def test_owner_binding_and_single_active_session(self):
+        browser = FakeBrowser()
+        manager = self.manager(browser)
+        started = await manager.start('admin-a')
+        with self.assertRaises(xhs_login.XhsLoginError) as ctx:
+            await manager.status('admin-b', started['id'])
+        self.assertEqual(ctx.exception.status, 404)
+        with self.assertRaises(xhs_login.XhsLoginError) as ctx:
+            await manager.start('admin-a')
+        self.assertEqual(ctx.exception.status, 409)
+        await manager.cancel('admin-a', started['id'])
+        self.assertTrue(browser.closed)
         with self.assertRaises(xhs_login.XhsLoginError):
-            xhs_login._cookie_header('a1=device')
+            await manager.status('admin-a', started['id'])
+
+    async def test_cancel_is_rejected_while_saving_and_release_restores_ready(self):
+        browser = FakeBrowser(steps=[
+            {'status': 'ready', 'cookies': login_cookies()},
+        ])
+        manager = self.manager(browser)
+        started = await manager.start('admin')
+        self.assertEqual(await manager.status('admin', started['id']), {'status': 'ready'})
+        claim = await manager.claim('admin', started['id'])
+        with self.assertRaises(xhs_login.XhsLoginError) as ctx:
+            await manager.cancel('admin', started['id'])
+        self.assertEqual(ctx.exception.status, 409)
+        await manager.settle('admin', started['id'], claim['claim_id'], False)
+        self.assertEqual(await manager.status('admin', started['id']), {'status': 'ready'})
+        await manager.cancel('admin', started['id'])
+        self.assertTrue(browser.closed)
+
+    async def test_qr_and_ready_ttl_expire(self):
+        clock = FakeClock(0.0)
+        browser = FakeBrowser()
+        manager = self.manager(browser, clock)
+        started = await manager.start('admin')
+        clock.now = xhs_login.QR_TTL
+        self.assertEqual(await manager.status('admin', started['id']), {'status': 'expired'})
+        self.assertTrue(browser.closed)
+
+        clock.now = 1000.0
+        browser2 = FakeBrowser(steps=[
+            {'status': 'ready', 'cookies': login_cookies()},
+        ])
+        manager2 = self.manager(browser2, clock)
+        started2 = await manager2.start('admin')
+        self.assertEqual(await manager2.status('admin', started2['id']), {'status': 'ready'})
+        clock.now += xhs_login.READY_TTL
+        self.assertEqual(await manager2.status('admin', started2['id']), {'status': 'expired'})
+
+    async def test_risk_control_on_start_is_a_clear_error(self):
+        browser = FakeBrowser(open_error=xhs_login.XhsLoginError(
+            502, xhs_login.RISK_MESSAGE,
+        ))
+        manager = self.manager(browser)
+        with self.assertRaises(xhs_login.XhsLoginError) as ctx:
+            await manager.start('admin')
+        self.assertEqual(ctx.exception.status, 502)
+        self.assertIn('风控', ctx.exception.detail)
+        self.assertTrue(browser.closed)
+
+    async def test_risk_control_and_unknown_poll_errors_are_mapped(self):
+        browser = FakeBrowser(steps=[{'status': 'error', 'code': 'risk_control'}])
+        manager = self.manager(browser)
+        started = await manager.start('admin')
+        self.assertEqual(
+            await manager.status('admin', started['id']),
+            {'status': 'error', 'code': 'risk_control'},
+        )
+        self.assertTrue(browser.closed)
+
+        browser2 = FakeBrowser(steps=[{'status': 'error', 'code': 'other'}])
+        manager2 = self.manager(browser2)
+        started2 = await manager2.start('admin')
+        self.assertEqual(
+            await manager2.status('admin', started2['id']),
+            {'status': 'error', 'code': 'upstream_error'},
+        )
+
+    async def test_poll_exception_closes_browser_without_leaking_details(self):
+        browser = FakeBrowser(steps=[RuntimeError('upstream secret')])
+        manager = self.manager(browser)
+        started = await manager.start('admin')
+        self.assertEqual(
+            await manager.status('admin', started['id']),
+            {'status': 'error', 'code': 'upstream_error'},
+        )
+        self.assertTrue(browser.closed)
+
+    async def test_invalid_cookie_is_reported_without_values(self):
+        browser = FakeBrowser(steps=[{
+            'status': 'ready',
+            'cookies': [{
+                'name': 'a1', 'value': 'device',
+                'domain': '.xiaohongshu.com', 'path': '/',
+            }],
+        }])
+        manager = self.manager(browser)
+        started = await manager.start('admin')
+        result = await manager.status('admin', started['id'])
+        self.assertEqual(result, {'status': 'error', 'code': 'invalid_cookie'})
+        self.assertNotIn('device', str(result))
+        self.assertTrue(browser.closed)
+
+    async def test_bad_qr_is_rejected_and_browser_is_closed(self):
+        for qr in ('AAAA', 'not-base64!'):
+            browser = FakeBrowser(qr=qr)
+            manager = self.manager(browser)
+            with self.assertRaises(xhs_login.XhsLoginError):
+                await manager.start('admin')
+            self.assertTrue(browser.closed)
+
+    async def test_claim_lease_restores_ready(self):
+        clock = FakeClock(0.0)
+        browser = FakeBrowser(steps=[
+            {'status': 'ready', 'cookies': login_cookies()},
+        ])
+        manager = self.manager(browser, clock)
+        started = await manager.start('admin')
+        self.assertEqual(await manager.status('admin', started['id']), {'status': 'ready'})
+        claim = await manager.claim('admin', started['id'])
+        clock.now += xhs_login.CLAIM_TTL
+        self.assertEqual(await manager.status('admin', started['id']), {'status': 'ready'})
         with self.assertRaises(xhs_login.XhsLoginError):
-            xhs_login._cookie_header('web_session=bad value')
+            await manager.settle('admin', started['id'], claim['claim_id'], True)
+
+    def test_cookie_header_prefers_exact_host_and_requires_web_session(self):
+        header = xhs_login.cookie_header([
+            {'name': 'web_session', 'value': 'root', 'domain': '.xiaohongshu.com', 'path': '/'},
+            {'name': 'web_session', 'value': 'host', 'domain': 'www.xiaohongshu.com', 'path': '/'},
+            {'name': 'a1', 'value': 'device', 'domain': '.xiaohongshu.com', 'path': '/'},
+            {'name': 'bad name', 'value': 'x', 'domain': '.xiaohongshu.com', 'path': '/'},
+        ])
+        self.assertEqual(header, 'web_session=host; a1=device')
+        with self.assertRaises(xhs_login.XhsLoginError):
+            xhs_login.cookie_header([
+                {'name': 'a1', 'value': 'device', 'domain': '.xiaohongshu.com'},
+            ])
+        with self.assertRaises(xhs_login.XhsLoginError):
+            xhs_login.cookie_header('web_session=real')
 
 
 if __name__ == '__main__':

@@ -213,6 +213,12 @@ ensure_venv() {
         run "$PIP" -m pip check
     fi
     run "$PIP" -c "import nonebot, importlib.util; assert importlib.util.find_spec('muicebot') is not None"
+    log "ensuring Playwright Chromium for the dashboard's Xiaohongshu login"
+    if [ "$(id -u)" -eq 0 ]; then
+        run "$PIP" -m playwright install --with-deps chromium
+    else
+        run "$PIP" -m playwright install chromium
+    fi
 }
 
 ensure_configs() {
