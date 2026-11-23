@@ -160,7 +160,9 @@ class ParserCredentialApiTest(unittest.TestCase):
                 self.assertTrue(response.json()['cookie_file_written'])
                 target = Path(tmp) / 'cookies' / 'bilibili_cookies.txt'
                 self.assertTrue(target.exists())
-                self.assertIn('\tSESSDATA\tsess', target.read_text(encoding='utf-8'))
+                content = target.read_text(encoding='utf-8')
+                self.assertIn('#HttpOnly_.bilibili.com', content)
+                self.assertIn('\tSESSDATA\tsess', content)
                 write.assert_called_once()
 
     def test_qr_endpoints_are_authenticated_and_csrf_checked(self):

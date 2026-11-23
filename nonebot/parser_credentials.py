@@ -354,19 +354,21 @@ def _rows_from_cookie_mapping(
     ]
 
 
-def save_bilibili_cookies(cookies: Mapping[str, str]) -> dict:
+def save_bilibili_cookies(
+    cookies: Mapping[str, str],
+    rows: list[NetscapeCookie] | None = None,
+) -> dict:
     """Paste/JSON/Netscape import: save config, cookie file, then login state."""
     public = save_bilibili_config(cookies)
     message = 'B 站 Cookie 已导入'
+    if rows is None:
+        rows = _rows_from_cookie_mapping(
+            {name: cookies[name] for name in BILI_KEYS if cookies.get(name)},
+            'bilibili',
+        )
     cookie_file_written = True
     try:
-        write_platform_cookie_file(
-            'bilibili',
-            _rows_from_cookie_mapping(
-                {name: cookies[name] for name in BILI_KEYS if cookies.get(name)},
-                'bilibili',
-            ),
-        )
+        write_platform_cookie_file('bilibili', rows)
     except OSError as e:
         cookie_file_written = False
         message += f'；Cookie 文件写入失败：{e.strerror or e}'
@@ -384,6 +386,14 @@ def save_bilibili_cookies(cookies: Mapping[str, str]) -> dict:
         'credential_written': credential_written,
         'message': message,
     }
+
+
+def parse_bilibili_cookie_rows(raw: str) -> list[NetscapeCookie] | None:
+    """Return Netscape rows for Bilibili, or None for header/JSON input."""
+    text = _clean_cookie_input(raw)
+    if not text or not is_netscape_cookie_file(text):
+        return None
+    return parse_platform_cookie_rows(text, 'bilibili')
 
 
 def _platform_supports_cookies(platform: str) -> bool:

@@ -754,7 +754,8 @@ async def import_bilibili_cookies(req: Request):
         raise HTTPException(400, '请提供 Cookie 字符串或 JSON')
     try:
         cookies = parser_credentials.parse_cookie_input(raw)
-        return parser_credentials.save_bilibili_cookies(cookies)
+        rows = parser_credentials.parse_bilibili_cookie_rows(raw)
+        return parser_credentials.save_bilibili_cookies(cookies, rows=rows)
     except FileExistsError as e:
         raise HTTPException(409, str(e))
     except (ValueError, TypeError) as e:
