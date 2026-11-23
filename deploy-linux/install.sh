@@ -333,13 +333,15 @@ ensure_rag() {
         fi
     fi
     if command -v uv >/dev/null 2>&1; then
-        run uv pip install --python "$ROOT/rag/.venv/bin/python" onnxruntime jieba tokenizers numpy fastapi uvicorn
+        run uv pip install --python "$ROOT/rag/.venv/bin/python" jieba numpy fastapi uvicorn
     else
-        run "$ROOT/rag/.venv/bin/python" -m pip install --disable-pip-version-check --no-input onnxruntime jieba tokenizers numpy fastapi uvicorn
+        run "$ROOT/rag/.venv/bin/python" -m pip install --disable-pip-version-check --no-input jieba numpy fastapi uvicorn
     fi
-    log "RAG deps installed; place bge-m3 ONNX weights and run:"
-    log "  $ROOT/rag/.venv/bin/python $ROOT/rag/build_index.py --dir $ROOT/knowledge"
-    log "  $ROOT/rag/.venv/bin/python $ROOT/rag/serve.py --port 8091"
+    log "RAG deps installed (SiliconFlow cloud-only path)."
+    log "1) save the SiliconFlow API key in nonebot/data/embedding_secrets.json"
+    log "2) build:  $ROOT/rag/.venv/bin/python $ROOT/rag/rebuild_index.py --knowledge $ROOT/knowledge --output $ROOT/rag/index-siliconflow"
+    log "3) serve:  $ROOT/rag/.venv/bin/python $ROOT/rag/serve_cloud.py --port 8091"
+    log "   (--activate swaps the index; Linux uses the qqbot-rag-cloud systemd unit when installed)"
 }
 
 ensure_systemd() {

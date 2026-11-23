@@ -2,12 +2,17 @@
 
 The dashboard's Embedding card invokes this as a detached process.  The active
 index remains available while the new directory is built; activation stops the
-RAG unit, swaps the directory atomically, starts it again, and rolls back if the
-new index does not become healthy.
+RAG service, swaps the directory atomically, starts it again, and rolls back if
+the new index does not become healthy.  Linux uses systemd when available;
+Windows (and POSIX without systemd) stop port 8091 and restart `serve_cloud.py`
+directly through `service_control.py`.
 
 Examples (run from the repository root):
     rag/.venv/bin/python rag/rebuild_index.py --dry-run \
         --knowledge knowledge --output rag/index-siliconflow-rebuild
+    rag/.venv/bin/python rag/rebuild_index.py --activate \
+        --knowledge knowledge --output rag/index-siliconflow-rebuild \
+        --active rag/index-siliconflow
 """
 
 from __future__ import annotations
@@ -22,6 +27,7 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import numpy as np
 
@@ -29,6 +35,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
 import core  # noqa: E402
+import service_control  # noqa: E402
 from siliconflow import MODEL, CloudEmbeddingError, SiliconFlowEmbedder  # noqa: E402
 
 STATE_VERSION = 1
@@ -112,7 +119,7 @@ def _profile_entries(lexicon: dict[str, list[int]], chunks: list[core.Chunk], st
         lexicon[key] = sorted(set(ids))
 
 
-def _encode_with_retry(embedder, texts: list[str], attempts: int = 5) -> np.ndarray:
+def _encode_with_retry(embedder, texts: list[str], attempts: int = 3) -> np.ndarray:
     last: Exception | None = None
     for attempt in range(attempts):
         try:
@@ -124,31 +131,58 @@ def _encode_with_retry(embedder, texts: list[str], attempts: int = 5) -> np.ndar
     raise last or RuntimeError('embedding failed')
 
 
-def _wait_for_health(url: str, expected_chunks: int, seconds: int = 60) -> dict:
+def _same_index(reported, expected: Path | None) -> bool:
+    if not reported or expected is None:
+        return False
+    try:
+        return os.path.normcase(str(Path(reported).resolve())) == os.path.normcase(str(Path(expected).resolve()))
+    except (OSError, ValueError):
+        return False
+
+
+def _wait_for_health(url: str, expected_chunks: int | None, seconds: int = 60,
+                     expected_index: Path | None = None) -> dict:
     last_error = 'no health response'
     deadline = time.monotonic() + seconds
     while time.monotonic() < deadline:
         try:
             with urllib.request.urlopen(url, timeout=3) as response:
                 data = json.load(response)
-            if data.get('ready') and int(data.get('chunks') or 0) == expected_chunks:
+            chunks_ok = expected_chunks is None or int(data.get('chunks') or 0) == int(expected_chunks)
+            index_ok = expected_index is None or _same_index(data.get('index'), expected_index)
+            if data.get('ready') and chunks_ok and index_ok:
                 return data
-            last_error = f"ready={data.get('ready')} chunks={data.get('chunks')}"
-        except (OSError, ValueError, urllib.error.URLError) as exc:
+            last_error = (f"ready={data.get('ready')} chunks={data.get('chunks')} "
+                          f"index={data.get('index')}")
+        except (OSError, ValueError, TypeError, urllib.error.URLError) as exc:
             last_error = str(exc) or type(exc).__name__
         time.sleep(1)
     raise RuntimeError(f'RAG health check failed: {last_error}')
 
 
-def activate_index(output: Path, active: Path, service: str, health_url: str, expected_chunks: int) -> str:
-    """Swap a validated index into the active path and restart the RAG unit."""
-    systemctl = shutil.which('systemctl')
-    if os.name == 'nt' or systemctl is None or not service:
-        return 'index built but not activated (systemctl unavailable)'
+def _probe_health(url: str) -> dict:
+    try:
+        with urllib.request.urlopen(url, timeout=2) as response:
+            data = json.load(response)
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError, urllib.error.URLError):
+        return {}
 
-    active = Path(active)
-    previous = active.with_name(active.name + f'.previous-{int(time.time())}')
-    failed = active.with_name(active.name + f'.failed-{int(time.time())}')
+
+def _unique_sibling(path: Path, label: str) -> Path:
+    base = f'{path.name}.{label}-{int(time.time())}'
+    candidate = path.with_name(base)
+    suffix = 2
+    while candidate.exists() or candidate.is_symlink():
+        candidate = path.with_name(f'{base}-{suffix}')
+        suffix += 1
+    return candidate
+
+
+def _activate_systemd(output: Path, active: Path, systemctl: str, service: str,
+                      health_url: str, expected_chunks: int) -> str:
+    previous = _unique_sibling(active, 'previous')
+    failed = _unique_sibling(active, 'failed')
     moved_active = False
     switched = False
     try:
@@ -159,7 +193,7 @@ def activate_index(output: Path, active: Path, service: str, health_url: str, ex
         os.replace(output, active)
         switched = True
         subprocess.run([systemctl, 'start', service], check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        _wait_for_health(health_url, expected_chunks)
+        _wait_for_health(health_url, expected_chunks, expected_index=active)
         return f'activated {active.name} (previous: {previous.name})'
     except Exception:
         subprocess.run([systemctl, 'stop', service], check=False, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
@@ -171,6 +205,77 @@ def activate_index(output: Path, active: Path, service: str, health_url: str, ex
         finally:
             subprocess.run([systemctl, 'start', service], check=False, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         raise
+
+
+def _activate_process(output: Path, active: Path, health_url: str, expected_chunks: int,
+                      *, repo: Path | None = None) -> str:
+    """Stop port 8091, swap the index directory, start serve_cloud, then verify."""
+    output, active = Path(output).resolve(), Path(active).resolve()
+    repo = Path(repo or HERE.parent).resolve()
+    try:
+        port = urlsplit(health_url).port or 8091
+    except ValueError:
+        port = 8091
+    old_health = _probe_health(health_url)
+    try:
+        old_chunks = int(old_health.get('chunks')) if old_health.get('chunks') is not None else None
+    except (TypeError, ValueError):
+        old_chunks = None
+
+    previous = _unique_sibling(active, 'previous')
+    failed = _unique_sibling(active, 'failed')
+    moved_active = False
+    switched = False
+    stopped = False
+    try:
+        service_control.stop_listener(port)
+        stopped = True
+        if active.exists() or active.is_symlink():
+            os.replace(active, previous)
+            moved_active = True
+        os.replace(output, active)
+        switched = True
+        service_control.start_cloud_service(repo, port=port, index=active)
+        _wait_for_health(health_url, expected_chunks, expected_index=active)
+        suffix = f' (previous: {previous.name})' if moved_active else ''
+        return f'activated {active.name}{suffix}'
+    except Exception as exc:
+        rollback_errors: list[str] = []
+        if stopped:
+            try:
+                service_control.stop_listener(port)
+            except Exception as stop_exc:  # noqa: BLE001 - report, never mask the original error
+                rollback_errors.append(f'stop: {stop_exc}')
+            try:
+                if switched and (active.exists() or active.is_symlink()):
+                    os.replace(active, failed)
+                if moved_active and previous.exists():
+                    os.replace(previous, active)
+            except Exception as move_exc:  # noqa: BLE001
+                rollback_errors.append(f'restore: {move_exc}')
+            if moved_active and active.exists():
+                try:
+                    service_control.start_cloud_service(repo, port=port, index=active)
+                    _wait_for_health(health_url, old_chunks, expected_index=active)
+                except Exception as start_exc:  # noqa: BLE001
+                    rollback_errors.append(f'restart: {start_exc}')
+        if rollback_errors:
+            raise RuntimeError(f'{exc}; rollback incomplete: {"; ".join(rollback_errors)}') from exc
+        raise
+
+
+def _systemd_available(service: str) -> bool:
+    return os.name != 'nt' and bool(service) and shutil.which('systemctl') is not None
+
+
+def activate_index(output: Path, active: Path, service: str, health_url: str,
+                   expected_chunks: int, *, repo: Path | None = None) -> str:
+    """Swap a validated index into the active path and restart the RAG service."""
+    output, active = Path(output).resolve(), Path(active).resolve()
+    if _systemd_available(service):
+        return _activate_systemd(output, active, shutil.which('systemctl'), service,
+                                 health_url, expected_chunks)
+    return _activate_process(output, active, health_url, expected_chunks, repo=repo)
 
 
 def build_index(
@@ -259,10 +364,13 @@ def build_index(
 
     activated = False
     activated_message = 'index built; activation disabled'
-    if activate and active is not None:
-        _update_state(state, phase='activate', message='切换索引并重启 RAG 服务')
-        activated_message = activate_index(output, active, service, health_url, total)
-        activated = activated_message.startswith('activated')
+    if activate:
+        if active is None:
+            activated_message = 'index built but not activated (no --active path)'
+        else:
+            _update_state(state, phase='activate', message='切换索引并重启 RAG 服务')
+            activated_message = activate_index(output, active, service, health_url, total)
+            activated = activated_message.startswith('activated')
     _update_state(
         state, state='success', phase='done', done=total, total=total,
         message='重建完成：' + activated_message, activated=activated,

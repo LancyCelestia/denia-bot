@@ -69,11 +69,11 @@ function Get-PrivateValue($Key) {
 $BotUin = Get-PrivateValue 'QQBOT_SELF_ID'
 if ($BotUin) { $env:QQBOT_SELF_ID = $BotUin }
 
-# RAG 服务用哪个 venv：索引是 GPU(fp16) 建的，查询向量就必须也走 CUDA，
-# 否则就是拿 fp32 模型去比 fp16 向量。有 .venv-gpu 就用它，没有退回 .venv。
+# RAG 服务统一走 SiliconFlow 云端（BAAI/bge-m3）。rag/.venv 是重建/服务首选环境；
+# 没有它时退回 NoneBot venv（fastapi/numpy/uvicorn 已在 requirements.lock 中）。
 $RAG_PY     = "$ROOT\rag\.venv\Scripts\python.exe"
-if (Test-Path "$ROOT\rag\.venv-gpu\Scripts\python.exe") {
-    $RAG_PY = "$ROOT\rag\.venv-gpu\Scripts\python.exe"
+if (-not (Test-Path -LiteralPath $RAG_PY)) {
+    $RAG_PY = "$ROOT\nonebot\.venv\Scripts\python.exe"
 }
 
 New-Item -ItemType Directory -Force -Path $LOG | Out-Null
@@ -97,16 +97,37 @@ Write-Host "==========================================" -ForegroundColor Cyan
 Write-Host ""
 
 # ---------- 1. RAG 检索服务 ----------
-$ragExpected = (Test-Path "$ROOT\rag\index\vectors.npy") -and (Test-Path $RAG_PY)
+# 只有云端索引 + 有效 SiliconFlow Key 才启动；缺任何一项都明确说原因，不静默跳过。
+$ragIndex = Join-Path $ROOT 'rag\index-siliconflow'
+if ($env:KB_CLOUD_INDEX) {
+    $ragIndex = $env:KB_CLOUD_INDEX
+    if (-not [IO.Path]::IsPathRooted($ragIndex)) {
+        $ragIndex = Join-Path $ROOT $ragIndex
+    }
+}
+$ragKeyFile = Join-Path $ROOT 'nonebot\data\embedding_secrets.json'
+$ragKeyConfigured = $false
+if (Test-Path -LiteralPath $ragKeyFile -PathType Leaf) {
+    try {
+        $ragSecrets = Get-Content -LiteralPath $ragKeyFile -Raw -Encoding UTF8 | ConvertFrom-Json
+        $ragKeyConfigured = [bool]("$($ragSecrets.api_key)".Trim())
+    } catch {
+        $ragKeyConfigured = $false
+    }
+}
+$ragExpected = (Test-Path "$ragIndex\vectors.npy") -and $ragKeyConfigured
 Write-Host "[1/5] RAG 检索服务 (8091) ..." -NoNewline
 if (Test-Listening 8091) {
     Write-Host " 已在运行" -ForegroundColor Yellow
-} elseif (-not (Test-Path "$ROOT\rag\index\vectors.npy")) {
-    Write-Host " [--] 索引不存在，跳过（可选）" -ForegroundColor Yellow
-} elseif (-not (Test-Path $RAG_PY)) {
-    Write-Host " [--] 虚拟环境不存在，跳过（可选）" -ForegroundColor Yellow
+} elseif (-not (Test-Path "$ragIndex\vectors.npy")) {
+    Write-Host " [--] RAG 未启用（需要 SiliconFlow Key/索引）：索引不存在 $ragIndex" -ForegroundColor Yellow
+} elseif (-not $ragKeyConfigured) {
+    Write-Host " [--] RAG 未启用（需要 SiliconFlow Key/索引）：缺少 $ragKeyFile 中的 api_key" -ForegroundColor Yellow
+} elseif (-not (Test-Path -LiteralPath $RAG_PY)) {
+    Write-Host " [--] RAG 未启用（需要 SiliconFlow Key/索引）：Python 环境不存在 $RAG_PY" -ForegroundColor Yellow
 } else {
-    Start-Process -FilePath $RAG_PY -ArgumentList 'serve.py' `
+    $env:KB_CLOUD_INDEX = $ragIndex
+    Start-Process -FilePath $RAG_PY -ArgumentList 'serve_cloud.py', '--port', '8091' `
         -WorkingDirectory "$ROOT\rag" `
         -RedirectStandardOutput "$LOG\rag.out.log" `
         -RedirectStandardError  "$LOG\rag.err.log" `
@@ -197,7 +218,7 @@ if ($ok2) { Write-Host "  [OK] SnowLuma WebUI    : http://127.0.0.1:5099" -Foreg
 else      { Write-Host "  [!!] SnowLuma 未就绪，看日志: $LOG\snowluma.out.log" -ForegroundColor Red }
 
 if ($ok3) { Write-Host "  [OK] RAG 检索服务      : http://127.0.0.1:8091" -ForegroundColor Green }
-elseif (-not $ragExpected) { Write-Host "  [--] RAG 未启用（可选）" -ForegroundColor Yellow }
+elseif (-not $ragExpected) { Write-Host "  [--] RAG 未启用（需要 SiliconFlow Key/索引）" -ForegroundColor Yellow }
 else      { Write-Host "  [!!] RAG 未就绪，看日志: $LOG\rag.out.log" -ForegroundColor Red }
 
 if ($ok4) {

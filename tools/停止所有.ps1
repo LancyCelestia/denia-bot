@@ -54,9 +54,9 @@ Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
         $killed++
     }
 
-# RAG 检索服务
+# RAG 检索服务（serve_cloud.py；兼容残留的旧 serve.py 进程）
 Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
-    Where-Object { $_.Name -eq 'python.exe' -and $_.CommandLine -match 'serve\.py' } |
+    Where-Object { $_.Name -eq 'python.exe' -and $_.CommandLine -match 'serve(?:_cloud)?\.py' } |
     ForEach-Object {
         Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
         Write-Host "  已停止 RAG 检索服务 (PID $($_.ProcessId))" -ForegroundColor Green

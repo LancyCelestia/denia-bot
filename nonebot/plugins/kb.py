@@ -1,4 +1,4 @@
-"""知识库检索注入 —— 调 rag/ 的本地检索服务，把命中的设定片段拼进本轮 system prompt。
+"""知识库检索注入 —— 调 rag/ 的云端检索服务（SiliconFlow BAAI/bge-m3），把命中的设定片段拼进本轮 system prompt。
 
 只在检索判定「相关」时才注入，无关就一条都不塞（避免资料稀释人格）。
 检索服务挂了 / 超时，直接当没命中，不影响正常聊天。
@@ -234,7 +234,7 @@ async def status(event: Event, args: Message = CommandArg()) -> None:
             health = (await c.get(f"{RAG_URL}/health")).json()
         svc = f"已连接，索引 {health.get('chunks')} 块" if health.get("ready") else "服务在线但索引未就绪"
     except Exception:  # noqa: BLE001
-        svc = "未启动（运行 启动机器人.bat，或 rag\\.venv-gpu\\Scripts\\python.exe rag\\serve.py）"
+        svc = "未启动（运行 启动机器人.bat，或 rag\\.venv\\Scripts\\python.exe rag\\serve_cloud.py；需要 SiliconFlow Key/索引）"
 
     await kb.finish(
         f"本会话自动注入：{'开' if _on(session) else '关'}\n检索服务：{svc}\n"

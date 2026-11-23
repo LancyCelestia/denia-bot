@@ -19,7 +19,7 @@ import math
 import time
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import numpy as np  # noqa: E402
 from core import BM25_B, BM25_K1, Embedder, Index, search, tokenize  # noqa: E402

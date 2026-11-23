@@ -12,6 +12,8 @@ from pathlib import Path
 import httpx
 import gate_logic as gl
 import model_dispatch
+from rag_client import RagConsistencyError, RagEmbeddingError
+from rag_client import embed as _rag_embed
 from nonebot import get_driver, logger, on_message
 from nonebot.adapters import Event
 from muicebot.llm import ModelRequest
@@ -122,14 +124,7 @@ async def handle_command(event: Event) -> None:
 
 
 async def _embed(text: str):
-    async with httpx.AsyncClient(timeout=5) as client:
-        r = await client.post('http://127.0.0.1:8091/embed', json={'text': text[:2000]})
-        r.raise_for_status()
-        data = r.json()
-        vector = data.get('vector')
-        if data.get('model') != 'siliconflow-bge-m3-v1' or not isinstance(vector, list) or len(vector) != 1024:
-            raise ValueError('unexpected embedding')
-        return vector
+    return await _rag_embed(text)
 
 
 async def _backfill(uid: str, limit=20):
@@ -209,11 +204,14 @@ async def _process_job(job):
                        before_request=before_send)
         memory.complete_job(memory.DEFAULT_PATH, job['id'])
     except Exception as e:
-        if not sent and isinstance(e, (model_dispatch.PreSendUnavailable, TimeoutError, OSError, httpx.HTTPError, sqlite3.OperationalError)):
+        transient = isinstance(e, (model_dispatch.PreSendUnavailable, TimeoutError, OSError,
+                                   httpx.HTTPError, sqlite3.OperationalError))
+        transient = transient or (isinstance(e, RagEmbeddingError) and not isinstance(e, RagConsistencyError))
+        if not sent and transient:
             memory.defer_job(memory.DEFAULT_PATH, job['id'], type(e).__name__)
         else:
             memory.fail_job(memory.DEFAULT_PATH, job['id'], type(e).__name__)
-        logger.warning(f'[memory] 提取任务失败：{type(e).__name__}')
+        logger.warning(f'[memory] 提取任务失败：{type(e).__name__}: {e}')
 
 
 async def _worker():
