@@ -1,6 +1,6 @@
 r"""原始触发的端到端接线断言：图在前 + 文字在后，真的能被 MuiceBot 的 `.+` 匹配到。
 
-    cd D:\Software\qqbot\nonebot
+    cd nonebot
     .venv\Scripts\python.exe -m pytest tests\test_image_first_match.py
 
 这里的判定标准不是「钩子被调用」，而是**真的拿 MuiceBot 自己的 alconna 命令去解析**

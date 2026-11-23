@@ -1,7 +1,7 @@
 # 终末地插件接入面盘点（wayfinder #3）
 
 - 调研日期：2026-10-31
-- 代码快照：`D:\Software\qqbot` 的**工作区**（分支 `main`，HEAD `f22a100`），包含未提交改动与未跟踪文件；本轮**只读**，未写入主工作区
+- 代码快照：仓库根目录的**工作区**（分支 `main`，HEAD `f22a100`），包含未提交改动与未跟踪文件；本轮**只读**，未写入主工作区
 - 交付位置：`denia-endfield-integration` 工作区（分支 `research/endfield-integration`，HEAD 同为 `f22a100`）
 - 结论口径：正文中未标「建议」的陈述，都是读代码/配置确认的现状；标「**建议**」的是判断与取舍，不是现状
 
@@ -33,7 +33,7 @@
 
 | 项 | 值 |
 |---|---|
-| 主仓库 | `D:\Software\qqbot`，`main`，HEAD `f22a100` |
+| 主仓库 | 仓库根目录，`main`，HEAD `f22a100` |
 | 目标工作区 | `<USER_HOME>\AppData\Local\Temp\denia-endfield-integration`，分支 `research/endfield-integration` |
 | 运行时 | Python + `nonebot2==2.5.0` + `MuiceBot==1.1.5` + OneBot v11（SnowLuma） |
 | 进程模型 | 机器人（`bot.py`）与管理面板（`uvicorn dashboard:app`）是**两个进程**，只共享文件（`nonebot/dashboard.py:328-330`） |

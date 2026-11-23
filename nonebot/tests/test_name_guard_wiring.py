@@ -1,6 +1,6 @@
 r"""署名超时保险的接线断言 —— 真把 MuiceBot 那份引用换掉了没有。
 
-    cd D:\Software\qqbot\nonebot
+    cd nonebot
     .venv\Scripts\python.exe tests\test_name_guard_wiring.py
 
 `test_name_guard_logic.py` 管「等不到时该顶什么称呼」，这里管

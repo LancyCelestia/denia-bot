@@ -1,6 +1,6 @@
 r"""检索词规划（`kb_logic`）的断言测试 —— 不 import nonebot，秒级。
 
-    cd D:\Software\qqbot\nonebot
+    cd nonebot
     .venv\Scripts\python.exe tests\test_kb_logic.py
 
 要保住的两侧行为，历史上互相打架：

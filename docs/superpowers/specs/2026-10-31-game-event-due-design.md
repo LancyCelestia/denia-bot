@@ -1,7 +1,7 @@
 # 游戏活动日历移植设计（已确认，含会话限制补充）
 
 日期：2026-10-31（北京时间）  
-目标仓库：`Lkyloveaw/denia-bot`，工作目录 `D:\Software\qqbot`  
+目标仓库：`Lkyloveaw/denia-bot`，工作目录：仓库根目录<br>
 参考项目：`XinDuKW/astrbot_plugin_game_event_due`，v1.1.1，固定提交 `daeb265ef42b7a576cf70f646d2859a68ec01fd6`  
 状态：**2026-10-31 用户批准方案并要求面板独立管理项、参照链接解析器的会话限制；进入实施。**
 

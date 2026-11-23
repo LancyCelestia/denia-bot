@@ -1,6 +1,6 @@
 r"""署名查询超时的纯逻辑断言 —— 协议端不答时，她到底该拿什么当署名。
 
-    cd D:\Software\qqbot\nonebot
+    cd nonebot
     .venv\Scripts\python.exe tests\test_name_guard_logic.py
 
 为什么要有这一层（2026-09-27 那次「她整条消息不回」排查出来的）：

@@ -1,6 +1,6 @@
 r"""群聊署名规范化（`prompt_logic`）的断言测试 —— 不 import nonebot，秒级。
 
-    cd D:\Software\qqbot\nonebot
+    cd nonebot
     .venv\Scripts\python.exe tests\test_prompt_logic.py
 
 要保住的是 2026-09-27 那次「答非所问」的三条根因（详见 `prompt_logic.py` 开头）：

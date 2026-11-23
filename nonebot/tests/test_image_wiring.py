@@ -1,6 +1,6 @@
 r"""图片插件的接线断言 —— 拿真实的 `Message` / `ModelRequest` 喂钩子，看它到底改了什么。
 
-    cd D:\Software\qqbot\nonebot
+    cd nonebot
     .venv\Scripts\python.exe tests\test_image_wiring.py
 
 不连 QQ、不调模型：只验证 `prepare` / `strip_history_media` / `forget_images`

@@ -1,6 +1,6 @@
 r"""署名规范化的接线断言 —— 拿真实的 `ModelRequest` 喂钩子，看模型最终会看到什么。
 
-    cd D:\Software\qqbot\nonebot
+    cd nonebot
     .venv\Scripts\python.exe tests\test_prompt_wiring.py
 
 跟 `test_prompt_logic.py` 的分工：那边管「该怎么切、怎么排」，这边管

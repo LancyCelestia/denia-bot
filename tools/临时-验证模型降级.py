@@ -1,7 +1,7 @@
 r"""临时验证脚本（不发给 QQ、不动生产配置、不调真模型额度）：
 用**真实的 MuiceBot 对象**跑一遍 `model_pref` 的换人管线。
 
-    cd D:\Software\qqbot\nonebot
+    cd nonebot
     .venv\Scripts\python.exe -X utf8 ..\tools\临时-验证模型降级.py
 
 覆盖的是接线测试覆盖不到的那半截：真的 `ModelConfig` / 真的 provider 类 / 真的 `_echo`，

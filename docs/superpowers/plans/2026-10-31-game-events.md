@@ -109,6 +109,6 @@ Files: dashboard.py, dashboard.html, game_event_panel.py（允许提取API组装
 - Review 3：不同mode/bot/games的任务不再默认为重复任务，而返回409，面板展示返回任务实际范围。新增TestClient回归先202红后409绿，相关48项通过；最终窄范围复审无剩余可执行发现，报告`.tmp/game-event-final-review.md`。
 - 全套第一轮531通过/1跳过/1失败：旧Epic测试假设FastAPI路由全有.path，新增include_router惰性路由触发失败；改为TestClient核验实际接口鉴权响应，相关Epic测试通过。不是生产路由缺失。
 - Ruling: 保留所有代码在当前功能分支工作树，不自动提交/合并混合的现有用户改动；无生产部署/重启或真实QQ测试消息。
-- **最终验证（2026-10-31）：533 passed, 1 skipped, 1 warning, 18 subtests passed，90.98秒。** 命令为 `nonebot/.venv/Scripts/python.exe -m pytest tests -q --disable-warnings --tb=short --basetemp=D:/Software/qqbot/.tmp/game-final-suite`（工作目录nonebot，离线，Windows socketpair需升级执行）。警告为既有NoneBot测试引导的No adapters found，基线亦有。
+- **最终验证（2026-10-31）：533 passed, 1 skipped, 1 warning, 18 subtests passed，90.98秒。** 命令为 `nonebot/.venv/Scripts/python.exe -m pytest tests -q --disable-warnings --tb=short --basetemp=../.tmp/game-final-suite`（工作目录nonebot，离线，Windows socketpair需升级执行）。警告为既有NoneBot测试引导的No adapters found，基线亦有。
 - Python语法检查14个新增模块/测试通过；全量dashboard脚本`node --check`通过；本任务相关已跟踪文件`git diff --check`通过。全仓whitespace检查报告原有`plugins/memory.py` CRLF尾随告警，未改动该文件。
 - 完整实现与审阅结束；临时只读预览页面/本地服务已关闭。部署网络、实际QQ私聊/群聊图片与合并转发投递仍属于上线联调，未执行。不宣称真实投递验收通过。

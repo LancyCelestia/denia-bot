@@ -1,6 +1,6 @@
 r"""引用修复的接线断言 —— 逐字复现 `muicebot/onebot.py:621-626` 那段拼接。
 
-    cd D:\Software\qqbot\nonebot
+    cd nonebot
     .venv\Scripts\python.exe tests\test_quote_wiring.py
 
 跟 `test_quote_logic.py` 的分工：那边管「该渲染成什么样」，这边管

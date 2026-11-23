@@ -1,6 +1,6 @@
 r"""闸门接线的断言测试 —— 用 OneBot 真实事件对象喂 `gate_rule`，看它放不放行。
 
-    cd D:\Software\qqbot\nonebot
+    cd nonebot
     .venv\Scripts\python.exe tests\test_gate_wiring.py
 
 跟 `test_gate_logic.py` 的分工：那边管「上限算得对不对」，这边管
