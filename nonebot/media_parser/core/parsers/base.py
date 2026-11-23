@@ -141,7 +141,30 @@ class BaseParser:
         Raises:
             ParseException: 解析失败时抛出
         """
+        self.refresh_cookies()
         return await self._handlers[keyword](self, searched)
+
+    def refresh_cookies(self) -> None:
+        """Apply a dashboard-written cookie file before parsing.
+
+        The dashboard writes ``<parser>_cookies.txt`` atomically; parsers cache
+        the Cookie header at construction time. Reloading here keeps them in
+        sync without a bot restart.
+        """
+        jar = getattr(self, "cookiejar", None)
+        if jar is None or not jar.reload_if_changed():
+            return
+        cookie = jar.cookies_str
+        for attr in ("headers", "ios_headers", "android_headers", "auth_headers", "_headers"):
+            headers = getattr(self, attr, None)
+            if not isinstance(headers, dict):
+                continue
+            key = "Cookie" if attr == "_headers" or "Cookie" in headers else "cookie"
+            if cookie:
+                headers[key] = cookie
+            else:
+                headers.pop("cookie", None)
+                headers.pop("Cookie", None)
 
     async def parse_with_redirect(
         self,

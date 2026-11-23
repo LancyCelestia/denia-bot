@@ -222,10 +222,18 @@ def test_bilibili_credentials_import_and_qr_are_wired():
     parser = _between(text, '<section id="parser"', '</section>')
     assert 'id="biliCookieInput"' in parser
     assert 'id="biliCookieImport"' in parser
+    assert 'id="biliCookieFile"' in parser
+    assert 'type="file"' in parser
+    assert 'accept=".txt,text/plain"' in parser
+    template = _between(text, '<template id="biliCredentialsTemplate"', '</template>')
+    assert 'id="biliCookieFile"' in template
+    assert 'type="file"' in template
+    assert 'importBiliCookieFile(this)' in template
     assert 'id="biliQrImage"' in parser
     assert 'id="biliQrStart"' in parser
     assert 'id="biliCookieState"' in parser
     assert 'importBiliCookies' in text
+    assert 'importBiliCookieFile' in text
     assert 'startBiliQr' in text
     assert 'pollBiliQr' in text
     assert '/api/parser/bilibili/cookies' in text
@@ -254,3 +262,10 @@ def test_parser_platform_tabs_and_xhs_login_are_wired():
     assert 'id="xhsLoginQr"' in text
     assert '/api/parser/xhs-login/start' in text
     assert 'xhs_login_id' in text
+    assert 'FileReader' in text
+    assert 'readAsText' in text
+    assert 'importPlatformCookieFile' in text
+    assert '/api/parser/cookies' in text
+    assert "file.type='file'" in text
+    assert 'COOKIE_FILE_ACCEPT' in text
+    assert 'parser-cookie-file' in text
