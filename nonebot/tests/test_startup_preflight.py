@@ -27,6 +27,7 @@ def test_preflight_reports_and_forwards_index() -> None:
     assert 'pip config list' in text
     assert '--index-url' in text
     assert 'pypi.tuna.tsinghua.edu.cn' in text
+    assert 'NO_PROXY' in text
     assert 'proxy' in text.lower()
 
 
@@ -50,19 +51,28 @@ def _powershell() -> str:
     return exe
 
 
-def _probe(root: Path, *args: str, index_url: str | None = None) -> subprocess.CompletedProcess[str]:
+def _probe(
+    root: Path,
+    *args: str,
+    index_url: str | None = None,
+    extra_env: dict[str, str] | None = None,
+) -> subprocess.CompletedProcess[str]:
     env = os.environ.copy()
     for key in (
         'PIP_INDEX_URL',
         'PIP_EXTRA_INDEX_URL',
         'HTTP_PROXY',
         'HTTPS_PROXY',
+        'NO_PROXY',
         'http_proxy',
         'https_proxy',
+        'no_proxy',
     ):
         env.pop(key, None)
     if index_url is not None:
         env['PIP_INDEX_URL'] = index_url
+    if extra_env:
+        env.update(extra_env)
     env['QQBOT_NO_PAUSE'] = '1'
     return subprocess.run(
         [
@@ -102,3 +112,16 @@ class TestStartupPreflightIndex:
         result = _probe(tmp_path, '-IndexUrl', 'https://mirror.example/simple')
         assert result.returncode == 0, result.stderr
         assert 'one-off -IndexUrl: https://mirror.example/simple' in result.stdout
+
+    def test_proxy_environment_is_visible_and_redacted(self, tmp_path: Path) -> None:
+        result = _probe(
+            tmp_path,
+            extra_env={
+                'HTTPS_PROXY': 'http://user:secret@proxy.example:8080',
+                'NO_PROXY': 'localhost',
+            },
+        )
+        assert result.returncode == 0, result.stderr
+        assert 'HTTPS_PROXY: http://proxy.example:8080' in result.stdout
+        assert 'NO_PROXY: localhost' in result.stdout
+        assert 'secret' not in result.stdout

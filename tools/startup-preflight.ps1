@@ -81,8 +81,12 @@ function Get-PipIndexLines {
     }
     if ($env:HTTPS_PROXY) {
         $lines.Add('HTTPS_PROXY: ' + (Protect-PipUrl $env:HTTPS_PROXY))
-    } elseif ($env:HTTP_PROXY) {
+    }
+    if ($env:HTTP_PROXY) {
         $lines.Add('HTTP_PROXY: ' + (Protect-PipUrl $env:HTTP_PROXY))
+    }
+    if ($env:NO_PROXY) {
+        $lines.Add('NO_PROXY: ' + (Protect-PipUrl $env:NO_PROXY))
     }
     if (Test-Path -LiteralPath $python -PathType Leaf) {
         $config = @(& $python -m pip config list 2>&1)
