@@ -87,6 +87,7 @@ class FakeClient:
 
     def __init__(self, ids=(), boom=None, hang=False):
         self.models = self._Models(ids, boom, hang)
+        self.timeout = 30
         self.calls = 0
 
     class _Models:
@@ -815,6 +816,27 @@ def t_an_enforce_failure_never_kills_the_turn():
     fake = FakeMuice(prov)
     use_temp_state(primary="relay", primary_model="gpt-5.6-terra")
     assert collect(pref.wrapped_stream(fake, None, None)) == "照常说", "炸在补名字这一步也不该带走这条消息"
+
+
+def t_the_chat_client_timeout_is_widened():
+    use_temp_state(primary="relay", secondary="echo-test")
+    hero = FakeModel(words=["嗯"], client=FakeClient(["gpt-5.6-terra"]))
+    fake = FakeMuice(hero)
+    assert collect(pref.wrapped_stream(fake, None, None)) == "嗯"
+    assert hero.client.timeout == pref.DEFAULT_LLM_TIMEOUT, (
+        f"30s 会把 24–28s 的正常回复掐成次选：{hero.client.timeout}"
+    )
+
+
+def t_a_pure_planning_answer_is_rescued():
+    use_temp_state(primary="relay", secondary="echo-test")
+    bad = SyncModel(text="Initial response: I should keep the character tone.")
+    good = SyncModel(text="次选救场")
+    fake = FakeMuice(bad)
+    pref.build_pair = lambda name: (FakeConfig(name=name), good)
+    answer = asyncio.run(pref.wrapped_ask(fake, None, None))
+    assert answer.text == "次选救场", f"非流式也要把纯计划当没产出：{answer.text!r}"
+    assert pref.state()["swaps"].get("echo-test") == 1, "要记下一次次选顶班"
 
 
 if __name__ == "__main__":
