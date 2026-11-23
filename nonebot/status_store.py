@@ -50,6 +50,7 @@ _DEFAULT_STATE: dict[str, Any] = {
     'net': {'history': [], 'interval': 60},
     'disk_io': {},
     'counters': {'recv': 0, 'sent': 0},
+    'counters_history': {'samples': []},
     'schedule': {'daily_status': '', 'daily_report': '', 'weekly_report': ''},
     'llm': {'calls': 0, 'ok': 0, 'fail': 0, 'latency_ms': 0.0, 'ttft_ms': 0.0},
     'first_seen': '',

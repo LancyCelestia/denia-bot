@@ -1477,6 +1477,11 @@ function updateShellLive(overview){
   $('kpiMemSmall').textContent=enabled&&mem.used!=null?`${statusBytes(mem.used)} / ${statusBytes(mem.total)}`:'已用 / 总量';
   $('kpiDisk').textContent=enabled&&disk&&disk.percent!=null?Math.round(Number(disk.percent))+'%':'—';
   $('kpiDiskSmall').textContent=enabled&&disk&&disk.used!=null?`${statusBytes(disk.used)} / ${statusBytes(disk.total)}`:'已用 / 总量';
+  const llm=x.llm||{},rate=x.rate||{},llmOk=Number(llm.ok)||0,p95=llm.p95_ms,rpm=rate.total_per_min;
+  $('kpiP95').textContent=enabled&&llmOk&&p95!=null?statusMs(p95):'—';
+  $('kpiP95Small').textContent=!enabled?'状态采集已关闭':(llmOk&&p95!=null?`平均 ${statusMs(llm.avg_ms)}${llm.avg_ttft_ms?` · 首字 ${statusMs(llm.avg_ttft_ms)}`:''}`:'暂无数据');
+  $('kpiRate').textContent=enabled&&rpm!=null?Number(rpm).toFixed(1):'—';
+  $('kpiRateSmall').textContent=!enabled?'状态采集已关闭':(rpm!=null?`${Math.max(1,Math.round(Number(rate.window_seconds||0)/60))} 分钟 · 收 ${Number(rate.recv_per_min||0).toFixed(1)} / 发 ${Number(rate.sent_per_min||0).toFixed(1)} 条/分`:'等两次采样');
   shellRuler(enabled?(x.history&&x.history.points)||[]:[],x.now);
 }
 async function refreshShell(){notice('');await Promise.allSettled([loadBotStatus(),loadStatus(),loadTokens(),refresh()])}
@@ -2171,6 +2176,7 @@ async function saveParser(){run(async()=>{
 })}
 const SVG_NS='http://www.w3.org/2000/svg';
 function statusPct(v){return v==null?'—':`${Number(v).toFixed(1)}%`}
+function statusMs(ms){if(ms==null||!isFinite(ms))return '—';ms=Number(ms);return ms<1000?Math.round(ms)+'ms':(ms/1000).toFixed(ms<10000?1:0)+'s'}
 function statusBytes(v){if(v==null)return '—';let n=Number(v),u=['B','KB','MB','GB','TB','PB'],i=0;while(n>=1024&&i<u.length-1){n/=1024;i++}return `${i?n.toFixed(2):Math.round(n)} ${u[i]}`}
 function statusDuration(sec){if(sec==null)return '—';let s=Math.floor(sec),d=Math.floor(s/86400),h=Math.floor(s%86400/3600),m=Math.floor(s%3600/60);return d?`${d} 天 ${h} 小时`:h?`${h} 小时 ${m} 分`:`${m} 分`}
 function statusRow(parent,label,value){let d=document.createElement('div'),s=document.createElement('span'),b=document.createElement('b');s.textContent=label;b.textContent=value==null||value===''?'—':value;d.append(s,b);parent.append(d)}

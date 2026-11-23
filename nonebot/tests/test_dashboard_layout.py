@@ -232,6 +232,14 @@ def test_bilibili_credentials_import_and_qr_are_wired():
     assert '/api/parser/bilibili/qr' in text
 
 
+def test_overview_p95_and_rate_kpis_are_wired():
+    text = _html()
+    for key in ('kpiP95', 'kpiRate'):
+        assert f"$('{key}')" in text, f'{key} 没有 JS 赋值，会一直是空壳'
+        assert f"$('{key}Small')" in text, f'{key} 的小字说明没有更新'
+    assert 'statusMs(' in text
+
+
 def test_parser_platform_tabs_and_xhs_login_are_wired():
     text = _html()
     parser = _between(text, '<section id="parser"', '</section>')
