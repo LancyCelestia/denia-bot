@@ -203,7 +203,8 @@ class LLMQuality:
             if ok:
                 bucket['ok'] = int(bucket.get('ok') or 0) + 1
                 bucket['latency_ms'] = float(bucket.get('latency_ms') or 0) + max(0.0, float(latency_ms))
-                histogram = dict(bucket.get('latency_hist') or {})
+                raw_hist = bucket.get('latency_hist')
+                histogram = dict(raw_hist) if isinstance(raw_hist, dict) else {}
                 key = _latency_bucket(latency_ms)
                 histogram[key] = int(histogram.get(key) or 0) + 1
                 bucket['latency_hist'] = histogram
@@ -266,7 +267,10 @@ class LLMQuality:
         ttft_n = sum(int(item.get('ttft_n') or 0) for item in selected)
         latency_hist: dict[str, int] = {}
         for bucket in selected:
-            for key, count in (bucket.get('latency_hist') or {}).items():
+            raw_hist = bucket.get('latency_hist')
+            if not isinstance(raw_hist, dict):
+                continue
+            for key, count in raw_hist.items():
                 try:
                     latency_hist[str(key)] = latency_hist.get(str(key), 0) + int(count)
                 except (TypeError, ValueError):

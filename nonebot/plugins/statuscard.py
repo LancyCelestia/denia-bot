@@ -220,8 +220,8 @@ class Runtime:
         self.counters[key] = int(self.counters.get(key) or 0) + amount
 
     def flush_counters(self) -> None:
-        # 保留最近两小时的计数采样：面板进程读同一份 JSON 算每分钟消息速率，
-        # 不需要额外数据库/容器，也不依赖 Linux 或 Windows 的系统接口。
+        # 保留最近 120 个计数采样（正常采样间隔 60 秒，约两小时）：面板进程读同一份
+        # JSON 算每分钟消息速率，不需要额外数据库/容器，也不依赖 Linux 或 Windows 系统接口。
         now = time.time()
         history = self.state.section('counters_history').get('samples')
         samples = [row for row in history if isinstance(row, dict)] if isinstance(history, list) else []
