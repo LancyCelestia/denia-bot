@@ -60,6 +60,7 @@ QQ 协议端 ── OneBot v11 反向 WebSocket ──> NoneBot2 + MuiceBot
 | `memory` | 长期记忆：按用户维度的语义召回与持久化抽取（详见 `docs/research/mnemosyne-memory.md`） |
 | `meme` | 自定义表情包：在面板管理分类和图片，聊天模型可按场景选择分类并发送。 |
 | `model_pref` | 回话用哪个模型：首选 + 次选，首选这一回合没吐字则降级次选；也支持按上游真实模型名点名 |
+| `reply_guard` | 去掉模型未加标签的自述计划，避免思考链进入聊天与历史 |
 | `prompt_guard` | 群名片被当成话题、历史重复/串群 —— 在调模型之前把提示词洗干净 |
 | `quote_fix` | QQ「回复」引用会崩在 `muicebot/onebot.py`（UniMessage 收到框架原生 MessageSegment），槽住整条消息不回 |
 | `name_guard` | 「问这个人叫什么」时协议端 API 没有超时 → 整条消息永远挂着；这里加超时兜底 |

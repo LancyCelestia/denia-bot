@@ -46,10 +46,20 @@
 拉不到上游清单时（网关没起 / Key 不对 / 断网）**一律不写盘**，并把本地条目和上次拉到的名字
 都报出来 —— 存进去一个下一回合切不过去的名字，现场就是「她忽然不回话」。
 
+发送前还会过一遍 `reply_guard_logic`：守卫套在 provider 的 `ask` 上，赶在 MuiceBot
+累加 `total_reply` 之前清洗。纯计划文本（如 `Initial response: ...`）因此变成空回复，
+走 MuiceBot 自己的空回复分支：不跑 `on_finish_chat`、不落库，再按「没产出」触发次选；
+非流式同样在 `Muice.ask` 判空之前清洗。正常中文/英文回复原样放行。
+`plugins/reply_guard.py` 再用 `on_finish_chat` 清一遍历史，作为漏网的第二道。
+
+客户端读超时抬到 60s，避免 Gemini-3.8-Flash 那种 24–28s 的正常回复被 MuiceBot
+写死的 30s 掐成次选；`LLM_TIMEOUT` 可配。
+
 开关在 `nonebot/.env`（改了要重启，插件不热加载）：
 
     MODEL_FAILOVER=1           # 0 = 只留指令换模型，永不自动降级（回到原来的静默）
     MODEL_FAILOVER_TIMEOUT=45  # 等第一个字最多几秒；中转站挂住不报错时靠它才降级得动
+    LLM_TIMEOUT=60             # 聊天客户端读超时；低于模型正常整轮耗时会把它掐成次选
 
 出问题时看日志里的 `[model]` 前缀。判断逻辑在 `nonebot/model_pref_logic.py`
 （`tests/test_model_pref_logic.py`），接线行为在 `tests/test_model_pref_wiring.py`。
@@ -58,22 +68,27 @@
 from __future__ import annotations
 
 import asyncio
+import functools
+import inspect
 import sys
 from pathlib import Path
 
 from nonebot import get_driver, logger, on_message
 from nonebot.adapters import Event
 from nonebot.permission import SUPERUSER
+from muicebot.llm import ModelStreamCompletions
 from muicebot.muice import Muice
 from muicebot.plugin import PluginMetadata
 
 try:
     import gate_logic as gl
     import model_pref_logic as mp
+    import reply_guard_logic as rgl
 except ImportError:  # 不是从 nonebot\ 目录启动的，把工程根补进 sys.path
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
     import gate_logic as gl
     import model_pref_logic as mp
+    import reply_guard_logic as rgl
 
 __plugin_meta__ = PluginMetadata(
     name="model_pref",
@@ -134,6 +149,37 @@ def _timeout() -> float:
         return float(raw) if raw not in (None, "") else mp.DEFAULT_TIMEOUT
     except (TypeError, ValueError):
         return mp.DEFAULT_TIMEOUT
+
+
+#: 聊天客户端的读超时。MuiceBot 的 OpenAI provider 写死 30s；Gemini-3.8-Flash 实测
+#: 首字 13–18s、整轮 24–28s，30s 会把正常回复掐成次选。只放宽天花板，不改重试。
+DEFAULT_LLM_TIMEOUT = 60.0
+
+
+def _llm_timeout() -> float:
+    """读超时的秒数。`LLM_TIMEOUT` 没配或填错就用 60。"""
+    try:
+        raw = getattr(driver.config, "llm_timeout", None)
+        return float(raw) if raw not in (None, "") else DEFAULT_LLM_TIMEOUT
+    except (TypeError, ValueError):
+        return DEFAULT_LLM_TIMEOUT
+
+
+def _widen_timeout(muice) -> None:  # noqa: ANN001 - 见 _apply
+    """把当前 provider 的 OpenAI 客户端读超时抬到配置值。
+
+    `_apply` / `_restore` 换模型时都会新建客户端，所以三处都要调；只改一次会被换人打回。
+    """
+    client = getattr(getattr(muice, "model", None), "client", None)
+    if client is None:
+        return
+    want = _llm_timeout()
+    try:
+        if getattr(client, "timeout", None) == want:
+            return
+        client.timeout = want
+    except Exception as e:  # noqa: BLE001 - 改不动就维持原样，不该让消息死在这
+        logger.warning(f"[model] 读超时没调上去，这一回合仍用原值：{type(e).__name__}: {e}")
 
 
 _state_cache: dict | None = None
@@ -346,6 +392,8 @@ def _apply(muice, cfg, model):  # noqa: ANN001, ANN201 - Muice 没有公开类�
     muice.multimodal = bool(getattr(cfg, "multimodal", False))
     muice.template_mode = getattr(cfg, "template_mode", "system")
     muice.template = mp.pick_template(snap.get("template"), getattr(cfg, "template", None))
+    _widen_timeout(muice)
+    _ensure_answer_guard(muice.model)
     return snap
 
 
@@ -374,6 +422,8 @@ def _restore(muice, holder: dict) -> None:  # noqa: ANN001 - 见 _apply
     if outer is not None:
         for k, v in outer.items():
             setattr(muice, k, v)
+        _widen_timeout(muice)
+        _ensure_answer_guard(muice.model)
     name = holder.pop("name", None)
     if name:
         used = mp.bump(state(), name)
@@ -432,6 +482,87 @@ async def _nothing():  # noqa: ANN202 - 空流，只用来「跑一趟什么都�
         yield None
 
 
+def _clean_answer(answer) -> str:  # noqa: ANN001 - MuiceBot 的 ModelCompletions
+    """把非流式回复里的计划文本去掉；清空后按「没产出」处理，让次选顶上。"""
+    text = str(getattr(answer, "text", "") or "")
+    clean, dropped = rgl.sanitize(text)
+    if dropped:
+        if answer is not None:
+            answer.text = clean
+            if not clean:
+                answer.succeed = False
+        logger.warning(f"[reply-guard] 非流式回复去掉计划文本，剩余 {len(clean)} 字")
+    return clean
+
+
+async def _guard_stream(source):  # noqa: ANN001, ANN202 - provider 的异步流
+    """在 MuiceBot 累加 `total_reply` 之前清洗 chunk。
+
+    这是关键的一层：`Muice.ask_stream` 用清洗后的 chunk 判断「这一回合有没有产出」，
+    纯计划文本因此变成空 `total_reply`，走 MuiceBot 自己的空回复分支（不落库、不跑
+    `on_finish_chat`），而不是等首轮收尾后再靠历史钩子清空。
+    """
+    guard = rgl.StreamGuard()
+    last = None
+    try:
+        async for chunk in source:
+            text = getattr(chunk, "chunk", "") or ""
+            text = guard.feed(text)
+            chunk.chunk = text
+            last = chunk
+            yield chunk
+        tail = guard.flush()
+        if tail:
+            yield ModelStreamCompletions(
+                chunk=tail,
+                usage=getattr(last, "usage", -1),
+                succeed=getattr(last, "succeed", True),
+            )
+    finally:
+        if guard.dropped:
+            suffix = "（整条丢弃）" if guard.aborted else ""
+            logger.warning(f"[reply-guard] 流式回复去掉计划文本{suffix}")
+        aclose = getattr(source, "aclose", None)
+        if aclose is not None:
+            try:
+                await aclose()
+            except Exception:  # noqa: BLE001 - 收尾失败不该盖掉真正的失败原因
+                pass
+
+
+def _ensure_answer_guard(model) -> None:  # noqa: ANN001 - provider 没有公开类型
+    """给 provider 的 `ask` 套上 reply_guard，让 MuiceBot 看到的是清洗后的正文。
+
+    套在 `Muice.ask` / `Muice.ask_stream` 外面不够：MuiceBot 是用 `total_reply`
+    （原始 chunk 累加）决定要不要 `add_item` 和跑 `on_finish_chat` 的。把守卫放进
+    `model.ask` 这一层，纯计划首轮才会像空回复一样在落库前返回。
+    """
+    if model is None:
+        return
+    current = getattr(model, "ask", None)
+    # AsyncMock 的未知属性会返回一个新的 mock；这里必须和字面 True 比较，
+    # 否则测试替身会被误判成「已经套过」。
+    if current is None or getattr(current, "_reply_guard", False) is True:
+        return
+
+    @functools.wraps(current)
+    async def guarded(*args, **kwargs):  # noqa: ANN002, ANN003, ANN202
+        result = current(*args, **kwargs)
+        if inspect.isawaitable(result):
+            result = await result
+        if bool(kwargs.get("stream", False)):
+            return _guard_stream(result)
+        _clean_answer(result)
+        return result
+
+    guarded._reply_guard = True
+    try:
+        model.ask = guarded
+    except Exception as e:  # noqa: BLE001 - 套不上就维持原样，不该让消息死在这
+        logger.warning(f"[reply-guard] 模型 ask 没套上守卫，这一回合仍用原实现："
+                       f"{type(e).__name__}: {e}")
+
+
 # ---------------------------------------------------------------- 套壳
 
 
@@ -474,6 +605,8 @@ async def wrapped_stream(self, session, message, enable_history=True, enable_plu
     保持 MuiceBot 本来的样子（至少说明她看见你了）。
     """
     ensure_primary(self)
+    _widen_timeout(self)
+    _ensure_answer_guard(self.model)
     s, holder = state(), {}
     args = (session, message, enable_history, enable_plugins)
     held: list = []
@@ -502,14 +635,15 @@ async def wrapped_stream(self, session, message, enable_history=True, enable_plu
         if mp.usable(text):
             spoke = True
         yield chunk
-    if not spoke:
-        for chunk in held:
-            yield chunk
+    if not spoke and held:
+        yield held[-1]
 
 
 async def wrapped_ask(self, session, message, enable_history=True, enable_plugins=True):  # noqa: ANN001, ANN202
     """`Muice.ask` 的替身 —— `models.yml` 里 `stream: false` 的条目走这条，判据一样。"""
     ensure_primary(self)
+    _widen_timeout(self)
+    _ensure_answer_guard(self.model)
     s, holder = state(), {}
     args = (session, message, enable_history, enable_plugins)
     answer, error = None, ""
@@ -519,7 +653,7 @@ async def wrapped_ask(self, session, message, enable_history=True, enable_plugin
         error = f"{type(e).__name__}: {e}"
         holder["boom"] = e
 
-    text = str(getattr(answer, "text", "") or "")
+    text = _clean_answer(answer)
     if answer is not None and not getattr(answer, "succeed", True):
         error = error or "模型回报 succeed=False"
 
@@ -547,6 +681,7 @@ async def wrapped_ask(self, session, message, enable_history=True, enable_plugin
         if answer is None and "boom" in holder:
             raise holder["boom"]
         return answer
+    _clean_answer(rescued)
     return rescued
 
 

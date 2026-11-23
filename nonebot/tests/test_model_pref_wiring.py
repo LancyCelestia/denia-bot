@@ -17,10 +17,12 @@ r"""`plugins/model_pref` 接线的断言测试 —— 用假的 provider / 假�
 from __future__ import annotations
 
 import asyncio
+import inspect
 import os
 import sys
 import tempfile
 from pathlib import Path
+from types import SimpleNamespace
 
 os.chdir(Path(__file__).resolve().parent.parent)  # MuiceBot 按 ./plugins 找插件
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -87,6 +89,7 @@ class FakeClient:
 
     def __init__(self, ids=(), boom=None, hang=False):
         self.models = self._Models(ids, boom, hang)
+        self.timeout = 30
         self.calls = 0
 
     class _Models:
@@ -186,13 +189,23 @@ class FakeMuice:
 
 
 async def fake_ask_stream(self, session, message, enable_history=True, enable_plugins=True):
-    """替身版的 `Muice.ask_stream`：跟真的一样在**开始迭代时**才读 `self.model`。"""
-    async for c in self.model.ask(None, stream=True):
+    """替身版的 `Muice.ask_stream`：跟真的一样在**开始迭代时**才读 `self.model`。
+
+    真 provider / 真实壳的 `ask` 是 async 函数，要 await 一次才拿得到异步流；
+    这里有条件地 await，兼容测试里的异步生成器替身。
+    """
+    response = self.model.ask(None, stream=True)
+    if inspect.isawaitable(response):
+        response = await response
+    async for c in response:
         yield c
 
 
 async def fake_ask(self, session, message, enable_history=True, enable_plugins=True):
-    return self.model.ask(None, stream=False)
+    result = self.model.ask(None, stream=False)
+    if inspect.isawaitable(result):
+        result = await result
+    return result
 
 
 def use_temp_state(**over):
@@ -832,6 +845,123 @@ def t_an_enforce_failure_never_kills_the_turn():
     fake = FakeMuice(prov)
     use_temp_state(primary="relay", primary_model="gpt-5.6-terra")
     assert collect(pref.wrapped_stream(fake, None, None)) == "照常说", "炸在补名字这一步也不该带走这条消息"
+
+
+def t_the_chat_client_timeout_is_widened():
+    restore = env_over(llm_timeout=None)
+    try:
+        use_temp_state(primary="relay", secondary="echo-test")
+        hero = FakeModel(words=["嗯"], client=FakeClient(["gpt-5.6-terra"]))
+        fake = FakeMuice(hero)
+        assert collect(pref.wrapped_stream(fake, None, None)) == "嗯"
+        assert hero.client.timeout == pref.DEFAULT_LLM_TIMEOUT, (
+            f"30s 会把 24–28s 的正常回复掐成次选：{hero.client.timeout}"
+        )
+    finally:
+        restore()
+
+
+def t_a_pure_planning_answer_is_rescued():
+    use_temp_state(primary="relay", secondary="echo-test")
+    bad = SyncModel(text="Initial response: I should keep the character tone.")
+    good = SyncModel(text="次选救场")
+    fake = FakeMuice(bad)
+    pref.build_pair = lambda name: (FakeConfig(name=name), good)
+    answer = asyncio.run(pref.wrapped_ask(fake, None, None))
+    assert answer.text == "次选救场", f"非流式也要把纯计划当没产出：{answer.text!r}"
+    assert pref.state()["swaps"].get("echo-test") == 1, "要记下一次次选顶班"
+
+
+def _history_message():
+    return SimpleNamespace(
+        respond="", message="hi", userid="1", groupid="-1",
+        resources=[], usage=-1, time="2026.11.23 02:03:24",
+    )
+
+
+def t_a_pure_planning_stream_does_not_save_a_history_row():
+    use_temp_state(primary="relay", secondary="echo-test")
+    bad = FakeModel(words=["Initial response: I should keep the character tone."])
+    hero = FakeModel(words=["次选救场"])
+    fake = FakeMuice(bad)
+    saved = []
+
+    async def add_item(session, message):  # noqa: ANN001, ARG001
+        saved.append(message.respond)
+
+    fake.database = SimpleNamespace(add_item=add_item)
+
+    async def original(self, session, message, enable_history=True, enable_plugins=True):  # noqa: ANN001, ARG001
+        response = self.model.ask(None, stream=True)
+        if inspect.isawaitable(response):
+            response = await response
+        total = ""
+        item = None
+        async for item in response:
+            total += item.chunk
+            yield item
+        message.respond = total
+        if not total.strip():
+            chunk = Chunk("模型回复为空，可能是模型未能正确处理请求，请检查模型配置或输入内容。")
+            chunk.succeed = False
+            yield chunk
+            return
+        await self.database.add_item(session, message)
+
+    pref.ORIGINAL_STREAM = original
+    pref.build_pair = lambda name: (FakeConfig(name=name), hero)
+    message = _history_message()
+    out = collect(pref.wrapped_stream(fake, None, message))
+    assert out == "次选救场", out
+    assert saved == ["次选救场"], saved
+
+
+def t_a_pure_planning_answer_without_a_secondary_keeps_the_fallback():
+    use_temp_state(primary="relay", secondary=None)
+    bad = SyncModel(text="Initial response: I should keep the character tone.")
+    fake = FakeMuice(bad)
+    saved = []
+
+    async def add_item(session, message):  # noqa: ANN001, ARG001
+        saved.append(message.respond)
+
+    fake.database = SimpleNamespace(add_item=add_item)
+
+    async def original(self, session, message, enable_history=True, enable_plugins=True):  # noqa: ANN001, ARG001
+        answer = self.model.ask(None, stream=False)
+        if inspect.isawaitable(answer):
+            answer = await answer
+        message.respond = getattr(answer, "text", "") or ""
+        if not message.respond.strip():
+            return Answer("模型回复为空，可能是模型未能正确处理请求，请检查模型配置或输入内容。", succeed=False)
+        await self.database.add_item(session, message)
+        return answer
+
+    pref.ORIGINAL_ASK = original
+    message = _history_message()
+    answer = asyncio.run(pref.wrapped_ask(fake, None, message))
+    assert answer.text.startswith("模型回复为空"), answer.text
+    assert saved == [], saved
+
+
+def t_a_normal_english_answer_is_not_treated_as_planning():
+    use_temp_state(primary="relay", secondary="echo-test")
+    model = SyncModel(text="The response is simple: I missed you.")
+    fake = FakeMuice(model)
+    answer = asyncio.run(pref.wrapped_ask(fake, None, None))
+    assert answer.text == "The response is simple: I missed you.", answer.text
+    assert pref.state()["swaps"] == {}, "正常英文回复不该触发降级"
+
+
+def t_two_failed_passes_emit_one_fallback():
+    use_temp_state(primary="relay", secondary="echo-test")
+    boilerplate = "模型回复为空，可能是模型未能正确处理请求，请检查模型配置或输入内容。"
+    bad = FakeModel(words=[boilerplate])
+    hero = FakeModel(words=[boilerplate])
+    fake = FakeMuice(bad)
+    pref.build_pair = lambda name: (FakeConfig(name=name), hero)
+    out = collect(pref.wrapped_stream(fake, None, None))
+    assert out.count("模型回复为空") == 1, f"两趟都失败时只保留一句兜底：{out!r}"
 
 
 if __name__ == "__main__":

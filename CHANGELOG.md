@@ -34,6 +34,7 @@
 
 ### 修复与加固
 
+- 聊天回复：识别并去掉未加标签的自述计划（如 `Initial response:`），纯计划首轮不再落空历史；聊天客户端读超时默认 60s，可用 `LLM_TIMEOUT` 调整。
 - 卡片次要文字与等级色在浅底上的对比度统一提高到 ≥ 4.5:1；台风卡不再把西移路径画成东北向；长正文不再被固定 1200 高度静默裁切。
 - Windows 一键启动不再把 SnowLuma 固定为仓库根 `snowluma\`：支持 `-SnowLumaPath`、`SNOWLUMA_HOME` / `QQBOT_SNOWLUMA`、上级目录 `SnowLuma\`，并会在仓库根、`downloads\`、`tools\`、上级目录或 `%USERPROFILE%\Downloads` 找到 `SnowLuma-v2.4.2-win-x64.zip` 时自动解压；已有 `config\` / `data\` 保留。解析结果缓存到 `logs\snowluma-home.txt`，启停脚本都按该路径识别进程，修复 #55。
 - 插件首次引导设置提前到面板进入时加载；完成 Bot 基本设置后立即弹出插件引导，不再等待运行状态和更新检查。

@@ -24,6 +24,8 @@ PLUGINS = (
      'description': '群聊 @、回复和指令路由；关闭后聊天入口不完整。', 'core': True},
     {'id': 'model_pref', 'module': 'plugins.model_pref', 'label': '模型首选与故障切换',
      'description': '首选模型和模型降级；关闭后不加载模型选择外壳。', 'core': True},
+    {'id': 'reply_guard', 'module': 'plugins.reply_guard', 'label': '计划文本守卫',
+     'description': '识别并去掉未加标签的自述计划，避免思考链进入聊天与历史。', 'core': True},
     {'id': 'name_guard', 'module': 'plugins.name_guard', 'label': '昵称与称呼保护',
      'description': 'MuiceBot 的昵称读取超时与称呼兼容补丁。', 'core': True},
     {'id': 'prompt_guard', 'module': 'plugins.prompt_guard', 'label': '提示词场景隔离',
