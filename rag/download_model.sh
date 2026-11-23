@@ -1,7 +1,9 @@
 #!/bin/bash
 # 从 ModelScope 下载 bge-m3 的 ONNX 版（HuggingFace 在国内被墙）
 BASE="https://modelscope.cn/api/v1/models/BAAI/bge-m3/repo?Revision=master&FilePath="
-DEST="/d/Software/qqbot/rag/models/bge-m3"
+# 相对脚本所在目录，避免把本机 checkout 路径写死
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+DEST="${SCRIPT_DIR}/models/bge-m3"
 
 fetch() {
   local remote="$1" local_path="$2"

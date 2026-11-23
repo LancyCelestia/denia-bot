@@ -1,6 +1,6 @@
 r"""`plugins/model_pref` 接线的断言测试 —— 用假的 provider / 假的 Muice 跑套壳后的调用，直接跑：
 
-    cd D:\Software\qqbot\nonebot
+    cd nonebot
     .venv\Scripts\python.exe tests\test_model_pref_wiring.py
 
 跟 `test_model_pref_logic.py` 的分工：那边管「该不该降级、指令改不改得动状态」，

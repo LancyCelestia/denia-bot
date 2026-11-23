@@ -1,6 +1,6 @@
 r"""`model_pref_logic` 的断言测试 —— 不 import nonebot、不碰 QQ、不调模型，直接跑：
 
-    cd D:\Software\qqbot\nonebot
+    cd nonebot
     .venv\Scripts\python.exe tests\test_model_pref_logic.py
 
 为什么先测这一层：真正会出错的是两个判断 ——

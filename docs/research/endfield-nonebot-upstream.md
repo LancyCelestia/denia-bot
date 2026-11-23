@@ -3,7 +3,7 @@
 - 调研票：wayfinder #34（供「移植基线」决策票 #35 使用）
 - 调研日期：2026-10-31
 - 代码快照：`<USER_HOME>\AppData\Local\Temp\nonebot_endfield`，浅克隆 `master`，HEAD `526dc466`（2026-03-31），`pyproject.toml:7` 声明 `0.2.5`
-- 对照快照：AstrBot 版 `41482b7`（v3.0.3）；denia-bot `D:\Software\qqbot` HEAD `f22a100`
+- 对照快照：AstrBot 版 `41482b7`（v3.0.3）；denia-bot 仓库根目录 HEAD `f22a100`
 - 交付位置：目标工作区 `denia-endfield-nonebot`（分支 `research/endfield-nonebot`）
 - 口径：未标注「推断」的陈述都是读代码、读发布产物或查官方 API 得到的事实；标注「**需运营方确认**」的是仅凭仓库无法闭合的问题
 - 本轮只读，未改动主工作区；唯一写入是本文件

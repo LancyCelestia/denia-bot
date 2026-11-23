@@ -18,7 +18,7 @@
 
 | 项 | 值 |
 |---|---|
-| 工作区 | `D:\Software\qqbot` |
+| 工作区 | 仓库根目录 |
 | 分支 / HEAD | `codex/game-events` / `0a33293`（Epic 相关文件当时未提交） |
 | Python | `nonebot/.venv`，Python 3.12 |
 | 测试服务器 | `root@<部署机IP>:/opt/qqbot`，`qqbot` active，`Bot <bot-qq> connected` |

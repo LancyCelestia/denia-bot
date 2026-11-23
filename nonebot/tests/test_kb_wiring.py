@@ -1,6 +1,6 @@
 r"""知识库接线的断言测试 —— 拿真实的 `ModelRequest` 喂注入钩子，看它到底问了什么。
 
-    cd D:\Software\qqbot\nonebot
+    cd nonebot
     .venv\Scripts\python.exe tests\test_kb_wiring.py
 
 跟 `test_kb_logic.py` 的分工：那边管「检索词该怎么切」，这边管

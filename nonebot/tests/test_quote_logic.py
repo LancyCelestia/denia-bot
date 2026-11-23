@@ -1,6 +1,6 @@
 r"""被引用消息渲染的纯断言 —— 不起 NoneBot、不连 QQ，改完直接跑。
 
-    cd D:\Software\qqbot\nonebot
+    cd nonebot
     .venv\Scripts\python.exe tests\test_quote_logic.py
 
 管的是「这句被引用的话该渲染成什么样」；「插件真的去渲染了、MuiceBot 真的不崩了」

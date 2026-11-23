@@ -1,6 +1,6 @@
 r"""`gate_logic` 的断言测试 —— 不 import nonebot、不碰 QQ，直接跑：
 
-    cd D:\Software\qqbot\nonebot
+    cd nonebot
     .venv\Scripts\python.exe tests\test_gate_logic.py
 
 为什么只测这一层：闸门真正的触发/抑制要整条链跑起来才能验（用 tools\自检全链路.py），

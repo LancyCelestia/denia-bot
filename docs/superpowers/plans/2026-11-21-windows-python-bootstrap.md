@@ -55,7 +55,7 @@
 在干净 worktree 中运行：
 
 ```powershell
-cd D:\Software\qqbot\.tmp\wt-python-bootstrap
+cd .tmp\wt-python-bootstrap
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\startup-preflight.ps1 -Root (Get-Location).Path -NoPause
 ```
 
@@ -136,7 +136,7 @@ if (-not (Test-Path -LiteralPath $python -PathType Leaf)) {
 - [ ] **Step 6: 语法检查**
 
 ```powershell
-powershell -NoProfile -Command "[void][scriptblock]::Create((Get-Content -Raw 'D:\Software\qqbot\.tmp\wt-python-bootstrap\tools\startup-preflight.ps1'))"
+powershell -NoProfile -Command "[void][scriptblock]::Create((Get-Content -Raw '.tmp\wt-python-bootstrap\tools\startup-preflight.ps1'))"
 ```
 
 Expected: 无输出，退出码 0。
@@ -146,8 +146,8 @@ Expected: 无输出，退出码 0。
 确认 worktree 无 `nonebot\.venv`、无 `runtime\python312`，`py -3.12` 不可用（本机现状），运行：
 
 ```powershell
-cd D:\Software\qqbot\.tmp\wt-python-bootstrap
-QQBOT_NO_PAUSE=1 powershell -NoProfile -ExecutionPolicy Bypass -Command "& 'D:\Software\qqbot\.tmp\wt-python-bootstrap\tools\启动所有.bat' --no-pause; exit $LASTEXITCODE"
+cd .tmp\wt-python-bootstrap
+QQBOT_NO_PAUSE=1 powershell -NoProfile -ExecutionPolicy Bypass -Command "& '.tmp\wt-python-bootstrap\tools\启动所有.bat' --no-pause; exit $LASTEXITCODE"
 ```
 
 Expected:
@@ -229,19 +229,19 @@ git commit -m "docs: describe Windows Python runtime bootstrap"
 git push -u origin feature/windows-python-bootstrap
 ```
 
-- [ ] **Step 6: 从 GitHub 干净 clone 验收**
+- [ ] **Step 6: 从 GitHub 干净 clone 验收**（在仓库根目录执行）
 
 ```powershell
-cd D:\Software
+cd ..
 Remove-Item -Recurse -Force qqbot-bootstrap-test -ErrorAction SilentlyContinue
 git clone -b feature/windows-python-bootstrap https://github.com/Lkyloveaw/denia-bot.git qqbot-bootstrap-test
 ```
 
-确认无 `nonebot\.venv`、无 `runtime\python312`、无 `snowluma`，然后运行一键启动：
+确认无 `nonebot\.venv`、无 `runtime\python312`、无 `snowluma`，仍在仓库根目录运行一键启动：
 
 ```powershell
-cd D:\Software\qqbot-bootstrap-test
-QQBOT_NO_PAUSE=1 powershell -NoProfile -ExecutionPolicy Bypass -Command "& 'D:\Software\qqbot-bootstrap-test\tools\启动所有.bat' --no-pause; exit $LASTEXITCODE"
+cd ..\qqbot-bootstrap-test
+QQBOT_NO_PAUSE=1 powershell -NoProfile -ExecutionPolicy Bypass -Command "& '..\qqbot-bootstrap-test\tools\启动所有.bat' --no-pause; exit $LASTEXITCODE"
 ```
 
 Expected: 下载/校验/解压成功；`runtime\python312\python.exe -V` 为 3.12.13；venv 创建成功；停在 `SnowLuma runtime is missing`；退出码 4；四个端口无监听；`git status --porcelain -uall` 为空。

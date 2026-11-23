@@ -233,7 +233,7 @@ Windows 上使用 `tools\启动所有.bat` / `tools\停止所有.bat` 启停；�
 SnowLuma 运行时不再要求放在仓库根目录的 `snowluma\`。preflight 按以下顺序查找：`-SnowLumaPath`（`启动所有.ps1` 支持）、`SNOWLUMA_HOME`、`QQBOT_SNOWLUMA`、仓库根 `snowluma\`、上级目录的 `SnowLuma\`；都没有时，自动解压 `SnowLuma-v2.4.2-win-x64.zip`（依次查找仓库根、`downloads\`、`tools\`、上级目录和 `%USERPROFILE%\Downloads`）。解压目标固定为仓库根 `snowluma\`，已有 `config\` / `data\` 不覆盖。解析结果写入 `logs\snowluma-home.txt`（UTF-8）和 `logs\snowluma-home.ansi.txt`（供批处理读取），启动和停止脚本都从这些文件读取实际路径；删除它们即可让下次启动重新探测。示例：
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File tools\启动所有.ps1 -SnowLumaPath "D:\Apps\SnowLuma"
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\启动所有.ps1 -SnowLumaPath "<SnowLuma 安装目录>"
 ```
 
 或设置用户环境变量 `SNOWLUMA_HOME` 后直接运行 `启动所有.bat`（批处理不转发 `-SnowLumaPath`）。
