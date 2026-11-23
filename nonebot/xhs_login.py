@@ -144,6 +144,24 @@ def _sandbox_enabled() -> bool:
     )
 
 
+def _chrome_user_agent(browser_version: str, system: str | None = None) -> str:
+    # XHS risk control rejects Playwright's default HeadlessChrome UA with
+    # error 300012 even when the page and network are usable. Present a
+    # desktop Chrome UA consistent with the bundled browser and host platform.
+    major = str(browser_version).split('.')[0] or '0'
+    system = system or sys.platform
+    if system.startswith('win'):
+        platform = 'Windows NT 10.0; Win64; x64'
+    elif system == 'darwin':
+        platform = 'Macintosh; Intel Mac OS X 10_15_7'
+    else:
+        platform = 'X11; Linux x86_64'
+    return (
+        f'Mozilla/5.0 ({platform}) AppleWebKit/537.36 '
+        f'(KHTML, like Gecko) Chrome/{major}.0.0.0 Safari/537.36'
+    )
+
+
 class XhsBrowser:
     """One Playwright browser/page pair for a single QR session."""
 
@@ -195,6 +213,7 @@ class XhsBrowser:
                 chromium_sandbox=_sandbox_enabled(),
             )
             self._context = await self._browser.new_context(
+                user_agent=_chrome_user_agent(self._browser.version),
                 locale='zh-CN',
                 timezone_id='Asia/Shanghai',
                 viewport={'width': 1280, 'height': 800},
