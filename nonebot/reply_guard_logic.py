@@ -38,12 +38,10 @@ _STRONG_RE = re.compile("|".join(re.escape(m) for m in _STRONG_MARKERS), re.IGNO
 _CJK_RE = re.compile(r"[\u4e00-\u9fff]")
 _LATIN_RE = re.compile(r"[A-Za-z]")
 _WORD_RE = re.compile(r"[a-z]+")
-#: 英文计划文本的辅助判据：英文占比高且同时出现这些词。单靠英文不算。
-_META_WORDS = frozenset(
-    {"character", "persona", "tone", "brevity", "roleplay", "response", "reply", "playful"}
-)
 #: 至少命中两个「角色扮演」词，避免把 HTTP response / character encoding 这类技术英文误杀。
 _ROLE_WORDS = frozenset({"character", "persona", "tone", "brevity", "roleplay", "playful"})
+#: 元词 = 角色词 + response/reply；单靠英文不算。
+_META_WORDS = _ROLE_WORDS | frozenset({"response", "reply"})
 #: 计划标记的最大长度，用于跨 chunk 的“半个标记”缓冲。
 _MARKER_MAX = max(len(m) for m in PLANNING_MARKERS)
 
