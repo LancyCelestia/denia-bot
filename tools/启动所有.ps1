@@ -6,7 +6,8 @@
 [CmdletBinding()]
 param(
     [switch]$NoPause,
-    [string]$SnowLumaPath = ''
+    [string]$SnowLumaPath = '',
+    [string]$IndexUrl = ''
 )
 
 $ErrorActionPreference = 'Continue'
@@ -43,6 +44,7 @@ if (-not (Test-Path -LiteralPath $preflight -PathType Leaf)) {
 }
 $preflightArgs = @{ Root = $ROOT; NoPause = $true }
 if ($SnowLumaPath) { $preflightArgs['SnowLumaPath'] = $SnowLumaPath }
+if ($IndexUrl) { $preflightArgs['IndexUrl'] = $IndexUrl }
 if (Test-Listening 8080) {
     Write-Host '[deps] NoneBot 已在 8080 运行，只做只读依赖检查（-SkipInstall）。' -ForegroundColor Yellow
     & $preflight @preflightArgs -SkipInstall

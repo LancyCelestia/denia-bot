@@ -3,9 +3,11 @@
 param(
     [string]$Root = (Split-Path -Parent $PSScriptRoot),
     [string]$SnowLumaPath = '',
+    [string]$IndexUrl = '',
     [switch]$NoPause,
     [switch]$SkipInstall,
-    [switch]$CheckOnly
+    [switch]$CheckOnly,
+    [switch]$IndexProbeOnly
 )
 
 $ErrorActionPreference = 'Continue'
@@ -51,13 +53,89 @@ function Stop-Check($Message) {
     exit 1
 }
 
+function Protect-PipUrl([string]$Value) {
+    if (-not $Value) { return '' }
+    try {
+        $uri = [Uri]$Value
+        if ($uri.UserInfo) {
+            $builder = New-Object System.UriBuilder -ArgumentList $uri
+            $builder.UserName = ''
+            $builder.Password = ''
+            return $builder.Uri.AbsoluteUri
+        }
+    } catch {
+    }
+    return [regex]::Replace($Value, '//[^/@\s]+@', '//***@')
+}
+
+function Get-PipIndexLines {
+    $lines = New-Object System.Collections.Generic.List[string]
+    if ($IndexUrl) {
+        $lines.Add('one-off -IndexUrl: ' + (Protect-PipUrl $IndexUrl))
+    }
+    if ($env:PIP_INDEX_URL) {
+        $lines.Add('PIP_INDEX_URL: ' + (Protect-PipUrl $env:PIP_INDEX_URL))
+    }
+    if ($env:PIP_EXTRA_INDEX_URL) {
+        $lines.Add('PIP_EXTRA_INDEX_URL: ' + (Protect-PipUrl $env:PIP_EXTRA_INDEX_URL))
+    }
+    if ($env:HTTPS_PROXY) {
+        $lines.Add('HTTPS_PROXY: ' + (Protect-PipUrl $env:HTTPS_PROXY))
+    } elseif ($env:HTTP_PROXY) {
+        $lines.Add('HTTP_PROXY: ' + (Protect-PipUrl $env:HTTP_PROXY))
+    }
+    if (Test-Path -LiteralPath $python -PathType Leaf) {
+        $config = @(& $python -m pip config list 2>&1)
+        $configExit = $LASTEXITCODE
+        if ($configExit -eq 0) {
+            foreach ($line in $config) {
+                $text = ([string]$line).Trim()
+                if ($text -and $text -match '(?i)(index|proxy)') {
+                    $lines.Add('pip config: ' + (Protect-PipUrl $text))
+                }
+            }
+        }
+    }
+    if ($lines.Count -eq 0) {
+        $lines.Add('index: https://pypi.org/simple (pip default)')
+    }
+    return $lines.ToArray()
+}
+
+function Write-PipIndex {
+    Write-Section 'pip index in use:'
+    foreach ($line in @(Get-PipIndexLines)) {
+        Write-Host "  $line"
+    }
+}
+
 function Invoke-PipInstall {
     Write-Section 'Installing/repairing requirements.lock; no service starts until this completes ...'
-    & $python -m pip install --disable-pip-version-check --no-input -r $requirements
+    Write-PipIndex
+    $pipArgs = @('-m', 'pip', 'install', '--disable-pip-version-check', '--no-input', '-r', $requirements)
+    if ($IndexUrl) {
+        $pipArgs += @('--index-url', $IndexUrl)
+    }
+    & $python @pipArgs
     if ($LASTEXITCODE -ne 0) {
-        Stop-Check "pip install failed (exit $LASTEXITCODE); no service was started."
+        $hint = @(
+            "pip install failed (exit $LASTEXITCODE); no service was started.",
+            'pip index in use:'
+        )
+        $hint += @(Get-PipIndexLines | ForEach-Object { "  $_" })
+        $hint += @(
+            '',
+            'If this is a network/index problem, set PIP_INDEX_URL (for example https://pypi.tuna.tsinghua.edu.cn/simple) or fix the proxy, then retry.',
+            'One-off: powershell -NoProfile -ExecutionPolicy Bypass -File tools\startup-preflight.ps1 -IndexUrl <url>'
+        )
+        Stop-Check ($hint -join "`n")
     }
     Set-Content -LiteralPath $marker -Value $requirementsHash -NoNewline -Encoding ascii
+}
+
+if ($IndexProbeOnly) {
+    Write-PipIndex
+    exit 0
 }
 
 trap {
