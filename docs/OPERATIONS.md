@@ -303,22 +303,47 @@ python dashboard.py --init
 
 解析顺序：`data/bot-name.json` → 进程环境或 `local/bot.env` / `nonebot/.env` 的 `BOT_NAME` / `QQBOT_NAME` → 默认 `达妮娅`。名称仅影响显示，不改人格模板、唤醒词、账号或模型设置。面板可恢复默认；文件损坏时自动回退到环境变量或默认名称。
 
-## 8.2 小红书扫码登录
+## 8.2 二维码登录与 Cookie 路径
 
-管理面板「链接解析」顶部是「通用设置」和按 schema 顺序排列的 18 个平台标签，点击标签只显示该平台的设置。小红书平台内的「扫码登录」使用独立的回环登录容器；图片渲染容器仍禁用页面 JS 和外网，两者不要合并。
+管理面板「链接解析」顶部是「通用设置」和按 schema 顺序排列的 18 个平台标签，点击标签只显示该平台的设置。小红书与 B 站的二维码登录都在面板进程内完成，不依赖额外服务或容器。
 
-首次部署：
+### 小红书（面板内置 Python Playwright）
+
+链路：
+
+1. 面板 `POST /api/parser/xhs-login/start` → `xhs_login.start()` → 在当前面板进程启动 headless Chromium。
+2. Playwright 打开小红书官网二维码页并截图；面板轮询 `/api/parser/xhs-login/status`，取消走 `/cancel`。同一时间只允许一个待扫码会话。
+3. 用户点击「保存解析设置」→ `POST /api/parser` 携带 `xhs_login_id` → `xhs_login.claim()` / `settle()` → `parser_settings.save()`。
+4. Cookie 写入 `nonebot/data/media_parser/config.json` 的 `xhs.cookies`；重启机器人后生效。面板 API 和网页都不返回 Cookie 明文，浏览器在保存、取消、过期或错误后关闭。
+
+依赖与浏览器：
 
 ```bash
-cd /opt/qqbot
-python nonebot/xhs_login.py --init-token
-docker compose -f docker/playwright-renderer/docker-compose.xhs-login.yml up -d --build
-curl --fail http://127.0.0.1:3102/health
+# 面板 venv 已按 requirements.lock 安装 playwright 包
+./.venv/bin/python -m playwright install chromium
+
+# Linux root 首次缺少系统库时
+./.venv/bin/python -m playwright install --with-deps chromium
 ```
 
-`xhs_login.py --init-token` 只创建 `nonebot/data/xhs-login-token.env`，不会覆盖已有有效文件，也不会打印令牌；该文件已被 `.gitignore` 覆盖，需与机器人数据一起备份。容器名 `qqbot-xhs-login`，只监听宿主机回环 3102，面板默认也访问这个地址；如改端口，同时设置面板进程的 `QQBOT_XHS_LOGIN_URL`（只接受本机回环 HTTP 地址）并重启面板。令牌轮换时先停止容器，移走令牌文件，重新执行 `--init-token`，再启动容器。
+`deploy-linux/install.sh` 和 `tools/startup-preflight.ps1` 会安装/补齐 Python 包与 Chromium。没有额外端口、令牌文件、systemd unit 或 compose；启动面板即可使用。重启面板会中断未保存的扫码会话，重新点击「生成二维码」即可。
 
-扫码流程：在「链接解析 → 小红书 → 账号凭证」点击「生成二维码」，用小红书 App 扫码并确认；面板显示「扫码成功」后点击「保存解析设置」，Cookie 才会写入 `nonebot/data/media_parser/config.json`，重启机器人后生效。面板 API 不返回 Cookie 明文。登录容器未启动、令牌不一致、官网风控或页面结构变化时，面板会显示错误；此时仍可手动填写 Cookie。二维码登录可能使同一账号的其他网页端下线。
+Linux root 默认关闭 Chromium 沙箱（root 下沙箱通常无法启动）；非 root 和 Windows 默认开启。可用 `QQBOT_XHS_LOGIN_SANDBOX=0/1` 覆盖。浏览器仍以面板进程权限运行，建议面板使用非 root 账户。页面请求只允许小红书 HTTPS 域名，Cookie 只在面板进程内保存，保存时才通过 `claim/settle` 交给解析设置。
+
+官网风控、页面结构变化、网络异常或缺少 Playwright/Chromium 时，面板会显示明确错误；此时仍可手动填写 Cookie。二维码登录可能使同一账号的其他网页端下线。
+
+### B 站（宿主机 Python，无需容器）
+
+链路：
+
+1. 面板 `POST /api/parser/bilibili/qr` → `parser_credentials.create_bilibili_qr()` → `BilibiliLogin.login_with_qrcode()`。
+2. 后者用 Python `qrcode` 生成二维码，并用 `curl_cffi` 直接请求 `passport.bilibili.com` 的二维码接口；不经过浏览器或容器。
+3. 面板轮询 `/api/parser/bilibili/qr/status` → `poll_bilibili_qr()` → `BilibiliLogin.poll_qr_state()`。
+4. 扫码成功后，`BilibiliLogin.save_cookies()` 原子写入 `nonebot/data/media_parser/cookies/bilibili_credential.json`；`save_bilibili_config()` 同时写入 `nonebot/data/media_parser/config.json` 的 `bilibili.cookies`。机器人按文件 mtime 自动重载登录态，不需要重启。
+
+面板进程会自动把 `nonebot/parser_deps` 加入 `sys.path`，与机器人共用同一份解析依赖（清单见 `nonebot/media_parser/requirements.txt`）；缺少依赖时面板返回 503 并提示缺哪个包，手动 Cookie 仍可保存。
+
+入口在「链接解析 → B站 → 账号凭证」；手动 Cookie/JSON 导入与扫码共用同一保存路径。此路径在 Windows 和 Linux 都只依赖宿主 Python 环境，不依赖 Docker。
 
 ## 8.5 服务器状态卡
 

@@ -1,34 +1,40 @@
-"""Dashboard client for the isolated Xiaohongshu QR-login service.
+"""Dashboard-hosted Xiaohongshu QR login.
 
-The dashboard process never talks to Xiaohongshu directly.  It asks the
-separate, loopback-only login container for a QR code, then claims the
-resulting cookies when the user saves the parser settings.  Cookies are never
-returned to the browser.
+The dashboard starts a headless Chromium through Playwright on demand.  There
+is no separate login service, port or token: the browser is a child of the
+dashboard process and is closed when the scan is cancelled, expires or is
+saved.  Cookies stay in this process and are released only through
+``claim()``, immediately before the parser settings save.
 """
 
 from __future__ import annotations
 
-import argparse
+import asyncio
 import base64
 import hashlib
-import json
+import logging
 import os
 import re
 import secrets
 import sys
-from pathlib import Path
-from typing import Any
-
-import httpx
+import time
+from dataclasses import dataclass
+from typing import Any, Callable
+from urllib.parse import urlparse
 
 import render_client
-import render_settings
 
-ROOT = Path(__file__).resolve().parent
-TOKEN_PATH = ROOT / 'data' / 'xhs-login-token.env'
-DEFAULT_URL = 'http://127.0.0.1:3102'
-TOKEN_NAME = 'XHS_LOGIN_TOKEN'
-MAX_RESPONSE = 256 * 1024
+log = logging.getLogger(__name__)
+
+LOGIN_URL = 'https://www.xiaohongshu.com/explore'
+ALLOWED_HOSTS = ('xiaohongshu.com', 'xhscdn.com', 'xhscdn.net')
+QR_TTL = 180
+READY_TTL = 300
+CLAIM_TTL = 30
+RISK_MARKERS = ('当前网络存在风险', '安全限制', '请通过验证', '300012')
+RISK_MESSAGE = '小红书风控：当前网络存在风险，请更换网络或稍后重试'
+MAX_COOKIES = 100
+MAX_COOKIE_HEADER = 32768
 HEX64 = re.compile(r'^[0-9a-f]{64}$')
 COOKIE_NAME = re.compile(r"^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$")
 COOKIE_VALUE = re.compile(r'^[\x21-\x7e]+$')
@@ -51,199 +57,526 @@ def owner(admin_session: str) -> str:
     return hashlib.sha256(str(admin_session).encode('utf-8')).hexdigest()
 
 
-def _base_url() -> str:
-    value = os.environ.get('QQBOT_XHS_LOGIN_URL') or DEFAULT_URL
+def is_xhs_url(raw: str) -> bool:
     try:
-        return render_settings.validate_url(value)
-    except ValueError as exc:
-        raise XhsLoginError(503, f'小红书登录服务地址无效：{exc}') from exc
+        parsed = urlparse(str(raw))
+    except ValueError:
+        return False
+    if parsed.scheme == 'data':
+        return True
+    if parsed.scheme == 'about':
+        return parsed.geturl() == 'about:blank'
+    if parsed.scheme != 'https':
+        return False
+    if parsed.port and parsed.port != 443:
+        return False
+    host = (parsed.hostname or '').lower()
+    return any(host == base or host.endswith('.' + base) for base in ALLOWED_HOSTS)
 
 
-def _token() -> str:
-    try:
-        text = TOKEN_PATH.read_text(encoding='utf-8').strip()
-    except OSError as exc:
-        raise XhsLoginError(
-            503, '小红书登录服务未配置，请先运行 python nonebot/xhs_login.py --init-token'
-        ) from exc
-    prefix = TOKEN_NAME + '='
-    if not text.startswith(prefix):
-        raise XhsLoginError(503, '小红书登录服务令牌文件格式无效')
-    token = text[len(prefix):].strip()
-    if not HEX64.fullmatch(token):
-        raise XhsLoginError(503, '小红书登录服务令牌格式无效')
-    return token
+def _is_risk_control(text: Any) -> bool:
+    value = str(text or '')
+    return any(marker in value for marker in RISK_MARKERS)
 
 
-def init_token() -> Path:
-    """Create the shared token once; never overwrite an existing file."""
-    TOKEN_PATH.parent.mkdir(parents=True, exist_ok=True)
-    if TOKEN_PATH.exists():
-        _token()
-        return TOKEN_PATH
-    token = secrets.token_hex(32)
+def _png_ok(data: bytes) -> bool:
     try:
-        fd = os.open(TOKEN_PATH, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-    except FileExistsError:
-        _token()
-        return TOKEN_PATH
-    try:
-        with os.fdopen(fd, 'w', encoding='utf-8', newline='\n') as stream:
-            stream.write(f'{TOKEN_NAME}={token}\n')
-        try:
-            os.chmod(TOKEN_PATH, 0o600)
-        except OSError:
-            pass
+        render_client.png_bytes(data)
     except Exception:
-        TOKEN_PATH.unlink(missing_ok=True)
-        raise
-    return TOKEN_PATH
+        return False
+    return True
 
 
-def _error_for(status: int) -> XhsLoginError:
-    if status == 404:
-        return XhsLoginError(404, '扫码会话不存在或已过期')
-    if status == 409:
-        return XhsLoginError(409, '扫码会话正在保存或尚未就绪')
-    if status == 400:
-        return XhsLoginError(400, '扫码请求无效')
-    if status in (401, 403):
-        return XhsLoginError(503, '小红书登录服务令牌不一致')
-    if status in (408, 504):
-        return XhsLoginError(504, '小红书登录服务超时')
-    return XhsLoginError(503, '小红书登录服务不可用')
+def _domain_rank(cookie: dict[str, Any]) -> int:
+    domain = str(cookie.get('domain') or '').lstrip('.').lower()
+    if domain == 'www.xiaohongshu.com':
+        return 3
+    if domain == 'xiaohongshu.com':
+        return 2
+    return 1
 
 
-async def _request(path: str, payload: dict[str, Any], *, timeout: float) -> dict[str, Any]:
-    token = _token()
-    url = _base_url() + path
-    headers = {'X-XHS-Login-Token': token, 'Content-Type': 'application/json'}
-    try:
-        async with httpx.AsyncClient(trust_env=False, timeout=timeout) as client:
-            async with client.stream('POST', url, json=payload, headers=headers) as response:
-                if response.status_code >= 400:
-                    raise _error_for(response.status_code)
-                chunks: list[bytes] = []
-                size = 0
-                async for chunk in response.aiter_bytes():
-                    size += len(chunk)
-                    if size > MAX_RESPONSE:
-                        raise XhsLoginError(502, '小红书登录服务响应过大')
-                    chunks.append(chunk)
-        data = json.loads(b''.join(chunks))
-    except XhsLoginError:
-        raise
-    except httpx.TimeoutException as exc:
-        raise XhsLoginError(504, '小红书登录服务超时') from exc
-    except (httpx.HTTPError, OSError) as exc:
-        raise XhsLoginError(503, '小红书登录服务不可用，请确认独立登录容器已启动') from exc
-    except (ValueError, TypeError) as exc:
-        raise XhsLoginError(502, '小红书登录服务响应无效') from exc
-    if not isinstance(data, dict):
-        raise XhsLoginError(502, '小红书登录服务响应无效')
-    return data
-
-
-def _cookie_header(cookies: Any) -> str:
-    if not isinstance(cookies, str):
-        raise XhsLoginError(502, '登录服务返回的 Cookie 格式无效')
-    text = cookies.strip()
-    if not text:
-        raise XhsLoginError(502, '登录服务返回了空 Cookie')
+def cookie_header(cookies: Any) -> str:
+    """Build the Cookie header from Playwright cookies, preferring host cookies."""
+    if not isinstance(cookies, list):
+        raise XhsLoginError(502, '登录页返回的 Cookie 格式无效')
+    allowed: list[dict[str, Any]] = []
+    for cookie in cookies:
+        if not isinstance(cookie, dict):
+            continue
+        domain = str(cookie.get('domain') or '').lstrip('.').lower()
+        if domain == 'xiaohongshu.com' or domain.endswith('.xiaohongshu.com'):
+            allowed.append(cookie)
+    allowed.sort(key=lambda item: (
+        -_domain_rank(item),
+        -len(str(item.get('domain') or '')),
+        -len(str(item.get('path') or '/')),
+    ))
     values: dict[str, str] = {}
-    for chunk in text.split(';'):
-        name, separator, value = chunk.strip().partition('=')
-        if (not separator or not COOKIE_NAME.fullmatch(name)
-                or not COOKIE_VALUE.fullmatch(value) or ';' in value):
-            raise XhsLoginError(502, '登录服务返回的 Cookie 格式无效')
+    for cookie in allowed:
+        name = cookie.get('name')
+        value = cookie.get('value')
+        if not isinstance(name, str) or not isinstance(value, str):
+            continue
+        if (not COOKIE_NAME.fullmatch(name) or not COOKIE_VALUE.fullmatch(value)
+                or ';' in value):
+            continue
         values.setdefault(name, value)
     if not values.get('web_session'):
-        raise XhsLoginError(502, '登录服务返回的 Cookie 缺少 web_session')
-    if len(values) > 100 or len(text) > 32768:
-        raise XhsLoginError(502, '登录服务返回的 Cookie 过大')
-    return '; '.join(f'{name}={value}' for name, value in values.items())
+        raise XhsLoginError(502, '登录页返回的 Cookie 缺少 web_session')
+    if len(values) > MAX_COOKIES:
+        raise XhsLoginError(502, '登录页返回的 Cookie 过多')
+    header = '; '.join(f'{name}={value}' for name, value in values.items())
+    if len(header) > MAX_COOKIE_HEADER:
+        raise XhsLoginError(502, '登录页返回的 Cookie 过大')
+    return header
+
+
+def _sandbox_enabled() -> bool:
+    configured = os.environ.get('QQBOT_XHS_LOGIN_SANDBOX')
+    if configured is not None:
+        return configured.strip().lower() not in ('0', 'false', 'no', 'off')
+    # root cannot start Chromium's setuid/userns sandbox reliably; the service
+    # therefore follows the same rule as the former host mode.
+    return not (
+        sys.platform.startswith('linux')
+        and getattr(os, 'geteuid', lambda: 1)() == 0
+    )
+
+
+class XhsBrowser:
+    """One Playwright browser/page pair for a single QR session."""
+
+    def __init__(self) -> None:
+        self._playwright: Any = None
+        self._browser: Any = None
+        self._context: Any = None
+        self._page: Any = None
+        self._guest_sessions: set[str] = set()
+        self._closed = False
+
+    async def _page_text(self) -> str:
+        try:
+            return await self._page.locator('body').inner_text()
+        except Exception:
+            return ''
+
+    async def _route(self, route: Any) -> None:
+        try:
+            if is_xhs_url(route.request.url):
+                await route.continue_()
+            else:
+                await route.abort()
+        except Exception:
+            pass
+
+    def _dismiss(self, dialog: Any) -> None:
+        async def dismiss() -> None:
+            try:
+                await dialog.dismiss()
+            except Exception:
+                pass
+
+        asyncio.create_task(dismiss())
+
+    async def open(self) -> str:
+        try:
+            from playwright.async_api import async_playwright
+        except ImportError as exc:
+            raise XhsLoginError(
+                503,
+                '缺少 Python Playwright；请运行 '
+                '.venv/bin/python -m playwright install chromium',
+            ) from exc
+        try:
+            self._playwright = await async_playwright().start()
+            self._browser = await self._playwright.chromium.launch(
+                headless=True,
+                chromium_sandbox=_sandbox_enabled(),
+            )
+            self._context = await self._browser.new_context(
+                locale='zh-CN',
+                timezone_id='Asia/Shanghai',
+                viewport={'width': 1280, 'height': 800},
+                service_workers='block',
+                accept_downloads=False,
+            )
+            await self._context.route('**/*', self._route)
+            self._page = await self._context.new_page()
+            self._page.set_default_timeout(30_000)
+            self._page.on('dialog', self._dismiss)
+            await self._page.goto(
+                LOGIN_URL, wait_until='domcontentloaded', timeout=30_000
+            )
+
+            qr = self._page.locator('.login-container img.qrcode-img')
+            try:
+                await qr.wait_for(state='visible', timeout=5_000)
+            except Exception:
+                if _is_risk_control(await self._page_text()):
+                    raise XhsLoginError(502, RISK_MESSAGE)
+                login = self._page.get_by_role('button', name='登录').first
+                try:
+                    if await login.count():
+                        await login.click()
+                except Exception:
+                    pass
+                try:
+                    await qr.wait_for(state='visible', timeout=25_000)
+                except Exception:
+                    if _is_risk_control(await self._page_text()):
+                        raise XhsLoginError(502, RISK_MESSAGE)
+                    raise XhsLoginError(502, '小红书登录页未出现二维码，请稍后重试')
+
+            await self._page.wait_for_function(
+                """() => {
+                    const image = document.querySelector('.login-container img.qrcode-img');
+                    return Boolean(image && image.complete && image.naturalWidth > 0);
+                }""",
+                timeout=10_000,
+            )
+            cookies = await self._context.cookies('https://www.xiaohongshu.com/')
+            self._guest_sessions = {
+                str(cookie['value'])
+                for cookie in cookies
+                if cookie.get('name') == 'web_session' and cookie.get('value')
+            }
+            png = await qr.screenshot(type='png')
+            if not _png_ok(png):
+                raise XhsLoginError(502, '登录页没有返回有效二维码')
+            return base64.b64encode(png).decode('ascii')
+        except XhsLoginError:
+            await self.close()
+            raise
+        except Exception as exc:
+            await self.close()
+            raise XhsLoginError(502, '打开小红书登录页失败，请稍后重试') from exc
+
+    async def poll(self) -> dict[str, Any]:
+        if self._closed or self._page is None or self._page.is_closed():
+            return {'status': 'error', 'code': 'upstream_error'}
+        body = await self._page_text()
+        if _is_risk_control(body):
+            return {'status': 'error', 'code': 'risk_control'}
+        try:
+            cookies = await self._context.cookies('https://www.xiaohongshu.com/')
+            current = next(
+                (cookie for cookie in cookies
+                 if cookie.get('name') == 'web_session' and cookie.get('value')),
+                None,
+            )
+            logged_in = await self._page.locator(
+                '.main-container .user .link-wrapper .channel'
+            ).count()
+        except Exception:
+            return {'status': 'error', 'code': 'upstream_error'}
+        if (logged_in > 0 and current
+                and str(current['value']) not in self._guest_sessions):
+            return {'status': 'ready', 'cookies': cookies}
+        if '二维码已过期' in body:
+            return {'status': 'expired'}
+        if '扫码成功' in body:
+            return {'status': 'scanned'}
+        return {'status': 'waiting'}
+
+    async def close(self) -> None:
+        if self._closed:
+            return
+        self._closed = True
+        context, browser, playwright = self._context, self._browser, self._playwright
+        self._context = self._browser = self._playwright = self._page = None
+        self._guest_sessions.clear()
+        for closer in (
+            context.close if context is not None else None,
+            browser.close if browser is not None else None,
+            playwright.stop if playwright is not None else None,
+        ):
+            if closer is None:
+                continue
+            try:
+                await closer()
+            except Exception:
+                pass
+
+
+@dataclass
+class _Session:
+    id: str
+    owner: str
+    status: str
+    qr_png: str = ''
+    cookies: str = ''
+    code: str = ''
+    claim_id: str = ''
+    expires_at: float = 0.0
+    ready_until: float = 0.0
+    claim_until: float = 0.0
+    browser: Any = None
+
+
+class _LoginManager:
+    def __init__(
+        self,
+        browser_factory: Callable[[], Any] | None = None,
+        clock: Callable[[], float] = time.monotonic,
+    ) -> None:
+        self._browser_factory = browser_factory or XhsBrowser
+        self._clock = clock
+        self._session: _Session | None = None
+        self._mutex: asyncio.Lock | None = None
+        self._loop: asyncio.AbstractEventLoop | None = None
+
+    def _lock(self) -> asyncio.Lock:
+        loop = asyncio.get_running_loop()
+        if self._mutex is None or self._loop is not loop:
+            self._mutex = asyncio.Lock()
+            self._loop = loop
+        return self._mutex
+
+    def _now(self) -> float:
+        return float(self._clock())
+
+    @staticmethod
+    def _result(status: str, code: str = '') -> dict[str, Any]:
+        result: dict[str, Any] = {'status': status}
+        if status == 'error' and code in ERROR_CODES:
+            result['code'] = code
+        return result
+
+    async def _close_browser(self, session: _Session) -> None:
+        browser = session.browser
+        session.browser = None
+        if browser is None:
+            return
+        try:
+            await browser.close()
+        except Exception:
+            log.exception('xhs login browser close failed')
+
+    async def _close(self, session: _Session | None) -> None:
+        if session is None:
+            return
+        await self._close_browser(session)
+        if self._session is session:
+            self._session = None
+
+    def _get(self, admin_session: str, session_id: str) -> _Session:
+        if not valid_session_id(session_id):
+            raise XhsLoginError(400, '扫码会话无效')
+        session = self._session
+        if (session is None or session.id != session_id
+                or session.owner != owner(admin_session)):
+            raise XhsLoginError(404, '扫码会话不存在或已过期')
+        return session
+
+    async def start(self, admin_session: str) -> dict[str, Any]:
+        async with self._lock():
+            current = self._session
+            now = self._now()
+            if current is not None:
+                finished = current.status in ('expired', 'error') or (
+                    current.status in ('waiting', 'scanned')
+                    and now >= current.expires_at
+                ) or (
+                    current.status == 'ready' and now >= current.ready_until
+                )
+                if not finished:
+                    raise XhsLoginError(409, '扫码会话已在进行中，请先取消')
+                await self._close(current)
+
+            session = _Session(
+                id=secrets.token_hex(32),
+                owner=owner(admin_session),
+                status='starting',
+            )
+            self._session = session
+            try:
+                browser = self._browser_factory()
+                session.browser = browser
+                qr_png = await browser.open()
+            except asyncio.CancelledError:
+                await asyncio.shield(self._close(session))
+                raise
+            except XhsLoginError:
+                await self._close(session)
+                raise
+            except Exception as exc:
+                log.exception('xhs login browser open failed')
+                await self._close(session)
+                raise XhsLoginError(502, '生成小红书二维码失败，请稍后重试') from exc
+
+            try:
+                png = base64.b64decode(qr_png, validate=True)
+            except (TypeError, ValueError) as exc:
+                await self._close(session)
+                raise XhsLoginError(502, '登录页返回的二维码无效') from exc
+            if not _png_ok(png):
+                await self._close(session)
+                raise XhsLoginError(502, '登录页返回的二维码无效')
+
+            session.qr_png = qr_png
+            session.status = 'waiting'
+            session.expires_at = self._now() + QR_TTL
+            return {
+                'id': session.id,
+                'qr_png': qr_png,
+                'expires_in': QR_TTL,
+            }
+
+    async def status(self, admin_session: str, session_id: str) -> dict[str, Any]:
+        async with self._lock():
+            session = self._get(admin_session, session_id)
+            now = self._now()
+            if session.status in ('waiting', 'scanned'):
+                if now >= session.expires_at:
+                    await self._close(session)
+                    session.status = 'expired'
+                    return self._result('expired')
+                try:
+                    result = await session.browser.poll()
+                except asyncio.CancelledError:
+                    raise
+                except Exception:
+                    log.exception('xhs login poll failed')
+                    await self._close_browser(session)
+                    session.status = 'error'
+                    session.code = 'upstream_error'
+                    return self._result('error', 'upstream_error')
+
+                state = result.get('status') if isinstance(result, dict) else None
+                if state == 'ready':
+                    try:
+                        header = cookie_header(result.get('cookies'))
+                    except XhsLoginError:
+                        await self._close_browser(session)
+                        session.status = 'error'
+                        session.code = 'invalid_cookie'
+                        return self._result('error', 'invalid_cookie')
+                    session.cookies = header
+                    session.status = 'ready'
+                    session.ready_until = self._now() + READY_TTL
+                    await self._close_browser(session)
+                    return self._result('ready')
+                if state == 'error':
+                    code = result.get('code')
+                    if code not in ERROR_CODES:
+                        code = 'upstream_error'
+                    await self._close_browser(session)
+                    session.status = 'error'
+                    session.code = code
+                    return self._result('error', code)
+                if state == 'expired':
+                    await self._close(session)
+                    session.status = 'expired'
+                    return self._result('expired')
+                if state == 'scanned':
+                    session.status = 'scanned'
+                    return self._result('scanned')
+                return self._result('waiting')
+
+            if session.status == 'ready':
+                if now >= session.ready_until:
+                    await self._close(session)
+                    session.status = 'expired'
+                    return self._result('expired')
+                return self._result('ready')
+            if session.status == 'saving':
+                if now >= session.claim_until:
+                    if now < session.ready_until:
+                        session.status = 'ready'
+                        session.claim_id = ''
+                        session.claim_until = 0
+                        return self._result('ready')
+                    await self._close(session)
+                    session.status = 'expired'
+                    return self._result('expired')
+                return self._result('saving')
+            return self._result(session.status, session.code)
+
+    async def cancel(self, admin_session: str, session_id: str) -> dict[str, Any]:
+        async with self._lock():
+            session = self._get(admin_session, session_id)
+            if session.status == 'saving':
+                raise XhsLoginError(409, '扫码结果正在保存，请稍候')
+            await self._close(session)
+            session.status = 'expired'
+            return {'ok': True}
+
+    async def claim(self, admin_session: str, session_id: str) -> dict[str, str]:
+        async with self._lock():
+            session = self._get(admin_session, session_id)
+            now = self._now()
+            if session.status == 'saving':
+                raise XhsLoginError(409, '扫码结果正在保存，请稍候')
+            if session.status != 'ready':
+                raise XhsLoginError(409, '扫码尚未完成或已过期')
+            if now >= session.ready_until:
+                await self._close(session)
+                session.status = 'expired'
+                raise XhsLoginError(404, '扫码会话不存在或已过期')
+            claim_id = secrets.token_hex(32)
+            session.claim_id = claim_id
+            session.claim_until = now + CLAIM_TTL
+            session.status = 'saving'
+            return {'claim_id': claim_id, 'cookies': session.cookies}
+
+    async def settle(
+        self,
+        admin_session: str,
+        session_id: str,
+        claim_id: str,
+        commit: bool,
+    ) -> None:
+        async with self._lock():
+            if not valid_session_id(claim_id):
+                raise XhsLoginError(400, '扫码会话无效')
+            session = self._get(admin_session, session_id)
+            if session.status != 'saving' or session.claim_id != claim_id:
+                raise XhsLoginError(409, '扫码结果已保存或已过期')
+            if commit:
+                await self._close(session)
+                session.status = 'expired'
+                return
+            if self._now() < session.ready_until:
+                session.status = 'ready'
+                session.claim_id = ''
+                session.claim_until = 0
+                return
+            await self._close(session)
+            session.status = 'expired'
+
+    async def close(self) -> None:
+        async with self._lock():
+            await self._close(self._session)
+
+
+_manager = _LoginManager()
 
 
 async def start(admin_session: str) -> dict[str, Any]:
-    data = await _request('/start', {'owner': owner(admin_session)}, timeout=35)
-    session_id = data.get('id')
-    qr_png = data.get('qr_png')
-    expires_in = data.get('expires_in')
-    if not valid_session_id(session_id):
-        raise XhsLoginError(502, '登录服务返回了无效会话')
-    if not isinstance(qr_png, str) or not qr_png:
-        raise XhsLoginError(502, '登录服务没有返回二维码')
-    try:
-        png = base64.b64decode(qr_png, validate=True)
-        render_client.png_bytes(png)
-    except Exception as exc:
-        raise XhsLoginError(502, '登录服务返回的二维码无效') from exc
-    if not isinstance(expires_in, int) or not 1 <= expires_in <= 600:
-        expires_in = 180
-    return {'id': session_id, 'qr_png': qr_png, 'expires_in': expires_in}
+    return await _manager.start(admin_session)
 
 
 async def status(admin_session: str, session_id: str) -> dict[str, Any]:
-    if not valid_session_id(session_id):
-        raise XhsLoginError(400, '扫码会话无效')
-    data = await _request(
-        '/status', {'owner': owner(admin_session), 'id': session_id}, timeout=5
-    )
-    state = data.get('status')
-    if state not in STATES:
-        raise XhsLoginError(502, '登录服务返回了无效状态')
-    result: dict[str, Any] = {'status': state}
-    code = data.get('code')
-    if state == 'error' and code in ERROR_CODES:
-        result['code'] = code
-    return result
+    return await _manager.status(admin_session, session_id)
 
 
 async def cancel(admin_session: str, session_id: str) -> dict[str, Any]:
-    if not valid_session_id(session_id):
-        raise XhsLoginError(400, '扫码会话无效')
-    await _request('/cancel', {'owner': owner(admin_session), 'id': session_id}, timeout=5)
-    return {'ok': True}
+    return await _manager.cancel(admin_session, session_id)
 
 
 async def claim(admin_session: str, session_id: str) -> dict[str, str]:
-    if not valid_session_id(session_id):
-        raise XhsLoginError(400, '扫码会话无效')
-    data = await _request('/claim', {'owner': owner(admin_session), 'id': session_id}, timeout=5)
-    claim_id = data.get('claim_id')
-    if not valid_session_id(claim_id):
-        raise XhsLoginError(502, '登录服务返回了无效领取凭证')
-    return {'claim_id': claim_id, 'cookies': _cookie_header(data.get('cookies'))}
+    return await _manager.claim(admin_session, session_id)
 
 
-async def settle(admin_session: str, session_id: str, claim_id: str, commit: bool) -> None:
-    if not valid_session_id(session_id) or not valid_session_id(claim_id):
-        raise XhsLoginError(400, '扫码会话无效')
-    await _request('/settle', {
-        'owner': owner(admin_session),
-        'id': session_id,
-        'claim_id': claim_id,
-        'commit': bool(commit),
-    }, timeout=5)
+async def settle(
+    admin_session: str,
+    session_id: str,
+    claim_id: str,
+    commit: bool,
+) -> None:
+    await _manager.settle(admin_session, session_id, claim_id, commit)
 
 
-def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description='小红书扫码登录服务令牌')
-    parser.add_argument('--init-token', action='store_true', help='创建共享登录服务令牌')
-    args = parser.parse_args(argv)
-    if not args.init_token:
-        parser.error('请使用 --init-token')
-    try:
-        path = init_token()
-    except XhsLoginError as exc:
-        print(f'错误：{exc.detail}', file=sys.stderr)
-        return 1
-    except OSError as exc:
-        print(f'错误：无法写入 {TOKEN_PATH}：{exc}', file=sys.stderr)
-        return 1
-    print(f'令牌文件已就绪：{path}')
-    return 0
-
-
-if __name__ == '__main__':
-    raise SystemExit(main())
+async def close() -> None:
+    await _manager.close()

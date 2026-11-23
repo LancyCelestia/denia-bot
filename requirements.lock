@@ -65,11 +65,13 @@ openai==3.19.2
 opentelemetry-api==1.45.1
 psutil==7.2.2
 Pillow==13.0.0
+playwright==1.60.0
 propcache==0.5.4
 pycparser==3.12
 pydantic==2.14.1
 pydantic-settings==2.16.1
 pydantic_core==2.50.1
+pyee==13.0.1
 Pygments==2.21.0
 pygtrie==2.6.2
 PyJWT==2.15.1

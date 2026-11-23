@@ -309,6 +309,15 @@ if ($LASTEXITCODE -ne 0) {
 }
 Write-Ok 'nonebot imports; muicebot is installed'
 
+if (-not $SkipInstall) {
+    Write-Section 'Ensuring Playwright Chromium for the dashboard Xiaohongshu login ...'
+    & $python -m playwright install chromium
+    if ($LASTEXITCODE -ne 0) {
+        Stop-Check "Playwright Chromium install failed (exit $LASTEXITCODE); no service was started."
+    }
+    Write-Ok 'Playwright Chromium is installed'
+}
+
 if (Test-Path -LiteralPath $ragIndex -PathType Leaf) {
     if (Test-Path -LiteralPath $ragPython -PathType Leaf) {
         Write-Ok 'Optional RAG service: index and venv are ready'
