@@ -1,6 +1,6 @@
 """`reply_guard_logic` 的断言测试 —— 不 import nonebot、不碰 QQ、不调模型，直接跑：
 
-    cd C:\\Software\\ChatBot\\nonebot
+    cd nonebot
     .venv\\Scripts\\python.exe tests\\test_reply_guard_logic.py
 """
 
