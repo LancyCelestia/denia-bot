@@ -913,6 +913,7 @@ def build_report(
             ('调用次数', str(total) if total else '暂无记录'),
             ('成功率', f'{ok / total * 100:.1f}%' if total else EMPTY),
             ('平均延迟', f'{data.get("avg_ms", 0):.0f}ms' if total else EMPTY),
+            ('P95 延迟', f'{data.get("p95_ms"):.0f}ms' if data.get('p95_ms') else EMPTY),
             ('首字延迟', f'{data.get("avg_ttft_ms", 0):.0f}ms' if data.get('avg_ttft_ms') else EMPTY),
         ]
         out_sections.append({
@@ -1127,6 +1128,61 @@ def network_rates(
     if up < 0 or down < 0:
         return 0.0, 0.0
     return up / span, down / span
+
+
+def message_rate(
+    samples: Sequence[dict[str, Any]] | None,
+    *,
+    now: float | None = None,
+    window_seconds: float = 300.0,
+    min_span_seconds: float = 30.0,
+) -> dict[str, Any] | None:
+    """两次收发计数采样 → 每分钟消息速率。
+
+    采样由 `Runtime.flush_counters()` 写入状态文件，面板进程只需读同一份 JSON，
+    不依赖 SQLite、系统命令或平台 API。样本不足、计数回退（机器人重启）或最后
+    一次采样已过期时返回 None，前端显示“等两次采样”而不是一个假数字。
+    """
+    now = time.time() if now is None else float(now)
+    rows: list[tuple[float, int, int]] = []
+    for item in samples or ():
+        if not isinstance(item, dict):
+            continue
+        try:
+            ts = float(item.get('ts'))
+            recv = int(item.get('recv'))
+            sent = int(item.get('sent'))
+        except (TypeError, ValueError):
+            continue
+        if ts > 0:
+            rows.append((ts, recv, sent))
+    if len(rows) < 2:
+        return None
+    rows.sort(key=lambda row: row[0])
+    latest = rows[-1]
+    stale_after = max(120.0, float(window_seconds))
+    if now - latest[0] > stale_after:
+        return None
+    start = latest[0] - max(1.0, float(window_seconds))
+    window = [row for row in rows if start <= row[0] <= latest[0] + 1]
+    if len(window) < 2:
+        return None
+    first = window[0]
+    span = latest[0] - first[0]
+    if span < max(1.0, float(min_span_seconds)):
+        return None
+    recv_delta = latest[1] - first[1]
+    sent_delta = latest[2] - first[2]
+    if recv_delta < 0 or sent_delta < 0:
+        return None
+    per_min = 60.0 / span
+    return {
+        'recv_per_min': round(recv_delta * per_min, 1),
+        'sent_per_min': round(sent_delta * per_min, 1),
+        'total_per_min': round((recv_delta + sent_delta) * per_min, 1),
+        'window_seconds': round(span, 1),
+        'samples': len(window),
+    }
 
 
 def month_label(month: str) -> str:

@@ -42,6 +42,8 @@ import status_collect as status_live
 import status_cluster as status_cluster_mod
 import status_config as status_config_mod
 import status_grafana as status_grafana_mod
+import status_logic as status_logic_mod
+import status_llm as status_llm_mod
 import status_store as status_store_mod
 import superuser_settings
 import theme_panel
@@ -1035,10 +1037,12 @@ def status_paths():
 
 
 def status_stores():
+    _, state_path, db_path = status_paths()
     if 'samples' not in _status_cache:
-        _, state_path, db_path = status_paths()
-        _status_cache['state'] = status_store_mod.StateStore(state_path)
         _status_cache['samples'] = status_store_mod.SampleStore(db_path)
+    # 状态 JSON 由机器人进程写入。面板是独立进程，若缓存 StateStore，就会一直
+    # 读启动那一刻的计数器/LLM 直方图；每次概览请求重新读一份很便宜。
+    _status_cache['state'] = status_store_mod.StateStore(state_path)
     return _status_cache['samples'], _status_cache['state']
 
 
@@ -1066,6 +1070,11 @@ def status_overview(req: Request, days: int = 1):
     samples, state = status_stores()
     now = time.time()
     since = int(now - days * 86400)
+    quality = status_llm_mod.LLMQuality(state)
+    llm = quality.summary(days=days)
+    rate = status_logic_mod.message_rate(
+        state.section('counters_history').get('samples') or [], now=now
+    )
     try:
         live = status_live.panel_snapshot()
     except Exception:
@@ -1094,6 +1103,8 @@ def status_overview(req: Request, days: int = 1):
         'host': str(state.get('host') or ''),
         'bot': panel,
         'counters': state.section('counters'),
+        'llm': llm,
+        'rate': rate,
         'network': {
             'month_up': state.section('net').get('month_up'),
             'month_down': state.section('net').get('month_down'),

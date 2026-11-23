@@ -324,6 +324,42 @@ class ReportAggregationTest(unittest.TestCase):
         self.assertEqual(process_section['table']['rows'][0][2], '--', '没有内存采样时该列显示 -- 而不是空串')
 
 
+class MessageRateTest(unittest.TestCase):
+    def test_rates_are_per_minute_from_the_window(self):
+        samples = [
+            {'ts': 1000, 'recv': 0, 'sent': 0},
+            {'ts': 1060, 'recv': 6, 'sent': 3},
+            {'ts': 1120, 'recv': 12, 'sent': 6},
+        ]
+        rate = logic.message_rate(samples, now=1120, window_seconds=300)
+        self.assertEqual(rate['recv_per_min'], 6.0)
+        self.assertEqual(rate['sent_per_min'], 3.0)
+        self.assertEqual(rate['total_per_min'], 9.0)
+        self.assertEqual(rate['window_seconds'], 120.0)
+
+    def test_counter_reset_is_unknown(self):
+        samples = [
+            {'ts': 1000, 'recv': 10, 'sent': 10},
+            {'ts': 1060, 'recv': 4, 'sent': 3},
+        ]
+        self.assertIsNone(logic.message_rate(samples, now=1060))
+
+    def test_one_sample_or_too_short_span_is_unknown(self):
+        self.assertIsNone(logic.message_rate([{'ts': 1000, 'recv': 1, 'sent': 1}], now=1000))
+        samples = [
+            {'ts': 1000, 'recv': 0, 'sent': 0},
+            {'ts': 1010, 'recv': 1, 'sent': 1},
+        ]
+        self.assertIsNone(logic.message_rate(samples, now=1010, min_span_seconds=30))
+
+    def test_stale_samples_are_unknown(self):
+        samples = [
+            {'ts': 1000, 'recv': 0, 'sent': 0},
+            {'ts': 1060, 'recv': 1, 'sent': 1},
+        ]
+        self.assertIsNone(logic.message_rate(samples, now=2000, window_seconds=300))
+
+
 class MiscTest(unittest.TestCase):
     def test_parse_hhmm(self):
         self.assertEqual(logic.parse_hhmm('21:00'), (21, 0))

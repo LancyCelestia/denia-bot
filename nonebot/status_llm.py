@@ -20,13 +20,51 @@
 
 from __future__ import annotations
 
+import math
 import time
 from typing import Any, Callable
 
-__all__ = ['LLMQuality', 'UNKNOWN_MODEL']
+__all__ = ['LATENCY_BUCKETS_MS', 'LLMQuality', 'UNKNOWN_MODEL']
 
 UNKNOWN_MODEL = '未知模型'
 KEEP_DAYS = 30
+#: 延迟直方图的上界（毫秒）。p95 取命中桶的上界，所以它是“不超过”的保守值。
+LATENCY_BUCKETS_MS = (
+    50, 100, 200, 300, 500, 750, 1000, 1500,
+    2000, 3000, 5000, 7500, 10000, 15000, 20000, 30000, 60000,
+)
+
+
+def _latency_bucket(latency_ms: float) -> str:
+    """延迟落在哪个桶；超过 60s 的归入最后一桶。"""
+    value = max(0.0, float(latency_ms))
+    for bound in LATENCY_BUCKETS_MS:
+        if value <= bound:
+            return str(bound)
+    return str(LATENCY_BUCKETS_MS[-1])
+
+
+def p95_from_histogram(histogram: dict[str, Any] | None) -> float | None:
+    """从``{桶上界: 次数}``估 p95；没有样本时返回 None。"""
+    counts: list[tuple[float, int]] = []
+    for key, raw in (histogram or {}).items():
+        try:
+            bound = float(key)
+            count = int(raw)
+        except (TypeError, ValueError):
+            continue
+        if count > 0:
+            counts.append((bound, count))
+    total = sum(count for _, count in counts)
+    if total <= 0:
+        return None
+    target = max(1, math.ceil(total * 0.95))
+    seen = 0
+    for bound, count in sorted(counts):
+        seen += count
+        if seen >= target:
+            return bound
+    return sorted(counts)[-1][0]
 
 
 class LLMQuality:
@@ -165,6 +203,10 @@ class LLMQuality:
             if ok:
                 bucket['ok'] = int(bucket.get('ok') or 0) + 1
                 bucket['latency_ms'] = float(bucket.get('latency_ms') or 0) + max(0.0, float(latency_ms))
+                histogram = dict(bucket.get('latency_hist') or {})
+                key = _latency_bucket(latency_ms)
+                histogram[key] = int(histogram.get(key) or 0) + 1
+                bucket['latency_hist'] = histogram
                 if ttft_ms is not None:
                     bucket['ttft_ms'] = float(bucket.get('ttft_ms') or 0) + max(0.0, float(ttft_ms))
                     bucket['ttft_n'] = int(bucket.get('ttft_n') or 0) + 1
@@ -222,6 +264,13 @@ class LLMQuality:
         latency = sum(float(item.get('latency_ms') or 0) for item in selected)
         ttft_total = sum(float(item.get('ttft_ms') or 0) for item in selected)
         ttft_n = sum(int(item.get('ttft_n') or 0) for item in selected)
+        latency_hist: dict[str, int] = {}
+        for bucket in selected:
+            for key, count in (bucket.get('latency_hist') or {}).items():
+                try:
+                    latency_hist[str(key)] = latency_hist.get(str(key), 0) + int(count)
+                except (TypeError, ValueError):
+                    continue
 
         by_model: dict[str, dict[str, int]] = {}
         for bucket in selected:
@@ -237,13 +286,18 @@ class LLMQuality:
             'success_rate': (ok / total * 100) if total else None,
             'avg_ms': (latency / ok) if ok else 0.0,
             'avg_ttft_ms': (ttft_total / ttft_n) if ttft_n else 0.0,
+            'p95_ms': p95_from_histogram(latency_hist),
             'by_model': by_model,
             'streak': self.streak,
         }
 
 
 def _blank_bucket() -> dict[str, Any]:
-    return {'total': 0, 'ok': 0, 'fail': 0, 'latency_ms': 0.0, 'ttft_ms': 0.0, 'ttft_n': 0, 'by_model': {}}
+    return {
+        'total': 0, 'ok': 0, 'fail': 0,
+        'latency_ms': 0.0, 'ttft_ms': 0.0, 'ttft_n': 0,
+        'latency_hist': {}, 'by_model': {},
+    }
 
 
 def _blank_summary() -> dict[str, Any]:
@@ -254,6 +308,7 @@ def _blank_summary() -> dict[str, Any]:
         'success_rate': None,
         'avg_ms': 0.0,
         'avg_ttft_ms': 0.0,
+        'p95_ms': None,
         'by_model': {},
         'streak': 0,
     }

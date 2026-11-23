@@ -175,6 +175,19 @@ class RuntimeTest(unittest.TestCase):
         again = plugin.Runtime(base=self.base, lazy=False)
         self.assertEqual(again.counters, {'recv': 1, 'sent': 2})
 
+    def test_flush_counters_keeps_rate_history(self):
+        runtime = plugin.Runtime(base=self.base, lazy=True)
+        runtime.prepare()
+        runtime.bump('recv', 2)
+        runtime.bump('sent', 3)
+        runtime.flush_counters()
+        samples = runtime.state.section('counters_history').get('samples') or []
+        self.assertTrue(samples)
+        self.assertEqual(samples[-1]['recv'], 2)
+        self.assertEqual(samples[-1]['sent'], 3)
+        again = plugin.Runtime(base=self.base, lazy=False)
+        self.assertEqual(len(again.state.section('counters_history').get('samples') or []), 1)
+
 
 class ScheduleTest(unittest.TestCase):
     def test_due_respects_clock_marker_and_first_day(self):

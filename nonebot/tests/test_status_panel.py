@@ -66,7 +66,33 @@ class PanelTest(unittest.TestCase):
         self.assertEqual(data['history']['points'], [])
         self.assertEqual(data['events'], [])
         self.assertIsNone(data['report'])
+        self.assertIsNone(data['llm']['p95_ms'])
+        self.assertIsNone(data['rate'])
         self.assertIn('options', data['config'])
+
+    def test_overview_exposes_p95_and_message_rate(self):
+        _, state_path, _ = dashboard.status_paths()
+        state = status_store.StateStore(state_path)
+        day = time.strftime('%Y-%m-%d')
+        state.update_section('llm', days={
+            day: {
+                'total': 2, 'ok': 2, 'fail': 0,
+                'latency_ms': 300.0, 'ttft_ms': 0.0, 'ttft_n': 0,
+                'latency_hist': {'100': 1, '200': 1},
+                'by_model': {},
+            },
+        })
+        now = time.time()
+        state.update_section('counters_history', samples=[
+            {'ts': now - 60, 'recv': 0, 'sent': 0},
+            {'ts': now, 'recv': 6, 'sent': 3},
+        ])
+        state.save()
+        data = dashboard.status_overview(None, days=1)
+        self.assertEqual(data['llm']['p95_ms'], 200.0)
+        self.assertEqual(data['llm']['avg_ms'], 150.0)
+        self.assertEqual(data['rate']['total_per_min'], 9.0)
+        self.assertEqual(data['rate']['recv_per_min'], 6.0)
 
     def test_switch_round_trip_preserves_legacy_config_secret_and_history(self):
         path, _, db = dashboard.status_paths()
