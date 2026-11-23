@@ -18,6 +18,7 @@
 
 ### 修复与加固
 
+- 聊天回复：识别并去掉未加标签的自述计划（如 `Initial response:`），纯计划首轮不再落空历史；聊天客户端读超时默认 60s，可用 `LLM_TIMEOUT` 调整。
 - 解析器：面板「解析日志」改为读取机器人数据目录中的 `data/media_parser/events.jsonl`；解析或发送失败会释放同链接/资源防抖，允许立即重试；防抖跳过写入「提示」事件；超过 20 MB 的原图自动改用已缓存的预览图，避免 QQ highway 323 导致原图图片发不出。
 - 着色器渐变主题的概览主按钮「查看运行详情」改用主题紫色底/白字，修复通用 `.btn-primary` 用半透明 `--paper` 作文字色导致的白底不可见。
 - Windows 一键启动：若 `nonebot\.venv\Scripts\python.exe` 缺失，使用有效的 `runtime\python312\python.exe` 创建虚拟环境；若缓存解释器也缺失，才下载并校验固定版本的 python-build-standalone 3.12.13。不复用系统或 uv 的 Python；preflight 的 `-CheckOnly` 和 `-SkipInstall` 都不会下载。

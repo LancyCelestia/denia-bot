@@ -317,11 +317,8 @@ def t_fallback_inherits_the_personality_when_the_entry_says_nothing():
 class Chunk:
     """MuiceBot 的 `ModelStreamCompletions` 只需要 `.chunk` 这一点被用到。"""
 
-    def __init__(self, chunk="", usage=-1, succeed=True):
+    def __init__(self, chunk=""):
         self.chunk = chunk
-        self.usage = usage
-        self.succeed = succeed
-        self.resources = []
 
 
 async def _agen(words=(), boom=None, delay_first=0.0, delay_later=0.0):
@@ -392,28 +389,6 @@ def t_drive_does_not_time_out_between_chunks():
     text, rec = collect(source)
     assert text == "第一第二", "首字到了之后，中间慢不该被掐"
     assert not rec["error"], rec
-
-
-class HoldThenRelease:
-    """模拟 StreamGuard：先扣住，流结束再一次性放行。"""
-
-    def __init__(self):
-        self.buf = ""
-
-    def feed(self, text):
-        self.buf += text
-        return ""
-
-    def flush(self):
-        return self.buf
-
-
-def t_drive_flushes_a_held_tail_and_keeps_the_usage():
-    def source(rec):
-        return drive(_agen(["嗯"]), rec, transform=HoldThenRelease(), make_chunk=Chunk)
-
-    text, rec = collect(source)
-    assert text == "嗯" and rec["text"] == "嗯" and rec["streamed"] is True, (text, rec)
 
 
 # ---------------------------------------------------------------- 次选顶上（with_rescue）
@@ -723,49 +698,6 @@ def t_setting_the_secondary_equal_to_the_primary_real_model_is_refused():
 def t_help_rows_mention_the_real_model_name_option():
     joined = " ".join(f"{c} {d}" for c, d in help_rows())
     assert "上游" in joined or "真模型" in joined, f"help 要让人知道能直接点模型名：{joined}"
-
-
-class DropPlanning:
-    """模拟 `reply_guard_logic.StreamGuard`：只丢计划文本。"""
-
-    def __init__(self):
-        self.dropped = False
-
-    def feed(self, text):
-        if text.startswith("Initial response"):
-            self.dropped = True
-            return ""
-        return text
-
-    def flush(self):
-        return ""
-
-
-def t_with_rescue_treats_pure_planning_as_no_output():
-    rec = {"notes": []}
-
-    def make_first():
-        return _agen(["Initial response: I should keep the character tone."])
-
-    def make_rescue():
-        return _agen(["次选救场"])
-
-    async def go():
-        out = []
-        async for c in with_rescue(
-            rescue_state(),
-            make_first,
-            make_rescue=make_rescue,
-            note=lambda ok, why: rec["notes"].append((ok, why)),
-            transform_factory=DropPlanning,
-            make_chunk=Chunk,
-        ):
-            out.append(c.chunk)
-        return "".join(out)
-
-    text = asyncio.run(go())
-    assert text == "次选救场", f"首选只吐计划，应该让次选顶上：{text!r}"
-    assert rec["notes"] and rec["notes"][0][0], f"要留下降级原因：{rec}"
 
 
 if __name__ == "__main__":

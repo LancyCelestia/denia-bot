@@ -346,32 +346,21 @@ async def _close(source) -> None:  # noqa: ANN001 - 传进来的是异步生成�
         pass
 
 
-async def drive(
-    source,
-    record: dict,
-    *,
-    timeout: float | None = None,
-    transform=None,
-    make_chunk=None,
-):
+async def drive(source, record: dict, *, timeout: float | None = None):
     """跑一趟模型：chunk **立刻**转出去（流式不能憋），同时把结论写进 `record`。
 
     `record` 最后长这样：`{"text": 攒下的正文, "streamed": 说没说过像样的话, "error": 失败原因}`。
 
-    三件事容易踩：
+    两件事容易踩：
     * `streamed` 用 `usable()` 判，不是「有没有 chunk」—— MuiceBot 空回复时会吐一个
       带「模型回复为空…」的 chunk（`muice.py:364`），那不算说过话，照样该降级。
     * 超时只掐**第一个** chunk。中转站挂住不报错是最常见的坏法；首字到了之后
       中间慢是不该被掐断的。
-    * `transform` 在写 `record` **之前**清洗每个 chunk，所以救援判据看到的是清洗后的
-      正文；纯计划文本会被清空，按「没产出」触发次选。尾部残留由 `flush()` 补发，
-      `make_chunk` 负责把它包回原来的 chunk 类型。
     """
     parts: list[str] = []
     record.update(text="", streamed=False, error="")
     it = source.__aiter__()
     waiting_first = True
-    last_chunk = None
     try:
         while True:
             try:
@@ -386,32 +375,14 @@ async def drive(
                 waiting_first = False
                 break
             waiting_first = False
-            text = getattr(chunk, "chunk", "") or ""
-            if transform is not None:
-                text = transform.feed(text)
-                chunk.chunk = text
-            parts.append(text)
-            last_chunk = chunk
+            parts.append(getattr(chunk, "chunk", "") or "")
             yield chunk
     except Exception as e:  # noqa: BLE001 - provider 抛的异常要变成可判定的信号
         record["error"] = f"{type(e).__name__}: {e}"
     finally:
-        tail = ""
-        if transform is not None:
-            tail = transform.flush()
-            if tail:
-                parts.append(tail)
         record["text"] = "".join(parts)
         record["streamed"] = usable(record["text"])
         await _close(source)  # 正常跑完是空操作；超时/中断时这才把连接收掉
-    if tail:
-        if make_chunk is None:
-            raise RuntimeError("transform 产出了尾部文本，但没给 make_chunk")
-        yield make_chunk(
-            chunk=tail,
-            usage=getattr(last_chunk, "usage", -1),
-            succeed=getattr(last_chunk, "succeed", True),
-        )
 
 
 async def with_rescue(
@@ -423,26 +394,15 @@ async def with_rescue(
     timeout: float | None = None,
     note=None,  # noqa: ANN001
     cleanup=None,  # noqa: ANN001
-    transform_factory=None,  # noqa: ANN001
-    make_chunk=None,  # noqa: ANN001
 ):
     """首选跑一趟；判该换人时用 `make_rescue()` 再跑一趟，跑完一定 `cleanup()`。
 
     谁换人、怎么换（改 `Muice.model` / `model_config` / 人设）都不在这里 —— 那是指令
     接线的事。这里只保证三件事：**没产出才重跑**、**吐过字绝不重跑**、
     **不管次选成没成都把全局状态恢复回首选**。
-
-    `transform_factory` 每趟新建一个清洗器（首选和次选各一个），在 `drive` 里先清洗
-    再记 `streamed`；纯计划文本因此算「没产出」，会正常走到次选。
     """
-    if transform_factory is not None and make_chunk is None:
-        raise ValueError("transform_factory requires make_chunk")
-
     first: dict = {}
-    first_transform = transform_factory() if transform_factory else None
-    async for chunk in drive(
-        make_first(), first, timeout=timeout, transform=first_transform, make_chunk=make_chunk
-    ):
+    async for chunk in drive(make_first(), first, timeout=timeout):
         yield chunk
 
     ok, why = need_failover(
@@ -460,11 +420,8 @@ async def with_rescue(
         return
 
     second: dict = {}
-    second_transform = transform_factory() if transform_factory else None
     try:
-        async for chunk in drive(
-            make_rescue(), second, timeout=timeout, transform=second_transform, make_chunk=make_chunk
-        ):
+        async for chunk in drive(make_rescue(), second, timeout=timeout):
             yield chunk
     finally:
         if cleanup is not None:

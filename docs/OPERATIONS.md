@@ -115,8 +115,9 @@ SnowLuma 是**进程级注入**，同一 QQ 客户端里登录的所有号都会
 2. `.模型 查看` 必须显示具体的次选条目。若显示「次选 未设置 —— 首选报错时不会降级」，就是当前问题的原因；次选与首选指同一个模型时也会被拒绝或清理（同名不算降级）。
 3. 日志按 `[model]` 过滤，能看到降级原因；`MODEL_FAILOVER_TIMEOUT`（默认 45 秒）控制等第一个字的上限，中转站挂住不报错时靠它才会降级。
 4. `MODEL_FAILOVER=0` 表示只保留手动换模型，永不自动降级。
+5. `LLM_TIMEOUT`（默认 60 秒）控制聊天客户端单次读取的上限；它和 `MODEL_FAILOVER_TIMEOUT` 是两道不同的闸。上游首字超过 45 秒时，只调 `LLM_TIMEOUT` 仍会在 45 秒触发降级，两个都要调。
 
-`MODEL_FAILOVER` 与 `MODEL_FAILOVER_TIMEOUT` 都在 `nonebot/.env`，改完重启机器人。首选这一回合已经吐过字时不会重跑，避免同一轮说两遍。
+`MODEL_FAILOVER`、`MODEL_FAILOVER_TIMEOUT` 与 `LLM_TIMEOUT` 都在 `nonebot/.env`，改完重启机器人。首选这一回合已经吐过字时不会重跑，避免同一轮说两遍。
 
 ## 6.5 管理面板的 SnowLuma 状态显示
 

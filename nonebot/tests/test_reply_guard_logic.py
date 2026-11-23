@@ -100,7 +100,49 @@ def t_stream_guard_keeps_later_planning_out_of_a_normal_reply():
     guard = StreamGuard()
     assert guard.feed("……嗯。") == "……嗯。"
     assert guard.feed(" Initial response: I should...") == "", "后半段冒出计划也要拦"
+    assert guard.feed(" keep the character tone.") == "", "标记之后的计划尾巴也不能漏"
     assert guard.dropped is True
+
+
+def t_stream_guard_catches_a_marker_split_across_chunks():
+    guard = StreamGuard()
+    assert guard.feed("……嗯。") == "……嗯。"
+    assert guard.feed(" Initial resp") == "", "半个标记先扣住"
+    assert guard.feed("onse: I should keep the tone.") == "", "标记补齐后整段丢弃"
+    assert guard.feed(" keep the character tone.") == ""
+    assert guard.flush() == ""
+    assert guard.dropped is True
+
+
+def t_normal_english_with_a_weak_marker_is_left_alone():
+    for text in (
+        "The response is simple: I missed you.",
+        "Let me think about it. I will be there at six.",
+        "After careful consideration, I picked blue.",
+        "This seems best to me.",
+    ):
+        assert sanitize(text) == (text, False), f"弱标记不该单独判计划：{text!r}"
+        assert not is_planning(text), text
+
+
+def t_normal_chinese_with_a_weak_marker_is_left_alone():
+    text = "她说：the response is 不行哦。"
+    assert sanitize(text) == (text, False)
+    assert not is_planning(text)
+
+
+def t_a_normal_english_sentence_with_a_strong_phrase_is_left_alone():
+    text = "The character's response was kind and brief."
+    assert sanitize(text) == (text, False)
+    assert not is_planning(text)
+
+
+def t_stream_guard_marks_a_whole_planning_pass_as_aborted():
+    guard = StreamGuard()
+    assert guard.feed("Initial response: I should keep the tone.") == ""
+    assert guard.feed("……嗯。") == ""
+    assert guard.flush() == ""
+    assert guard.aborted is True and guard.dropped is True
 
 
 if __name__ == "__main__":
