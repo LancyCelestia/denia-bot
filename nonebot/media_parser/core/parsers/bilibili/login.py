@@ -1,7 +1,9 @@
 import asyncio
 import io
 import json
-from collections.abc import AsyncGenerator
+import os
+import tempfile
+from collections.abc import AsyncGenerator, Mapping
 
 import qrcode
 from bilibili_api import Credential
@@ -64,9 +66,47 @@ class BilibiliLogin:
 
     def __init__(self, config: PluginConfig):
         self.credential_file = config.data_dir / "cookies" / "bilibili_credential.json"
+        self.config_path = getattr(config, "config_path", None)
         self.raw_cookies = config.parser.bilibili.cookies
         self._credential: Credential | None = None
         self._qr_key: str | None = None
+        self._credential_mtime = self._credential_file_mtime()
+
+    def _credential_file_mtime(self):
+        try:
+            return self.credential_file.stat().st_mtime_ns
+        except OSError:
+            return None
+
+    def _credential_file_is_newer_than_config(self) -> bool:
+        """Dashboard login writes both files; the credential file is authoritative.
+
+        A running bot may still hold the raw cookie string from startup. If the
+        dashboard has just saved a QR/paste login, prefer the newer credential
+        file even when the process has not initialized its credential yet.
+        """
+        file_mtime = self._credential_file_mtime()
+        if file_mtime is None:
+            return False
+        config_path = getattr(self, "config_path", None)
+        if config_path is None:
+            return True
+        try:
+            config_mtime = config_path.stat().st_mtime_ns
+        except OSError:
+            return True
+        return file_mtime >= config_mtime
+
+    def _reload_if_changed(self) -> None:
+        """Reload a credential file written by the dashboard without a restart."""
+        if self._credential is None:
+            return
+        mtime = self._credential_file_mtime()
+        if mtime is None or mtime == self._credential_mtime:
+            return
+        self._credential = None
+        self._load_credential()
+        self._credential_mtime = mtime
 
     def _save_credential(self):
         """存储哔哩哔哩登录凭证"""
@@ -82,16 +122,42 @@ class BilibiliLogin:
             if value
         }
         self.credential_file.parent.mkdir(parents=True, exist_ok=True)
-        self.credential_file.write_text(
-            json.dumps(cookies, ensure_ascii=False), encoding="utf-8"
-        )
+        temp = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                "w",
+                encoding="utf-8",
+                dir=self.credential_file.parent,
+                prefix=".bili-",
+                suffix=".tmp",
+                delete=False,
+            ) as f:
+                temp = f.name
+                json.dump(cookies, f, ensure_ascii=False)
+            os.chmod(temp, 0o600)
+            os.replace(temp, self.credential_file)
+        finally:
+            if temp and os.path.exists(temp):
+                os.unlink(temp)
+        self._credential_mtime = self._credential_file_mtime()
 
     def _load_credential(self):
         """从文件加载哔哩哔哩登录凭证"""
         if not self.credential_file.exists():
             return
-
-        cookies = json.loads(self.credential_file.read_text())
+        try:
+            if self.credential_file.stat().st_size > 65536:
+                logger.warning(f"哔哩哔哩凭证文件过大, 拒绝加载: {self.credential_file}")
+                return
+            cookies = json.loads(self.credential_file.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as e:
+            logger.warning(f"哔哩哔哩凭证文件无法读取: {self.credential_file}: {e}")
+            self._credential_mtime = self._credential_file_mtime()
+            return
+        if not isinstance(cookies, dict):
+            logger.warning(f"哔哩哔哩凭证文件格式无效: {self.credential_file}")
+            self._credential_mtime = self._credential_file_mtime()
+            return
         if "SESSDATA" not in cookies and "sessdata" in cookies:
             cookies["SESSDATA"] = cookies["sessdata"]
         if "DedeUserID" not in cookies and "dedeuserid" in cookies:
@@ -101,6 +167,20 @@ class BilibiliLogin:
             self._credential = credential
         else:
             logger.warning(f"哔哩哔哩凭证文件缺少 SESSDATA: {self.credential_file}")
+        self._credential_mtime = self._credential_file_mtime()
+
+    def save_cookies(self, cookies: Mapping[str, str], ac_time_value: str = "") -> None:
+        """Save cookies supplied by the dashboard (paste import or QR login)."""
+        values = {name: str(cookies.get(name) or "").strip() for name in CREDENTIAL_KEYS}
+        if not values["SESSDATA"]:
+            raise ValueError("缺少 SESSDATA")
+        self._credential = Credential(
+            sessdata=values["SESSDATA"],
+            bili_jct=values["bili_jct"],
+            dedeuserid=values["DedeUserID"],
+            ac_time_value=ac_time_value,
+        )
+        self._save_credential()
 
     async def login_with_qrcode(self) -> bytes:
         """通过二维码登录获取哔哩哔哩登录凭证"""
@@ -123,6 +203,41 @@ class BilibiliLogin:
         qr.make_image(fill_color="black", back_color="white").save(buffer, format="PNG")
         return buffer.getvalue()
 
+    async def poll_qr_state(self) -> dict:
+        """Poll the Bilibili QR endpoint once.
+
+        Returns a status dict so the dashboard can poll over HTTP without
+        holding a long-lived generator. `check_qr_state()` keeps the original
+        bot-side command behavior on top of this.
+        """
+        if not self._qr_key:
+            return {"status": "missing", "message": "请先生成二维码"}
+        async with AsyncSession(impersonate="chrome131", headers=QR_HEADERS) as session:
+            resp = await session.get(
+                QR_POLL_URL, params={"qrcode_key": self._qr_key}, timeout=15
+            )
+            payload = (resp.json() or {}).get("data") or {}
+            status = payload.get("code")
+            set_cookie_headers = resp.headers.get_list("set-cookie")
+
+        if status == QR_STATUS_SUCCESS:
+            cookies = parse_qr_login_cookies(payload, set_cookie_headers)
+            self._qr_key = None
+            if not cookies.get("SESSDATA"):
+                return {"status": "error", "message": "登录成功, 但未能提取 SESSDATA, 请重新扫码"}
+            return {
+                "status": "success",
+                "message": "登录成功",
+                "cookies": cookies,
+                "refresh_token": payload.get("refresh_token") or "",
+            }
+        if status == QR_STATUS_CONFIRM:
+            return {"status": "scanned", "message": "二维码已扫描, 请确认登录"}
+        if status == QR_STATUS_EXPIRED:
+            self._qr_key = None
+            return {"status": "expired", "message": "二维码过期, 请重新生成"}
+        return {"status": "waiting", "message": "等待扫码"}
+
     async def check_qr_state(self) -> AsyncGenerator[str, None]:
         """检查二维码登录状态"""
         if not self._qr_key:
@@ -130,46 +245,24 @@ class BilibiliLogin:
             return
 
         scan_tip_pending = True
-
-        async with AsyncSession(impersonate="chrome131", headers=QR_HEADERS) as session:
-            for _ in range(30):
-                resp = await session.get(
-                    QR_POLL_URL, params={"qrcode_key": self._qr_key}, timeout=15
+        for _ in range(30):
+            result = await self.poll_qr_state()
+            status = result.get("status")
+            if status == "success":
+                self.save_cookies(
+                    result.get("cookies") or {},
+                    result.get("refresh_token") or "",
                 )
-                payload = (resp.json() or {}).get("data") or {}
-                status = payload.get("code")
-
-                if status == QR_STATUS_SUCCESS:
-                    cookies = parse_qr_login_cookies(
-                        payload, resp.headers.get_list("set-cookie")
-                    )
-                    if not cookies.get("SESSDATA"):
-                        yield "登录成功, 但未能提取 SESSDATA, 请重新扫码"
-                        return
-                    logger.debug(
-                        "哔哩哔哩扫码登录: SESSDATA 取自 %s",
-                        "url 参数"
-                        if "SESSDATA=" in (payload.get("url") or "")
-                        else "Set-Cookie 响应头",
-                    )
-                    self._credential = Credential(
-                        sessdata=cookies["SESSDATA"],
-                        bili_jct=cookies.get("bili_jct", ""),
-                        dedeuserid=cookies.get("DedeUserID", ""),
-                        ac_time_value=payload.get("refresh_token") or "",
-                    )
-                    self._save_credential()
-                    yield "登录成功"
-                    return
-
-                if status == QR_STATUS_CONFIRM:
-                    if scan_tip_pending:
-                        yield "二维码已扫描, 请确认登录"
-                        scan_tip_pending = False
-                elif status == QR_STATUS_EXPIRED:
-                    yield "二维码过期, 请重新生成"
-                    return
-                await asyncio.sleep(2)
+                yield "登录成功"
+                return
+            if status == "scanned":
+                if scan_tip_pending:
+                    yield result.get("message") or "二维码已扫描, 请确认登录"
+                    scan_tip_pending = False
+            elif status in {"expired", "error", "missing"}:
+                yield result.get("message") or "二维码登录失败, 请重新生成"
+                return
+            await asyncio.sleep(2)
 
         yield "二维码登录超时, 请重新生成"
 
@@ -188,15 +281,20 @@ class BilibiliLogin:
         configured/saved credential only. The caller handles missing/expired
         login; it must never silently switch to anonymous requests.
         """
+        self._reload_if_changed()
         credential = self._credential
         if credential is None or not credential.has_sessdata():
-            if self.raw_cookies:
-                credential = Credential.from_cookies(self._cookies_to_dict(self.raw_cookies))
-            else:
-                if self.credential_file.exists() and self.credential_file.stat().st_size > 65536:
-                    raise ValueError('Bilibili credential file too large')
+            if self._credential_file_is_newer_than_config():
                 self._load_credential()
                 credential = self._credential
+            if credential is None or not credential.has_sessdata():
+                if self.raw_cookies:
+                    credential = Credential.from_cookies(self._cookies_to_dict(self.raw_cookies))
+                else:
+                    if self.credential_file.exists() and self.credential_file.stat().st_size > 65536:
+                        raise ValueError('Bilibili credential file too large')
+                    self._load_credential()
+                    credential = self._credential
         if credential is None or not credential.has_sessdata():
             return {}
         cookies = credential.get_cookies()
@@ -204,6 +302,10 @@ class BilibiliLogin:
 
     async def _init_credential(self):
         """初始化哔哩哔哩登录凭证"""
+        if self._credential_file_is_newer_than_config():
+            self._load_credential()
+            if self._credential is not None and self._credential.has_sessdata():
+                return
         if not self.raw_cookies:
             self._load_credential()
             return
@@ -226,6 +328,7 @@ class BilibiliLogin:
     async def credential(self) -> Credential | None:
         """哔哩哔哩登录凭证"""
 
+        self._reload_if_changed()
         if self._credential is None:
             await self._init_credential()
             return self._credential

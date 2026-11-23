@@ -14,6 +14,7 @@ import weather_service as weather
 import master_settings
 import parser_settings
 import bot_identity
+import log_viewer
 from unittest.mock import AsyncMock, Mock, patch
 
 class DashboardTest(unittest.TestCase):
@@ -241,6 +242,75 @@ class DashboardTest(unittest.TestCase):
                     self.assertEqual(client.post('/api/setup-password', json={
                         'password':'another-pass-789', 'confirm':'another-pass-789'}, headers=fresh_headers).status_code, 409)
                     self.assertTrue(d.password_matches('new-secret-pass-456', json.loads(auth.read_text(encoding='utf-8'))))
+
+    def test_first_run_guide_is_seeded_and_can_be_completed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            auth = Path(tmp)/'dashboard-auth.json'
+            with patch.object(d, 'AUTH_FILE', auth), \
+                 patch.object(d, 'session_store_path', lambda: Path(tmp)/'sessions.json'):
+                d.sessions.clear()
+                d.attempts.clear()
+                temporary = d.initialize_password('temporary-pass-123')
+                with TestClient(d.app) as client:
+                    login = client.post('/api/login', json={'password': temporary})
+                    headers = {'Origin': 'http://testserver', 'X-CSRF-Token': login.json()['csrf']}
+                    # 改密前不能进入引导，也不能读取引导状态
+                    self.assertEqual(client.get('/api/onboarding').status_code, 403)
+                    self.assertEqual(client.post('/api/setup-password', json={
+                        'password': 'new-secret-pass-456',
+                        'confirm': 'new-secret-pass-456'}, headers=headers).status_code, 200)
+                    self.assertTrue((Path(tmp)/'dashboard-onboarding.json').exists())
+
+                    fresh = client.post('/api/login', json={'password': 'new-secret-pass-456'})
+                    fresh_headers = {'Origin': 'http://testserver', 'X-CSRF-Token': fresh.json()['csrf']}
+                    self.assertEqual(client.get('/api/onboarding').json(),
+                                     {'basics_pending': True, 'basics_step': 0})
+                    self.assertEqual(client.post('/api/onboarding', json={'basics_done': True}).status_code, 403)
+                    self.assertEqual(client.post('/api/onboarding', json={'basics_done': False},
+                                                 headers=fresh_headers).status_code, 400)
+                    self.assertEqual(client.post('/api/onboarding', json={'basics_step': 99},
+                                                 headers=fresh_headers).status_code, 400)
+                    stepped = client.post('/api/onboarding', json={'basics_step': 2},
+                                          headers=fresh_headers)
+                    self.assertEqual(stepped.status_code, 200)
+                    self.assertEqual(stepped.json(), {'basics_pending': True, 'basics_step': 2})
+                    completed = client.post('/api/onboarding', json={'basics_done': True},
+                                            headers=fresh_headers)
+                    self.assertEqual(completed.status_code, 200)
+                    self.assertEqual(completed.json(), {'basics_pending': False, 'basics_step': 0})
+                    self.assertEqual(client.get('/api/onboarding').json(),
+                                     {'basics_pending': False, 'basics_step': 0})
+                    # 完成后的步骤写入不能重新打开引导
+                    self.assertEqual(client.post('/api/onboarding', json={'basics_step': 3},
+                                                 headers=fresh_headers).json(),
+                                     {'basics_pending': False, 'basics_step': 0})
+
+    def test_runtime_logs_are_authorized_whitelisted_and_masked(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp)
+            (project/'logs').mkdir()
+            (project/'logs'/'nonebot.out.log').write_text(
+                'first\napi_key=secret123\nlast\n', encoding='utf-8')
+            (project/'nonebot'/'logs').mkdir(parents=True)
+            (project/'nonebot'/'logs'/'2026-11-22.log').write_text('daily\n', encoding='utf-8')
+            d.AUTH_FILE = project/'auth'
+            d.sessions.clear()
+            d.attempts.clear()
+            d.set_password('a-strong-test-password')
+            with patch.object(log_viewer, 'PROJECT_ROOT', project), \
+                 patch.object(log_viewer, 'NONEBBOT_ROOT', project/'nonebot'):
+                with TestClient(d.app) as client:
+                    self.assertEqual(client.get('/api/logs').status_code, 401)
+                    client.post('/api/login', json={'password':'a-strong-test-password'})
+                    data = client.get('/api/logs?name=nonebot.out.log&tail=2').json()
+                    self.assertTrue(data['available'])
+                    self.assertEqual(data['lines'][-1], 'last')
+                    self.assertIn('api_key=***', '\n'.join(data['lines']))
+                    self.assertNotIn('secret123', '\n'.join(data['lines']))
+                    self.assertEqual(client.get('/api/logs?name=../../etc/passwd').status_code, 400)
+                    self.assertEqual(client.get('/api/logs?name=foo.log').status_code, 400)
+                    daily = client.get('/api/logs?name=nonebot.log&tail=5').json()
+                    self.assertEqual(daily['lines'], ['daily'])
 
     def test_normal_password_change_requires_auth_and_csrf(self):
         with tempfile.TemporaryDirectory() as tmp:

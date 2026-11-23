@@ -1,8 +1,10 @@
 # 移植自 SX0YYYY/astrbot_plugin_statuscard v2.18.8（提交 fa6d0f5），原作者：烬辞。
 # 本文件与上游同源衍生，按 AGPL-3.0 分发；详见 docs/third-party/statuscard-NOTICE.md
 # 修改：D 浅色泡泡 HTML/CSS/SVG 模板，同机 Playwright 排版，Pillow 仅处理素材及输出缩放。
+# 2026-11：资源卡等宽、温度均值移出环外、磁盘路径中间省略、趋势图加时间轴、日报每章一块面板、文字色满足 4.5:1。
 from pathlib import Path
 import math
+import re
 import random
 import bot_identity
 from card_document import document, text, image_uri, chunks, scale_pages
@@ -13,13 +15,15 @@ _BACKGROUND_FILE=Path(__file__).resolve().parent/'resources/statuscard/denia-bub
 _BANNER_DIR=Path(__file__).resolve().parent/'resources/statuscard/banners'
 _BANNER_SUFFIXES={'.jpg','.jpeg','.png','.webp'}
 COLORS={'good':'#308977','warn':'#a77135','bad':'#bb4162'}
+# 进度条/环用 COLORS；文字用同色系深一档，浅底上对比度 ≥ 4.5:1。
+TEXT_COLORS={'good':'#2a7769','warn':'#8f5f1c','bad':'#bb4162'}
 STYLE='''
 .sheet{padding:50px;background:linear-gradient(#f4eef8,#f2ebf7);color:#352b49;font-size:18px}
-.sheet>div,.sheet>section,.sheet>header{margin-bottom:22px}.panel{background:#fffcff;border-color:#e5d9ed;border-radius:20px;padding:20px}
+.sheet>div,.sheet>section,.sheet>header{margin-bottom:20px}.panel{background:#fffcff;border-color:#e5d9ed;border-radius:20px;padding:20px}
 .muted,footer{color:#6f5e82}.accent{color:#a65a89}h2{font-size:22px;font-weight:400}.hero{position:relative;height:483px}
 .hero .art,.banner .art{position:absolute;left:-50px;top:-50px;width:1170px;height:840px;max-width:none;background-size:1430px auto;background-repeat:no-repeat;background-position:-140px 100px;mask-image:linear-gradient(to right,#0000000a 280px,#000 660px),linear-gradient(transparent 100px,#000 250px,#000 600px,transparent 820px);mask-composite:intersect;pointer-events:none}
 .hero .identity,.banner>:not(.art){position:relative;z-index:1}.brand{display:flex;justify-content:space-between;font-size:18px;gap:12px}.brand>span{min-width:0}.brand>span:first-child{max-width:72%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.avatar{width:64px;height:64px;border-radius:50%;object-fit:cover;background:#f0e3f0;display:flex;align-items:center;justify-content:center;color:#a65a89;font-size:28px}.identity>.row{margin-top:54px;gap:18px}.nick{font-size:58px;margin:16px 0 0;max-width:440px}.subtitle{font-size:24px}.online{display:inline-block;border:1px solid;border-radius:24px;padding:8px 22px;background:#fffcff;font-size:20px;margin:24px 0 12px}.meta{font-size:19px;margin:8px 0;max-width:440px}
-.resources{position:relative;display:flex;gap:16px}.resource{flex:1;text-align:center;padding:12px 18px 18px}.resource svg{width:156px;height:156px;display:block;margin:auto}.detail{font-size:17px;color:#6f5e82}.resource h2{margin:4px 0}.disk{display:grid;grid-template-columns:175px 1fr 205px 75px;gap:15px;align-items:center;margin-top:12px}.track{height:16px;background:#ebe2f2;border-radius:10px;overflow:hidden}.fill{height:100%;border-radius:10px}.speeds{display:flex;gap:30px;font-size:34px;margin:6px 0 18px}.speeds>div{flex:1}.netmeta{font-size:17px;line-height:1.8}.columns{display:flex;gap:22px}.columns>section{flex:1;min-width:0}td,th{padding:6px 0;font-size:17px}.process td:first-child,.process th:first-child{width:58%}.process td:not(:first-child),.process th:not(:first-child){width:21%}.system-row{display:flex;gap:18px;justify-content:space-between;margin:15px 0;font-size:17px}.system-row span:first-child{color:#7e6c90;flex-shrink:0}.stats{display:flex;gap:12px}.stat{flex:1;padding:14px;text-align:center}.stat strong{display:block;font-size:25px;font-weight:400}.stat span{font-size:16px;color:#6f5e82}.foot{display:flex;justify-content:space-between;font-size:16px}.sites td{padding:8px 0}.sites td:first-child{width:55%}.sites td:last-child{text-align:right}.chart{width:100%;height:124px;display:block}.report-title{font-size:44px}.report-row{display:flex;gap:28px;margin:10px 0}.report-row span:first-child{width:260px;color:#6f5e82;flex-shrink:0}.report-row span:last-child{overflow-wrap:anywhere}.report-table td,.report-table th{padding:8px;font-size:17px}
+.resources{position:relative;display:flex;gap:16px}.resource{flex:1 1 0;min-width:0;text-align:center;padding:12px 18px 18px}.resource svg{width:148px;height:148px;display:block;margin:auto}.detail{font-size:17px;color:#6f5e82;line-height:1.4;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.resource h2{margin:4px 0}.disk{display:grid;grid-template-columns:300px 1fr 205px 75px;gap:15px;align-items:center;margin-top:12px}.track{height:16px;background:#ebe2f2;border-radius:10px;overflow:hidden}.fill{height:100%;border-radius:10px}.speeds{display:flex;gap:30px;font-size:34px;margin:6px 0 18px}.speeds>div{flex:1}.netmeta{font-size:17px;line-height:1.8}.columns{display:flex;gap:22px}.columns>section{flex:1;min-width:0}td,th{padding:6px 0;font-size:17px}.process td:first-child,.process th:first-child{width:58%}.process td:not(:first-child),.process th:not(:first-child){width:21%}.system-row{display:flex;gap:18px;justify-content:space-between;margin:15px 0;font-size:17px}.system-row span:first-child{color:#7e6c90;flex-shrink:0}.stats{display:flex;gap:12px}.stat{flex:1;padding:14px;text-align:center}.stat strong{display:block;font-size:25px;font-weight:400}.stat span{font-size:16px;color:#6f5e82}.foot{display:flex;justify-content:space-between;font-size:16px}.sites td{padding:8px 0}.sites td:first-child{width:55%}.sites td:last-child{text-align:right}.chart{width:100%;height:124px;display:block}.chart polyline{vector-effect:non-scaling-stroke}.axis{display:flex;justify-content:space-between;font-size:16px;color:#6f5e82;margin-top:6px}.report-title{font-size:44px}.report-row{display:flex;gap:28px;margin:10px 0}.report-row span:first-child{width:260px;color:#6f5e82;flex-shrink:0}.report-row span:last-child{overflow-wrap:anywhere}.report-table{table-layout:auto}.report-table td,.report-table th{padding:8px;font-size:17px;vertical-align:top}.report-table .n{white-space:nowrap;text-align:right}.report-table .k{white-space:nowrap}.report-table td.n{font-variant-numeric:tabular-nums}.report-block+.report-block{margin-top:18px}[data-render-continued]{font-size:18px;color:#6f5e82;padding:0 4px}
 '''
 # 日报 / 周报 / 集群卡共用同一张达妮娅背景：顶部出现，向下渐隐。裁切与蒙版跟着各自头部高度走。
 BANNER_STYLE='''
@@ -50,9 +54,45 @@ def number(value):
 def percent(value): return max(0,min(100,number(value)))
 def shown(value): return text('--' if value is None else value)
 def color(level, default='#308977'): return COLORS.get(str(level),default)
-def trend(series, colors):
+def ink(level, default='#2a7769'): return TEXT_COLORS.get(str(level),default)
+def short_path(path, limit=30):
+    """长挂载点保留开头一级和尽量多的结尾层级：/mnt/storage/media/library → /mnt/…/media/library。
+    区分度在结尾，尾部截断会把几个盘都截成同一个前缀。"""
+    path=str(path)
+    if len(path)<=limit: return path
+    parts=path.split('/')
+    absolute=path.startswith('/')
+    head='/'.join(parts[:2]) if absolute else parts[0]
+    tail=[]
+    for part in reversed(parts[2 if absolute else 1:]):
+        if len(head)+len('/…/')+len('/'.join([part]+tail))>limit: break
+        tail.insert(0,part)
+    if not tail:
+        # 最后一级本身就超长（如容器层哈希）：保留开头一级，再接最后一级的结尾。
+        room=limit-len(head)-2
+        return head+'/…'+parts[-1][-room:] if room>=8 else '…'+path[-(limit-1):]
+    return head+'/…/'+'/'.join(tail)
+def _clock(ts):
+    from datetime import datetime, timedelta, timezone
+    try: return datetime.fromtimestamp(float(ts),timezone(timedelta(hours=8))).strftime('%H:%M')
+    except (TypeError,ValueError,OSError,OverflowError): return ''
+def _span(start_ts, end_ts):
+    try: span=max(0.0,float(end_ts)-float(start_ts))
+    except (TypeError,ValueError): return ''
+    return f'{span/3600:.0f} 小时' if span>=5400 else f'{span/60:.0f} 分钟'
+def window(start_ts, end_ts):
+    """「10:53–11:52（近 59 分钟）」；时间无效返回空串。"""
+    left,right=_clock(start_ts),_clock(end_ts)
+    return f'{left}–{right}（近 {_span(start_ts,end_ts)}）' if left and right else ''
+def axis(start_ts, end_ts):
+    """折线图下方的时间轴：起点、终点（北京时间）和跨度。"""
+    left,right=_clock(start_ts),_clock(end_ts)
+    if not left or not right: return ''
+    return f'<div class="axis"><span>{left}</span><span>近 {_span(start_ts,end_ts)}</span><span>{right}</span></div>'
+def trend(series, colors, ceiling=None):
+    """折线图。ceiling 给定时纵轴固定 0..ceiling（百分比用 100），否则按峰值自动缩放。"""
     values=[[max(0,number(v)) for v in row] for row in series]
-    peak=max([v for row in values for v in row] or [1]) or 1
+    peak=ceiling or max([v for row in values for v in row] or [1]) or 1
     lines=[]
     for row,stroke in zip(values,colors):
         if len(row)<2: continue
@@ -101,7 +141,7 @@ def build_status_html(view):
     avatar=image_uri(bot.get('avatar'),width=96,height=96)
     portrait=f'<img class="avatar" src="{avatar}">' if avatar else f'<div class="avatar">{text(name[:1] or "B")}</div>'
     online=bot.get('online'); online_text='在线' if online is True else '离线' if online is False else '状态未知'
-    online_color=COLORS['good'] if online is True else COLORS['bad'] if online is False else '#7e6c90'
+    online_color=TEXT_COLORS['good'] if online is True else TEXT_COLORS['bad'] if online is False else '#6f5e82'
     blocks=[f'<header class="hero">{hero_art()}<div class="identity">'
         +f'<div class="brand"><span class="accent">{text(name)} / SERVER STATUS</span><span class="muted">{text(view.get("generated_at"))}</span></div>'
         +f'<div class="row">{portrait}<span class="accent">星穹观测</span></div><h1 class="nick ellipsis">{text(name)}</h1>'
@@ -115,34 +155,37 @@ def build_status_html(view):
         accent={'cpu':'#308977','memory':'#a65a89','swap':'#9381c2'}.get(item.get('key'),'#308977')
         stroke=color(level,accent) if level in {'bad','warn'} else accent
         # 没有温度附加行的卡片（内存/SWAP）保持原来的居中位置；只有 CPU 上移给温度让位。
-        has_notes=bool(item.get('note') or item.get('subnote'))
-        pct_y=74 if has_notes else 90
+        # 环心只放百分比和当前温度；「60m 均 xx℃」原来 12px 挤在环里，移到环下的说明行开头。
+        pct_y=76 if item.get('note') else 92
         rings.append(f'<section class="panel resource"><svg viewBox="0 0 160 160"><circle cx="80" cy="80" r="66" stroke="#ebe2f2" stroke-width="12" fill="none"/>'
             +f'<circle cx="80" cy="80" r="66" stroke="{stroke}" stroke-width="12" fill="none" pathLength="100" stroke-dasharray="{pct} 100" transform="rotate(-90 80 80)" stroke-linecap="round"/>'
             +f'<text x="80" y="{pct_y}" text-anchor="middle" fill="#352b49" font-size="32">{pct:.1f}%</text>'
-            +(f'<text x="80" y="100" text-anchor="middle" fill="#352b49" font-size="19">{text(item.get("note"))}</text>' if item.get('note') else '')
-            +(f'<text x="80" y="120" text-anchor="middle" fill="#6f5e82" font-size="12">{text(item.get("subnote"))}</text>' if item.get('subnote') else '')
-            +f'</svg><h2>{text(item.get("title"))}</h2><p class="detail ellipsis">{text(item.get("detail"))}</p></section>')
+            +(f'<text x="80" y="106" text-anchor="middle" fill="#352b49" font-size="20">{text(item.get("note"))}</text>' if item.get('note') else '')
+            +f'</svg><h2>{text(item.get("title"))}</h2>'
+            +f'<p class="detail">{text(" · ".join(part for part in (item.get("subnote"), item.get("detail")) if part))}</p></section>')
     if rings: blocks.append('<div class="resources">'+''.join(rings)+'</div>')
     for batch in chunks(view.get('disks') or [],12):
         rows=[]
         for disk in batch:
             c=color(disk.get('level'))
-            rows.append(f'<div class="disk"><span class="ellipsis">{shown(disk.get("path"))}</span><div class="track"><div class="fill" style="width:{percent(disk.get("percent"))}%;background:{c}"></div></div>'
-                +f'<span class="muted ellipsis">{shown(disk.get("used"))} / {shown(disk.get("total"))}</span><span style="color:{c}">{shown(disk.get("percent_text"))}</span></div>')
+            rows.append(f'<div class="disk"><span class="ellipsis">{text(short_path(disk.get("path") or "--"))}</span><div class="track"><div class="fill" style="width:{percent(disk.get("percent"))}%;background:{c}"></div></div>'
+                +f'<span class="muted ellipsis">{shown(disk.get("used"))} / {shown(disk.get("total"))}</span><span style="color:{ink(disk.get("level"))}">{shown(disk.get("percent_text"))}</span></div>')
         blocks.append('<section class="panel"><h2>磁盘</h2>'+''.join(rows)+'</section>')
     io=view.get('disk_io') or {}; history=network.get('chart') or []
     graph=trend([[row.get('up',0) for row in history],[row.get('down',0) for row in history]],['#308977','#a65a89']) if history else ''
     if history:
         peak=max(max(number(row.get('up')),number(row.get('down'))) for row in history)
-        graph=f'<div class="row muted" style="justify-content:space-between;margin-top:12px"><span>峰值 {human_speed(peak)}</span><span><span style="color:#308977">↑ 上行</span>　<span class="accent">↓ 下行</span></span></div>'+graph
+        # 时间范围并进峰值这一行，不额外占高度：状态卡默认要放进一页。
+        span=window(history[0].get('ts'),history[-1].get('ts'))
+        graph=(f'<div class="row muted" style="justify-content:space-between;margin-top:12px"><span>峰值 {human_speed(peak)}{" · "+span if span else ""}</span><span><span style="color:{TEXT_COLORS["good"]}">↑ 上行</span>　<span class="accent">↓ 下行</span></span></div>'
+               +graph)
     blocks.append('<section class="panel"><h2>网络</h2><div class="speeds">'
-        +f'<div style="color:#308977">↑ {shown(network.get("up"))}</div><div class="accent">↓ {shown(network.get("down"))}</div></div>'
+        +f'<div style="color:{TEXT_COLORS["good"]}">↑ {shown(network.get("up"))}</div><div class="accent">↓ {shown(network.get("down"))}</div></div>'
         +f'<p class="netmeta muted">本次开机累计 ↑ {shown(network.get("up_total"))} ↓ {shown(network.get("down_total"))}<br>'
         +f'{text(network.get("month") or "本月")}流量 ↑ {shown(network.get("month_up"))} ↓ {shown(network.get("month_down"))}<br>'
         +f'磁盘 IO 读 {shown(io.get("read"))} · 写 {shown(io.get("write"))} <span style="float:right">{text(network.get("interface"))}</span></p>'+graph+'</section>')
     for batch in chunks(view.get('websites') or [],15):
-        rows=''.join(f'<tr><td class="ellipsis">{text(site.get("name") or "站点")}</td><td style="color:{COLORS["good"] if site.get("ok") else COLORS["bad"]}">{shown(site.get("status"))}</td><td>{shown(site.get("delay"))}</td></tr>' for site in batch)
+        rows=''.join(f'<tr><td class="ellipsis">{text(site.get("name") or "站点")}</td><td style="color:{TEXT_COLORS["good"] if site.get("ok") else TEXT_COLORS["bad"]}">{shown(site.get("status"))}</td><td>{shown(site.get("delay"))}</td></tr>' for site in batch)
         blocks.append('<section class="panel"><h2>网站延迟</h2><table class="sites">'+rows+'</table></section>')
     process=view.get('process') or {}; top=(process.get('top') or [])[:5 if compact else 10]
     rows=''.join(f'<tr><td class="ellipsis">{i+1}. {shown(item.get("name"))}</td><td>{shown(item.get("cpu"))}</td><td>{shown(item.get("mem"))}</td></tr>' for i,item in enumerate(top))
@@ -154,27 +197,61 @@ def build_status_html(view):
     blocks.extend(systems[1:])
     blocks.append('<div class="stats">'+''.join(f'<section class="panel stat"><strong>{shown(bot.get(key))}</strong><span>{label}</span></section>' for key,label in [('friends','好友'),('groups','群聊'),('members','群员'),('recv','收到'),('sent','回复')])+'</div>')
     blocks.append(f'<footer class="foot"><span>{text(view.get("footer") or "本机容器渲染 · 数据不出本机")}</span><span class="accent">{text(bot_identity.display_name())} · 浅色泡泡</span></footer>')
-    return document(blocks,width=1170,css=STYLE)
+    return document(blocks,width=1170,css=STYLE,page_label=f'{name} · 服务器状态')
+
+REPORT_PANEL_BUDGET=1800   # 单块面板的估算内容高度上限（px），留出页边距，保证一块放得进 2400 高的一页
+_NUMERIC=re.compile(r'^(?:--|[-+]?[\d,.]+\s*(?:%|ms|s|[KMGT]?i?B(?:/s)?|次|条)?)$')
+
+
+def _report_table(headers, rows):
+    """数值列右对齐不换行，短列不换行，剩下的宽度留给最长的文本列（事件描述、站点名）。"""
+    columns=max([len(headers)]+[len(row) for row in rows] or [0])
+    kinds=[]
+    for index in range(columns):
+        cells=[str(row[index]) if index<len(row) else '' for row in rows]
+        if cells and all(_NUMERIC.match(cell.strip()) for cell in cells):
+            kinds.append('n')
+        elif cells and max(len(cell) for cell in cells)<=14:
+            kinds.append('k')
+        else:
+            kinds.append('')
+    def cls(index):
+        return f' class="{kinds[index]}"' if index<len(kinds) and kinds[index] else ''
+    head='<tr>'+''.join(f'<th{cls(i)}>{text(v)}</th>' for i,v in enumerate(headers))+'</tr>'
+    body=''.join('<tr>'+''.join(f'<td{cls(i)}>{text(cell)}</td>' for i,cell in enumerate(row))+'</tr>' for row in rows)
+    return f'<table class="report-table">{head}{body}</table>'
+
 
 def build_report_html(report):
     name=bot_identity.display_name()
     blocks=[f'<header class="banner report-head">{banner_art()}<p class="accent">{text(name)} · REPORT</p><h1 class="report-title">{text(report.get("title") or "日报")}</h1><p class="muted">{text(report.get("subtitle"))} {text(report.get("host"))}</p></header>']
     for section in report.get('sections') or []:
+        # 每章默认一块面板；只有估算高度超出单页预算时才拆出「· 续」，不再把行、表、图各拆一块。
         pieces=[]
         for batch in chunks(section.get('rows') or [],18):
-            pieces.append(''.join(f'<div class="report-row"><span>{text(row[0])}</span><span>{text(row[1])}</span></div>' for row in batch))
-        table=section.get('table') or {}
-        for batch in chunks(table.get('rows') or [],18):
-            pieces.append('<table class="report-table"><tr>'+''.join(f'<th>{text(v)}</th>' for v in table.get('headers') or [])+'</tr>'
-                +''.join('<tr>'+''.join(f'<td>{text(cell)}</td>' for cell in row)+'</tr>' for row in batch)+'</table>')
+            pieces.append((42*len(batch),''.join(f'<div class="report-row"><span>{text(row[0])}</span><span>{text(row[1])}</span></div>' for row in batch)))
         chart=section.get('chart') or {}; points=chart.get('points') or []
         if len(points)>1:
-            pieces.append(trend([[row[1] for row in points]],['#a65a89'])+f'<p class="muted">{text(chart.get("label"))} · 峰值 {max(number(row[1]) for row in points):.1f}{text(chart.get("unit"))}</p>')
-        if section.get('note'): pieces.append(f'<p class="muted text">{text(section["note"])}</p>')
-        for i,piece in enumerate(pieces or ['']):
-            blocks.append(f'<section class="panel"><h2 class="accent">{text(section.get("title"))}{" · 续" if i else ""}</h2>{piece}</section>')
+            unit=str(chart.get('unit') or '')
+            peak=max(number(row[1]) for row in points)
+            scale=' · 纵轴 0–100%' if unit=='%' else ''
+            pieces.append((200,trend([[row[1] for row in points]],['#a65a89'],ceiling=100 if unit=='%' else None)
+                +axis(points[0][0],points[-1][0])
+                +f'<p class="muted">{text(chart.get("label"))} · 峰值 {peak:.1f}{text(unit)}{scale}</p>'))
+        table=section.get('table') or {}
+        for batch in chunks(table.get('rows') or [],18):
+            pieces.append((50+56*len(batch),_report_table(table.get('headers') or [],batch)))
+        if section.get('note'): pieces.append((34,f'<p class="muted text">{text(section["note"])}</p>'))
+        panels=[[]]; used=0
+        for height,piece in pieces:
+            if panels[-1] and used+height>REPORT_PANEL_BUDGET:
+                panels.append([]); used=0
+            panels[-1].append(piece); used+=height
+        for i,panel in enumerate(panels):
+            body=''.join(f'<div class="report-block">{piece}</div>' for piece in panel)
+            blocks.append(f'<section class="panel"><h2 class="accent">{text(section.get("title"))}{" · 续" if i else ""}</h2>{body}</section>')
     blocks.append(f'<footer>{text(report.get("footer"))}</footer>')
-    return document(blocks,width=1170,css=STYLE+BANNER_STYLE)
+    return document(blocks,width=1170,css=STYLE+BANNER_STYLE,page_label=f'{name} · {report.get("title") or "日报"}')
 
 def render_status_card_pages(view, *, width=1170):
     return scale_pages(render_document(build_status_html(view),width=1170,source='statuscard'),max(760,min(2880,int(width))))
@@ -214,14 +291,14 @@ def _cluster_node(node):
     if node.get('cores') not in (None,''): detail.append(f'{shown(node.get("cores"))} 核')
     if node.get('load') not in (None,''): detail.append('负载 '+text(node.get('load')))
     if node.get('uptime') not in (None,''): detail.append('运行 '+text(node.get('uptime')))
-    status=f'<span style="color:{color(node.get("status_level"))}">● {text(node.get("status"))}</span>' if node.get('status') not in (None,'') else ''
+    status=f'<span style="color:{ink(node.get("status_level"))}">● {text(node.get("status"))}</span>' if node.get('status') not in (None,'') else ''
     detail_html='<p class="detail">'+' · '.join(detail)+('　'+status if status else '')+'</p>' if detail or status else ''
     return f'<section class="panel cluster-node"><h2>{text(node.get("name") or "未命名节点")}</h2><div class="resources">'+''.join(rings)+'</div>'+detail_html+'</section>'
 def _cluster_guest_row(guest):
     guest=guest or {}; vmid=guest.get('vmid')
     identity=text(guest.get('name') or '未命名')+(f'<span class="muted"> #{text(vmid)}</span>' if vmid not in (None,'') else '')
     kind=guest.get('type_label') or guest.get('type'); status=guest.get('status_label') or guest.get('status')
-    status_html=f'<span style="color:{color(guest.get("status_level"))}">{text(status)}</span>' if status not in (None,'') else '<span class="muted">--</span>'
+    status_html=f'<span style="color:{ink(guest.get("status_level"))}">{text(status)}</span>' if status not in (None,'') else '<span class="muted">--</span>'
     return ('<tr><td class="ellipsis">'+identity+'</td>'+f'<td>{shown(kind)}</td><td>{status_html}</td>'
         +f'<td>{shown(guest.get("cpu_text"))}</td><td class="ellipsis">{shown(guest.get("mem_text"))}</td><td>{shown(guest.get("uptime"))}</td></tr>')
 def _cluster_guest_sections(guests):
@@ -243,7 +320,7 @@ def _cluster_storage_row(storage):
     return ('<div class="disk cluster-storage"><span class="ellipsis">'+shown(storage.get('name') or '未命名存储')+'</span>'
         +f'<span class="muted ellipsis">{meta}</span><div class="track"><div class="fill" style="width:{pct}%;background:{c}"></div></div>'
         +f'<span class="muted ellipsis">{shown(storage.get("used_text"))} / {shown(storage.get("total_text"))}</span>'
-        +f'<span style="color:{c}">{shown(storage.get("percent_text"))}</span></div>')
+        +f'<span style="color:{ink(storage.get("level"))}">{shown(storage.get("percent_text"))}</span></div>')
 def _cluster_storage_sections(storages):
     if not storages: return ['<section class="panel cluster-storages"><h2>存储</h2><p class="muted">没有存储数据</p></section>']
     return ['<section class="panel cluster-storages"><h2>存储'+(' · 续' if index else '')+'</h2>'+''.join(_cluster_storage_row(storage) for storage in batch)+'</section>'
@@ -260,7 +337,7 @@ def build_cluster_html(view):
     blocks.extend(_cluster_guest_sections(view.get('guests') or []))
     blocks.extend(_cluster_storage_sections(view.get('storages') or []))
     blocks.append(f'<footer class="foot"><span>数据 {shown(view.get("source"))} · 本地渲染</span></footer>')
-    return document(blocks,width=1170,css=STYLE+BANNER_STYLE+CLUSTER_STYLE)
+    return document(blocks,width=1170,css=STYLE+BANNER_STYLE+CLUSTER_STYLE,page_label=f'{bot_identity.display_name()} · {view.get("title") or "Proxmox VE"}')
 def render_cluster_card_pages(view, *, width=1170):
     return scale_pages(render_document(build_cluster_html(view),width=1170,source='cluster'),max(760,min(2880,int(width))))
 def render_cluster_card(view, *, width=1170):

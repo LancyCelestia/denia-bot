@@ -117,6 +117,27 @@ def _offers(element, field, now):
     return found
 
 
+# 卡片封面按顺序挑：横图优先，竖图/缩略图兜底。只收 Epic 自家 CDN 的 https 地址，
+# 下载在 epic_free_service.fetch_covers 里做，这里只挑 URL。
+COVER_TYPES = ('OfferImageWide', 'DieselStoreFrontWide', 'featuredMedia', 'Thumbnail', 'OfferImageTall')
+
+
+def _allowed_image_url(url):
+    if not isinstance(url, str) or not url.startswith('https://'):
+        return False
+    host = url[len('https://'):].split('/', 1)[0].split(':', 1)[0].lower()
+    return host == 'epicgames.com' or host.endswith('.epicgames.com')
+
+
+def cover_url(element):
+    images = [item for item in (element.get('keyImages') or ()) if isinstance(item, dict)]
+    for kind in COVER_TYPES:
+        for item in images:
+            if item.get('type') == kind and _allowed_image_url(item.get('url')):
+                return item['url']
+    return ''
+
+
 def normalize(element, start, end):
     """把一条 Epic element 归一成卡片/文本共用的字典。"""
     price = ((element.get('price') or {}).get('totalPrice') or {})
@@ -135,6 +156,7 @@ def normalize(element, start, end):
         'start_iso': start.astimezone(timezone.utc).isoformat(),
         'end_iso': end.astimezone(timezone.utc).isoformat(),
         'url': _store_url(element),
+        'cover_url': cover_url(element),
     }
 
 
@@ -230,6 +252,30 @@ def should_push(last_games, current_games):
 
 def format_beijing(value):
     return value.astimezone(BEIJING).strftime('%Y-%m-%d %H:%M')
+
+
+WEEKDAYS = '一二三四五六日'
+
+
+def format_short(value):
+    """卡片用的短时间：「11月27日 周五 00:00」（北京时间）。"""
+    local = value.astimezone(BEIJING)
+    return f'{local.month}月{local.day}日 周{WEEKDAYS[local.weekday()]} {local:%H:%M}'
+
+
+def remaining_text(free, now=None):
+    """离最早一款截止还有多久：「还剩 4 天」「还剩 5 小时」「1 小时内截止」；没有游戏返回空串。"""
+    ends = [game['end'] for game in free or () if game.get('end')]
+    if not ends:
+        return ''
+    seconds = (min(ends) - as_utc(now)).total_seconds()
+    if seconds <= 0:
+        return '已截止'
+    if seconds < 3600:
+        return '1 小时内截止'
+    if seconds < 86400:
+        return f'还剩 {int(seconds // 3600)} 小时'
+    return f'还剩 {int(seconds // 86400)} 天'
 
 
 def truncate(text, limit=DEFAULT_DESCRIPTION_LIMIT):

@@ -10,7 +10,7 @@ Denia Bot 面向希望自行管理机器人的 QQ 群管理员和个人部署者
 
 机器人基于 NoneBot2 和 MuiceBot，QQ 协议端与模型服务需独立配置；知识库检索、游戏账号查询和 Playwright 图片渲染可按需部署。
 
-> 当前版本标识为 **V0.1 BETA2**（`0.1.0b2`）。本页描述当前源码，功能不一定都包含在已发布的源码包中；部署前请核对目标版本和 [更新记录](CHANGELOG.md)。账号、密钥及本地数据的保存与备份见 [数据与安全](#数据与安全)。
+> 当前版本标识为 **V0.1.0-RC1**（`0.1.0rc1`）。本页描述当前源码，功能不一定都包含在已发布的源码包中；部署前请核对目标版本和 [更新记录](CHANGELOG.md)。账号、密钥及本地数据的保存与备份见 [数据与安全](#数据与安全)。
 
 ## 核心能力
 
@@ -28,7 +28,7 @@ Denia Bot 面向希望自行管理机器人的 QQ 群管理员和个人部署者
 | 服务器状态 | 状态卡、Proxmox VE 集群状态卡、资源及服务告警、日报和周报。 |
 | B站动态订阅 | 主人按会话订阅 UP 主动态，机器人以卡片推送（视频动态带封面）；管理面板展示各会话订阅与投递状态，并可增删接收目标。 |
 | bot基本信息 | 在管理面板设置状态卡、日报、集群卡、灾害卡和指令菜单的显示名，保存后立即生效。 |
-| 插件管理 | 首次登录管理面板可通过引导选择可选插件，也可在面板中调整。核心插件（含 QQ 超级管理员和主人识别）不可关闭；禁用的插件在机器人下次启动时不再加载。切换 gsuid 时，面板会尝试启停已识别的 gsuid_core 服务，不会联动共享的 RAG 或 Playwright 服务。 |
+| 插件管理 | 首次登录管理面板会先引导完成 Bot 基本设置，再通过引导选择可选插件；插件引导的「完成并重启bot」会保存开关并重启机器人，「稍后设置」只保存，之后可手动重启。之后也可在面板中调整。核心插件（含 QQ 超级管理员和主人识别）不可关闭；禁用的插件在机器人下次启动时不再加载。切换 gsuid 时，面板会尝试启停已识别的 gsuid_core 服务，不会联动共享的 RAG 或 Playwright 服务。 |
 | 管理面板 | 管理超级管理员、功能配置、推送目标、图片渲染服务和运行状态。 |
 
 默认命令前缀为 `.`，发送 `.help` 查看当前加载插件的命令。群聊查询通常需要 @ 机器人；各功能的权限、会话范围和配置以帮助菜单及对应文档为准。未知命令和无权限命令按静默策略处理。
@@ -72,7 +72,7 @@ QQ 协议端 ── OneBot v11 反向 WebSocket ──> NoneBot2 + MuiceBot
 | `bilibili` | B站动态订阅：按会话订阅 UP 主动态并推送卡片（仅主人增删）、关键词搜索；逻辑在 `nonebot/bilibili/`，面板展示订阅与投递状态并可增删接收目标。详见 `docs/OPERATIONS.md` §8.10 |
 
 管理面板：`nonebot/dashboard.py`（FastAPI + 单页 HTML），提供群话题、天气推送、主人设置、B站动态接收目标等管理接口。
-侧栏优先显示 Bot 基本情况、表情包、用户记忆、群聊话题和服务器状态。在「Bot 基本情况」内切换基本信息、人格模板、Token 消耗、主人识别和超级管理员；`/#persona` 等原有链接仍可直达，前进、后退不重新加载页面。
+侧栏优先显示 Bot 基本设置、表情包、用户记忆、群聊话题和服务器状态。在「Bot 基本设置」内切换基本信息、人格模板、模型设置、主人识别、超级管理员和 Token 消耗；`/#persona` 等原有链接仍可直达，前进、后退不重新加载页面。首次启动完成管理员密码设置后，面板会自动进入「Bot 基本设置」并显示分步引导（第 1/5 步至第 5/5 步），用「上一步 / 下一步」依次完成 Bot 名称、人格模板、模型设置、主人识别和超级管理员。
 「服务器状态」的检测总开关默认开启。关闭会暂停服务器资源采样、服务探测、告警、报表和手动检测，包括 QQ 状态查询；不会清除历史数据或子项设置。可在同一栏目重新开启，聊天和独立的「运行状态」检查不受影响。
 另有 `bot_monitor.py` 做只读状态检查与串行重启。
 
@@ -116,6 +116,7 @@ denia-bot/
 │   ├─ dashboard.py|html  管理面板
 │   └─ media_parser/      链路解析插件（适配版）
 ├─ rag/                   本地检索服务（serve.py / core.py / build_index.py / eval_gate.py）
+├─ deploy-linux/          Linux 一键部署：venv/依赖、配置、systemd、SnowLuma Docker
 ├─ tools/                 启停脚本、账号隔离、自检脚本
 ├─ docker/snowluma/       QQ 协议端 compose 模板
 ├─ gsuid/                 可选游戏账号查询：gsuid_core 核心与插件的安装脚本
@@ -127,7 +128,22 @@ denia-bot/
 
 ## 快速开始（Linux 服务器）
 
-以下步骤适用于 Linux 和已有 OneBot v11 协议端的环境；需要 Python 3.12 和可用的模型服务。部署到其他环境时请按实际路径和网络修改。
+### 一键部署（推荐）
+
+Linux 默认使用 Docker 跑 SnowLuma、systemd 跑 NoneBot/面板/gsuid。脚本会创建 `.venv`、安装 `requirements.lock`、复制缺失配置、生成 OneBot token 和 SnowLuma VNC 密码、执行迁移和面板初始化，并安装 systemd 单元：
+
+```bash
+git clone https://github.com/Lkyloveaw/denia-bot.git
+cd denia-bot
+sudo bash deploy-linux/install.sh
+sudo bash deploy-linux/start.sh
+```
+
+首次安装后按 [deploy-linux/README.md](deploy-linux/README.md) 完成 SnowLuma 扫码和面板首次登录。`stop.sh` / `status.sh` 分别用于停止和查看状态；`install.sh --check` / `--dry-run` 可在不改系统的前提下检查。
+
+### 手动步骤
+
+以下步骤适用于已有 OneBot v11 协议端、或不想使用 systemd 的环境；需要 Python 3.12 和可用的模型服务。部署到其他环境时请按实际路径和网络修改。
 
 ```bash
 git clone https://github.com/Lkyloveaw/denia-bot.git
@@ -150,7 +166,7 @@ python bot.py
 
 在 `.env` 中配置 `ONEBOT_ACCESS_TOKEN`、初始 `SUPERUSERS` 和监听地址；在 `configs/models.yml` 中配置模型地址、模型名和密钥。协议端的反向 WebSocket 地址指向 `ws://<机器人地址>:8080/onebot/v11/ws`，并使用相同的 OneBot token。初次运行后，超级管理员可在面板维护。
 
-`dashboard.py --init` 只创建 `nonebot/data/dashboard-auth.json`（0600，只存 scrypt 盐和哈希）并在同目录写一份 0600 的 `dashboard-initial-password`，明文密码只在终端显示这一次；加 `--password` 可指定初始密码（12–256 位），已有认证文件时拒绝覆盖。**没有初始化就启动面板，登录不会成功**：`POST /api/login` 返回 401「密码错误或后台尚未配置」，其他管理接口返回 401「请登录」。首次登录后必须修改密码，改完一次性密码文件和所有会话一起失效。
+`dashboard.py --init` 只创建 `nonebot/data/dashboard-auth.json`（0600，只存 scrypt 盐和哈希）并在同目录写一份 0600 的 `dashboard-initial-password`，明文密码只在终端显示这一次；加 `--password` 可指定初始密码（12–256 位），已有认证文件时拒绝覆盖。**没有初始化就启动面板，登录不会成功**：`POST /api/login` 返回 401「密码错误或后台尚未配置」，其他管理接口返回 401「请登录」。首次登录后必须修改密码，改完一次性密码文件和所有会话一起失效。改密成功后会在同目录写入 `dashboard-onboarding.json`；下次登录时面板自动进入「Bot 基本设置」并显示分步引导，完成或跳过后不再出现。
 
 `configs/models.yml.example` 使用 `Denia` 模板；请根据实际可用的模板调整模型配置。人格内容、语料和账号凭据应自行准备，不要提交私有数据。
 
@@ -177,11 +193,11 @@ uvicorn dashboard:app --host 127.0.0.1 --port 8092
 
 ### 发布与打包
 
-推送 `v*` 标签会触发 `.github/workflows/release.yml`：先校验标签版本与 `nonebot/app_version.py` 的 `PACKAGE_VERSION` 一致并编译应用，再用 `git archive` 生成只包含 Git 跟踪文件的 `tar.gz`、`zip` 和 `SHA256SUMS`，最后附加到对应 GitHub Release。也可在 Actions 页面手动运行并填写已有标签，例如 `v0.1.0b2`。工作流不代替完整测试；发布前应在目标检出上单独运行 `python -m pytest tests -q`。
+推送 `v*` 标签会触发 `.github/workflows/release.yml`：先校验标签版本与 `nonebot/app_version.py` 的 `PACKAGE_VERSION` 一致并编译应用，再用 `git archive` 生成只包含 Git 跟踪文件的 `tar.gz`、`zip` 和 `SHA256SUMS`，最后附加到对应 GitHub Release。也可在 Actions 页面手动运行并填写已有标签，例如 `v0.1.0rc1`。工作流不代替完整测试；发布前应在目标检出上单独运行 `python -m pytest tests -q`。
 
 ```bash
-git tag -a v0.1.0b2 -m 'V0.1 BETA2'
-git push origin v0.1.0b2
+git tag -a v0.1.0rc1 -m 'V0.1.0-RC1'
+git push origin v0.1.0rc1
 ```
 
 发布包是应用源码部署包，不是 Python wheel：本项目依赖 `.env`、本地数据目录、可选 RAG 服务和独立 Playwright 渲染服务，不能仅靠 `pip install` 完成部署。
@@ -214,7 +230,15 @@ Windows 上使用 `tools\启动所有.bat` / `tools\停止所有.bat` 启停；�
 
 若 `runtime\python312` 已存在却缺少 `python.exe`，脚本会在下载解压后停止，不会覆盖该目录；若缓存解释器存在但无法运行或不是 Python 3.12，则直接停止，不下载。遇到这两种情况，请删除 `runtime\python312` 后重试；若虚拟环境也损坏，或要强制重新下载，请同时删除 `runtime\python312` 和 `nonebot\.venv` 后正常启动。
 
-`-CheckOnly` 和 `-SkipInstall` 都不会下载 Python。这两个开关仅供 `tools\startup-preflight.ps1` 使用，`tools\启动所有.bat` 不会转发。请在仓库根目录的 PowerShell 中按需运行其一：
+SnowLuma 运行时不再要求放在仓库根目录的 `snowluma\`。preflight 按以下顺序查找：`-SnowLumaPath`（`启动所有.ps1` 支持）、`SNOWLUMA_HOME`、`QQBOT_SNOWLUMA`、仓库根 `snowluma\`、上级目录的 `SnowLuma\`；都没有时，自动解压 `SnowLuma-v2.4.2-win-x64.zip`（依次查找仓库根、`downloads\`、`tools\`、上级目录和 `%USERPROFILE%\Downloads`）。解压目标固定为仓库根 `snowluma\`，已有 `config\` / `data\` 不覆盖。解析结果写入 `logs\snowluma-home.txt`（UTF-8）和 `logs\snowluma-home.ansi.txt`（供批处理读取），启动和停止脚本都从这些文件读取实际路径；删除它们即可让下次启动重新探测。示例：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\启动所有.ps1 -SnowLumaPath "D:\Apps\SnowLuma"
+```
+
+或设置用户环境变量 `SNOWLUMA_HOME` 后直接运行 `启动所有.bat`（批处理不转发 `-SnowLumaPath`）。
+
+`-CheckOnly` 和 `-SkipInstall` 都不会下载 Python，也不会解压 SnowLuma zip；需要 zip 回退时请正常启动。这两个开关仅供 `tools\startup-preflight.ps1` 使用，`tools\启动所有.bat` 不会转发。请在仓库根目录的 PowerShell 中按需运行其一：
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\startup-preflight.ps1 -Root (Get-Location).Path -CheckOnly

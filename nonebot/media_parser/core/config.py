@@ -266,9 +266,20 @@ class PluginConfig(ConfigNode):
             values = {k: v['default'] for k, v in spec['items'].items() if 'default' in v}
             values['enable'] = False
             defaults['parsers_template'].append({'__template_key': name, **values, **template_by_name.get(name, {})})
+        template_defaults = defaults['parsers_template']
         if self.config_path.exists():
             saved = json.loads(self.config_path.read_text(encoding='utf-8-sig'))
+            saved_templates = saved.get('parsers_template')
             defaults.update(saved)
+            if isinstance(saved_templates, list):
+                known = {
+                    entry.get('__template_key')
+                    for entry in saved_templates
+                    if isinstance(entry, dict)
+                }
+                for template in template_defaults:
+                    if template['__template_key'] not in known:
+                        saved_templates.append({**template, 'enable': False})
         super().__init__(defaults)
         self.admins_id = []
 

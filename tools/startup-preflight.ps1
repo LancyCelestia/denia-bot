@@ -2,6 +2,7 @@
 [CmdletBinding()]
 param(
     [string]$Root = (Split-Path -Parent $PSScriptRoot),
+    [string]$SnowLumaPath = '',
     [switch]$NoPause,
     [switch]$SkipInstall,
     [switch]$CheckOnly
@@ -15,8 +16,6 @@ $botDir = Join-Path $rootPath 'nonebot'
 $venvDir = Join-Path $botDir '.venv'
 $python = Join-Path $venvDir 'Scripts\python.exe'
 $requirements = Join-Path $rootPath 'requirements.lock'
-$snowNode = Join-Path $rootPath 'snowluma\node.exe'
-$snowEntry = Join-Path $rootPath 'snowluma\index.mjs'
 $ragIndex = Join-Path $rootPath 'rag\index\vectors.npy'
 $ragPython = Join-Path $rootPath 'rag\.venv\Scripts\python.exe'
 if (Test-Path -LiteralPath (Join-Path $rootPath 'rag\.venv-gpu\Scripts\python.exe')) {
@@ -214,6 +213,20 @@ if ($venvVersion -ne '3.12') {
 }
 Write-Ok "NoneBot Python: $python"
 
+$snowHelper = Join-Path $PSScriptRoot 'snowluma-path.ps1'
+if (-not (Test-Path -LiteralPath $snowHelper -PathType Leaf)) {
+    Stop-Check "Missing SnowLuma path resolver: $snowHelper"
+}
+$snowArgs = @{ Root = $rootPath; SnowLumaPath = $SnowLumaPath }
+if ($CheckOnly -or $SkipInstall) { $snowArgs['NoExtract'] = $true }
+$snowHome = (& $snowHelper @snowArgs)
+if ($LASTEXITCODE -ne 0 -or -not $snowHome) {
+    Stop-Check 'SnowLuma runtime is missing. Set SNOWLUMA_HOME (or QQBOT_SNOWLUMA), pass -SnowLumaPath, or place SnowLuma-v2.4.2-win-x64.zip in the repo root/downloads.'
+}
+$snowHome = [string]($snowHome | Select-Object -Last 1)
+$snowHome = $snowHome.Trim()
+$snowNode = Join-Path $snowHome 'node.exe'
+$snowEntry = Join-Path $snowHome 'index.mjs'
 if (-not (Test-Path -LiteralPath $snowNode -PathType Leaf)) {
     Stop-Check "SnowLuma runtime is missing: $snowNode"
 }
@@ -295,6 +308,15 @@ if ($LASTEXITCODE -ne 0) {
     }
 }
 Write-Ok 'nonebot imports; muicebot is installed'
+
+if (-not $SkipInstall) {
+    Write-Section 'Ensuring Playwright Chromium for the dashboard Xiaohongshu login ...'
+    & $python -m playwright install chromium
+    if ($LASTEXITCODE -ne 0) {
+        Stop-Check "Playwright Chromium install failed (exit $LASTEXITCODE); no service was started."
+    }
+    Write-Ok 'Playwright Chromium is installed'
+}
 
 if (Test-Path -LiteralPath $ragIndex -PathType Leaf) {
     if (Test-Path -LiteralPath $ragPython -PathType Leaf) {

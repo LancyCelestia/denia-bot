@@ -22,11 +22,18 @@ RENDER_PORT=3101 RENDER_CONTAINER_NAME=qqbot-playwright-candidate docker compose
 QQBOT_RENDER_URL=http://127.0.0.1:3101 python -m pytest nonebot/tests -q --import-mode=importlib
 ```
 
+## 小红书扫码登录
+
+小红书扫码登录已内置在管理面板进程中使用 Playwright，不再由本渲染服务或独立容器提供。图片渲染服务继续禁用页面 JS 和外网；两者的安全设置不要合并。部署、依赖与失败行为见 `docs/OPERATIONS.md` 的「二维码登录与 Cookie 路径」。
+
 ## 接口与失败行为
 
 - GET /health：浏览器已真实截图后返回 ready:true 和 HTTP 200；未就绪返回 503。包括 deployment、active、成功/失败计数与来源计数。
 - POST /render：自包含 HTML → 单张 PNG。宽 320–1600、高 200–2400；内容溢出返回 422，禁止静默裁切。
 - POST /render-pages：模板含 data-card 根，按直接子内容块分页；响应 pages 为 PNG base64 数组。最多 12 页、总计 20M 像素，单块过高返回 422。
+  - `<footer>` 或带 `data-keep-with-prev` 的块不会独自开新页，会带上前一块一起换页。
+  - 最后一页内容不足单页高度的 1/4 时，从上一页末尾回挪内容块，避免只剩一两行的小图（不会让末页比上一页更高）。
+  - 根元素带 `data-page-label="…"` 时，第 2 页起顶部插入一行 `data-render-continued`：「标签 · 第 2/3 页」；模板可用这个属性选择器调样式。单页不插入。
 - POST /render-card：完整截取唯一的 data-card 根，返回一张 PNG。帮助菜单使用此接口，自适应多列宽度、按内容取高度，不套用普通卡片的 1600 像素宽和 2400 像素分页限制；仍受 20M 总像素预算保护，溢出或超预算返回 422。
 - 完整 JSON 请求最多 2 MiB；PNG 响应校验签名、尺寸和类型。来源通过 X-Render-Source 记录，不记录 HTML、原始数据或令牌。
 - 客户端共用 2 个执行位置、最多 10 个接纳位置，等待最多 5 秒；429/超时/断连返回错误，由业务回退文字或继续发送原媒体。不自动改用 Pillow 绘制卡片。

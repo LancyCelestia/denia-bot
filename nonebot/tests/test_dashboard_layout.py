@@ -1,4 +1,12 @@
 """Structural guardrails for the dashboard page layout.
+    card = _between(text, '<section id="model-pref"', '</section>')
+    assert 'id="modelBaseUrl"' in card
+    assert 'id="modelApiKey"' in card
+    assert 'id="modelProviderSave"' in card
+    assert 'id="modelUpstreamFetch"' in card
+    assert 'id="modelRestart"' in card
+    assert 'fetchModelUpstream' in text and 'saveModelProvider' in text
+    assert 'relay' not in card and 'echo-test' not in card
 
 These tests are intentionally about the layout contract, not a specific card's
 form. They catch the regressions that would quietly turn the panel back into
@@ -112,6 +120,47 @@ def test_cards_stay_full_width_and_duplicate_card_titles_are_hidden():
         assert not re.search(r'grid-column|grid-template-columns|\bspan-\d', tag)
 
 
+def test_model_settings_page_is_wired_to_the_basics_nav_and_loader():
+    text = _html()
+    basics = re.search(r'<nav id="botBasicsNav".*?</nav>', text, re.S).group(0)
+    assert 'href="#model-pref"' in basics
+    panel = _between(text, '<div id="panelGrid"', '<div id="appearancePopover"')
+    assert re.search(r'<section id="model-pref" class="card">', panel)
+    assert re.search(r'<h2>模型设置</h2>', panel)
+    assert "['#model-pref', loadModelPref]" in text
+    assert 'async function loadModelPref' in text
+    assert 'id="modelPrimary"' in panel and 'id="modelSecondary"' in panel
+
+
+def test_bot_basics_is_renamed_tokens_last_and_first_run_guide_is_wired():
+    text = _html()
+    basics = re.search(r'<nav id="botBasicsNav".*?</nav>', text, re.S).group(0)
+    basics_links = re.findall(r'<a [^>]*href="#([^"]+)"', basics)
+    assert basics_links == ['bot-info', 'persona', 'model-pref', 'master', 'superusers', 'tokens']
+    assert 'aria-label="Bot 基本设置"' in basics
+    assert 'Bot 基本设置' in text
+    assert 'Bot 基本情况' not in text
+    assert 'data-page-title="Bot 基本设置"' in text
+
+    assert 'class="basics-guide-bar"' in text
+    assert 'id="basicsGuideNext"' in text
+    assert 'id="basicsGuidePrev"' in text
+    assert 'id="basicsGuideSkip"' in text
+    assert 'basics-guide-steps' not in text
+    steps = re.search(r'const basicsSteps=\[(.*?)\];', text, re.S).group(1)
+    positions = [steps.index(href) for href in
+                 ('#bot-info', '#persona', '#model-pref', '#master', '#superusers')]
+    assert positions == sorted(positions)
+    assert 'async function basicsGuideNext' in text
+    assert 'async function basicsGuidePrev' in text
+    assert 'async function loadOnboarding' in text
+    assert 'await run(loadOnboarding)' in text
+    assert "'/api/onboarding'" in text
+    assert 'syncBasicsGuideStepFromHash' in text
+    assert '完成并重启bot' in text
+    assert 'await restartBotNow()' in text
+
+
 def test_mobile_layout_hooks_remain_present():
     text = _html()
     styles = _styles(text)
@@ -139,6 +188,22 @@ def test_holy_layout_has_no_right_context_rail():
     assert 'max-width:1440px' in workspace.group(1)
 
 
+def test_runtime_log_page_is_wired_to_the_whitelisted_api_and_filters():
+    text = _html()
+    assert '<h2>运行日志</h2>' in text
+    assert 'href="#events"' in text
+    assert 'id="logSource"' in text
+    assert 'id="logTail"' in text
+    assert 'id="logFilter"' in text
+    assert 'id="logAutoScroll"' in text
+    assert 'id="parserEventsPanel"' in text
+    assert 'id="eventKind"' in text
+    assert 'id="eventOnlyLimit"' not in text
+    assert 'async function loadRuntimeLogs' in text
+    assert '/api/logs' in text
+    assert 'async function loadLogsPage' in text
+
+
 def test_shader_primary_action_uses_readable_theme_colors():
     styles = _styles(_html())
     rules = re.findall(
@@ -150,3 +215,34 @@ def test_shader_primary_action_uses_readable_theme_colors():
     assert 'background:var(--accent)' in joined
     assert 'color:var(--on-accent)' in joined
     assert 'color:var(--paper)' not in joined
+
+
+def test_bilibili_credentials_import_and_qr_are_wired():
+    text = _html()
+    parser = _between(text, '<section id="parser"', '</section>')
+    assert 'id="biliCookieInput"' in parser
+    assert 'id="biliCookieImport"' in parser
+    assert 'id="biliQrImage"' in parser
+    assert 'id="biliQrStart"' in parser
+    assert 'id="biliCookieState"' in parser
+    assert 'importBiliCookies' in text
+    assert 'startBiliQr' in text
+    assert 'pollBiliQr' in text
+    assert '/api/parser/bilibili/cookies' in text
+    assert '/api/parser/bilibili/qr' in text
+
+
+def test_parser_platform_tabs_and_xhs_login_are_wired():
+    text = _html()
+    parser = _between(text, '<section id="parser"', '</section>')
+    assert 'id="parserTabs"' in parser
+    assert 'role="tablist"' in parser
+    assert 'id="parserGeneralPanel"' in parser
+    assert 'id="parserPlatformPanel"' in parser
+    assert 'id="parserSave"' in parser
+    assert 'function parserSelectScope' in text
+    assert 'function parserFocusField' in text
+    assert 'id="xhsLoginStart"' in text
+    assert 'id="xhsLoginQr"' in text
+    assert '/api/parser/xhs-login/start' in text
+    assert 'xhs_login_id' in text

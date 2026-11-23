@@ -44,10 +44,12 @@ class WiringTest(unittest.TestCase):
                 self.assertIn('未开启', asyncio.run(plugin.topic_reply('101')))
                 plugin.topics.set_enabled(plugin.topics.DEFAULT_PATH, '101', True)
                 plugin.topics.record(plugin.topics.DEFAULT_PATH, '101', '1', '今汐', tokenizer=lambda _: ['今汐'])
-                fake_renderer = SimpleNamespace(render_pages=lambda *a: [b'png'])
-                with patch.dict(sys.modules, {'weather_image': fake_renderer}):
+                calls = []
+                fake_renderer = SimpleNamespace(render_pages=lambda *a: calls.append(a) or [b'png'])
+                with patch.dict(sys.modules, {'group_topics_image': fake_renderer}):
                     result = asyncio.run(plugin.topic_reply('101'))
                 self.assertEqual(result.type, 'image')
+                self.assertEqual(calls, [('101', [('今汐', 1)])])
                 self.assertTrue(result.data['file'].startswith('base64://'))
                 self.assertIn('未开启', asyncio.run(plugin.topic_reply('102')))
             finally:

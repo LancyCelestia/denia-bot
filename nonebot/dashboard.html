@@ -7,7 +7,7 @@
 .status:empty:before{display:none}#appMessage:not(:empty){color:var(--danger);background:var(--danger-bg);border:1px solid var(--danger-border);border-radius:var(--r-9);padding:10px 14px;margin-bottom:18px;font-size:var(--fs-13)}
 .topic-visuals{margin-top:22px;border-top:1px solid var(--line);padding-top:22px}.topic-heading{display:flex;justify-content:space-between;align-items:baseline;gap:12px}.topic-heading h3{margin:0}.topic-heading small{color:var(--muted);font-size:var(--fs-12)}.topic-cloud{min-height:150px;display:flex;align-content:center;justify-content:center;align-items:baseline;flex-wrap:wrap;gap:10px 19px;padding:25px 18px;margin:14px 0 24px;background:var(--surface-2);border:1px solid var(--line-soft);border-radius:var(--r-12)}.topic-word{color:var(--text-topic);line-height:1.4;overflow-wrap:anywhere}.topic-word:nth-child(4n+2){color:var(--text-8)}.topic-word:nth-child(4n+3){color:var(--text-5)}.topic-word:nth-child(4n){color:var(--text-topic-2)}.topic-ranking{list-style:none;margin:12px 0 0;padding:0}.topic-ranking li{display:grid;grid-template-columns:28px minmax(70px,130px) minmax(30px,1fr) auto;align-items:center;gap:10px;padding:8px 0;font-size:var(--fs-13)}.topic-rank{color:var(--text-12);font-variant-numeric:tabular-nums}.topic-label{overflow-wrap:anywhere}.topic-bar{height:7px;background:var(--track);border-radius:var(--r-8);overflow:hidden}.topic-fill{display:block;height:100%;background:var(--topic-fill);border-radius:var(--r-8)}.topic-count{color:var(--text-8);font-variant-numeric:tabular-nums;white-space:nowrap}.topic-empty{color:var(--muted);font-size:var(--fs-13);text-align:center;margin:0!important}.topic-note{margin-top:16px!important;font-size:var(--fs-12);color:var(--text-9)}@media(max-width:520px){.topic-ranking li{grid-template-columns:20px minmax(55px,90px) minmax(30px,1fr) auto;gap:6px}.topic-cloud{gap:9px 14px;padding:18px 12px}}
 .parser-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--gap-grid)}.parser-field{display:flex;flex-direction:column;gap:5px;min-width:0;font-size:var(--fs-13);color:var(--text-5)}.parser-field input,.parser-field select,.parser-field textarea{width:100%}.parser-field textarea{font:inherit;color:var(--ink);background:var(--paper);border:1px solid var(--line-strong);border-radius:var(--r-9);padding:8px 12px;min-height:76px;resize:vertical}.parser-field input[type=checkbox]{width:18px;min-height:18px;accent-color:var(--accent)}.parser-check{display:flex;align-items:center;gap:8px;min-height:var(--control-h)}.parser-field small{font-size:var(--fs-12);color:var(--muted);overflow-wrap:anywhere}.parser-platform{border:1px solid var(--line);border-radius:var(--r-10);margin:10px 0;background:var(--paper)}.parser-platform summary{cursor:pointer;padding:13px 16px;font-weight:600}.parser-platform .parser-grid{padding:4px 16px 18px}.parser-summary-state{float:right;font-size:var(--fs-12);font-weight:400;color:var(--muted)}.parser-secret-clear{display:flex;align-items:center;gap:6px;color:var(--danger);font-size:var(--fs-12)}.parser-secret-clear input{min-height:16px!important;width:16px!important}.parser-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:20px}.parser-overview{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:12px 16px;margin:16px 0 20px;background:var(--surface-2);border:1px solid var(--line-soft);border-radius:var(--r-12)}.parser-count{font-size:var(--fs-14);font-weight:650;color:var(--text-2)}.parser-count b{color:var(--accent-dark);font-variant-numeric:tabular-nums}.parser-dirty{font-size:var(--fs-12);color:var(--danger);background:var(--accent-soft);border-radius:var(--r-999);padding:3px 10px}.parser-overview-actions{margin-left:auto;display:flex;gap:8px}.parser-overview-actions button{min-height:32px;padding:4px 12px;font-size:var(--fs-13)}.parser-toolbar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:2px 0 16px}.parser-toolbar>input[type=search]{flex:1 1 240px}.parser-toggle{display:flex;align-items:center;gap:7px;font-size:var(--fs-13);color:var(--text-5);white-space:nowrap}.parser-toggle input{width:17px;min-height:17px;accent-color:var(--accent)}.parser-platforms{max-height:none}.parser-empty{font-size:var(--fs-13);color:var(--muted);text-align:center;padding:22px 0}.parser-field[data-changed=true]{position:relative}.parser-field[data-changed=true]>span:first-child:before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--accent);margin-right:6px;vertical-align:1px}.parser-platform[data-changed=true]>summary{box-shadow:inset 3px 0 0 var(--accent)}.parser-platform[hidden]{display:none}@media(max-width:650px){.parser-grid{grid-template-columns:1fr}.parser-overview-actions{margin-left:0;width:100%}}
-.monitor-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}.status-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px}.status-toolbar select{min-height:36px;padding:4px 10px}.status-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.status-metric{background:var(--surface-2);border:1px solid var(--line-soft);border-radius:var(--r-12);padding:14px 16px;min-width:0}.status-metric span{display:block;color:var(--muted);font-size:var(--fs-12)}.status-metric strong{display:block;font-size:var(--fs-20);font-variant-numeric:tabular-nums;margin-top:5px;letter-spacing:-.01em}.status-metric small{display:block;color:var(--text-9);font-size:var(--fs-12);margin-top:4px;overflow-wrap:anywhere}.status-bar{height:8px;border-radius:var(--r-8);background:var(--track);overflow:hidden;margin-top:9px}.status-bar i{display:block;height:100%;border-radius:var(--r-8);background:var(--success);transition:width .35s ease}.status-bar i[data-level=warn]{background:var(--warn)}.status-bar i[data-level=bad]{background:var(--danger)}.status-chart{position:relative;height:170px;margin-top:10px;background:var(--surface-3);border:1px solid var(--line-soft);border-radius:var(--r-12);padding:10px 12px}.status-chart svg{width:100%;height:100%;display:block}.status-legend{display:flex;gap:16px;flex-wrap:wrap;font-size:var(--fs-12);color:var(--muted);margin-top:8px}.status-legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}.status-kv{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 22px;margin:14px 0 0}.status-kv div{display:flex;justify-content:space-between;gap:12px;border-bottom:1px dashed var(--line-faint);padding:6px 0;font-size:var(--fs-13)}.status-kv span{color:var(--muted)}.status-kv b{font-weight:600;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}.status-redact{display:flex;gap:14px;flex-wrap:wrap;margin-top:8px}.status-redact label{display:flex;align-items:center;gap:6px;font-size:var(--fs-13);color:var(--text-5)}.status-redact input{width:17px;min-height:17px;accent-color:var(--accent)}@media(max-width:800px){.status-grid,.status-kv{grid-template-columns:1fr}}.token-toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:18px}.token-toolbar select{min-height:36px;padding:4px 10px}@keyframes tokenIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}.token-cards{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;animation:tokenIn .3s ease-out}.token-card{background:var(--paper);border:1px solid var(--line);border-radius:var(--r-12);padding:14px 16px;min-width:0}.token-card span{display:block;color:var(--muted);font-size:var(--fs-12);margin-bottom:6px}.token-card strong{display:block;font-size:var(--fs-19);font-variant-numeric:tabular-nums;color:var(--ink);letter-spacing:-.01em;overflow-wrap:anywhere}.token-card:first-child strong{color:var(--accent-dark)}.token-daily{display:grid;grid-template-columns:repeat(auto-fill,minmax(46px,1fr));align-items:end;gap:6px;min-height:110px;padding-top:10px}.token-day{display:flex;flex-direction:column;align-items:center;gap:5px;min-width:0}.token-day-bar{width:100%;background:linear-gradient(180deg,var(--chart-fill),var(--accent));border-radius:5px 5px 2px 2px;min-height:2px;transition:height .3s ease}.token-day-label{font-size:var(--fs-10);color:var(--muted);white-space:nowrap;transform:scale(.92)}.token-day-value{font-size:var(--fs-11);color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap}@media(max-width:800px){.token-cards{grid-template-columns:repeat(2,minmax(0,1fr))}}.event-list li{display:block;padding:12px 0;border-bottom:1px solid var(--line)}.event-list li:last-child{border-bottom:0}.event-head{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:5px}.event-time{color:var(--muted);font-size:var(--fs-12);font-variant-numeric:tabular-nums}.event-tag{font-size:var(--fs-11);border-radius:var(--r-999);padding:2px 9px;border:1px solid transparent;white-space:nowrap}.event-tag[data-kind=error]{color:var(--danger);background:var(--accent-soft);border-color:var(--danger-border)}.event-tag[data-kind=limit]{color:var(--warn-text);background:var(--warn-bg);border-color:var(--warn-border)}.event-tag[data-kind=warn]{color:var(--text-5);background:var(--neutral-bg);border-color:var(--neutral-border)}.event-platform{font-size:var(--fs-12);color:var(--accent-dark);font-weight:600}.event-detail{font-size:var(--fs-13);color:var(--text-2);overflow-wrap:anywhere}.event-url{font-size:var(--fs-12);color:var(--muted);overflow-wrap:anywhere;word-break:break-all;margin-top:3px}.monitor-item{background:var(--surface-2);border:1px solid var(--line-soft);border-radius:var(--r-11);padding:13px 14px;min-width:0}.monitor-item span{display:block;color:var(--muted);font-size:var(--fs-12)}.monitor-item strong{display:block;font-size:var(--fs-14);margin-top:5px}.monitor-item strong:before{content:'';display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:7px;background:var(--dot)}.monitor-item strong[data-state=ok]:before{background:var(--success)}.monitor-item strong[data-state=bad]:before{background:var(--danger)}.monitor-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:18px}button:disabled{opacity:.55;cursor:not-allowed}.confirm-dialog{width:min(420px,calc(100% - 32px));border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);color:var(--ink);padding:24px;box-shadow:0 18px 70px var(--shadow-dialog)}.confirm-dialog::backdrop{background:var(--backdrop)}.confirm-dialog h2{margin:0 0 10px;font-size:var(--fs-19)}.confirm-dialog p{color:var(--muted);font-size:var(--fs-14)}.confirm-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:20px}@media(max-width:800px){.monitor-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.monitor-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}.status-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px}.status-toolbar select{min-height:36px;padding:4px 10px}.status-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.status-metric{background:var(--surface-2);border:1px solid var(--line-soft);border-radius:var(--r-12);padding:14px 16px;min-width:0}.status-metric span{display:block;color:var(--muted);font-size:var(--fs-12)}.status-metric strong{display:block;font-size:var(--fs-20);font-variant-numeric:tabular-nums;margin-top:5px;letter-spacing:-.01em}.status-metric small{display:block;color:var(--text-9);font-size:var(--fs-12);margin-top:4px;overflow-wrap:anywhere}.status-bar{height:8px;border-radius:var(--r-8);background:var(--track);overflow:hidden;margin-top:9px}.status-bar i{display:block;height:100%;border-radius:var(--r-8);background:var(--success);transition:width .35s ease}.status-bar i[data-level=warn]{background:var(--warn)}.status-bar i[data-level=bad]{background:var(--danger)}.status-chart{position:relative;height:170px;margin-top:10px;background:var(--surface-3);border:1px solid var(--line-soft);border-radius:var(--r-12);padding:10px 12px}.status-chart svg{width:100%;height:100%;display:block}.status-legend{display:flex;gap:16px;flex-wrap:wrap;font-size:var(--fs-12);color:var(--muted);margin-top:8px}.status-legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}.status-kv{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 22px;margin:14px 0 0}.status-kv div{display:flex;justify-content:space-between;gap:12px;border-bottom:1px dashed var(--line-faint);padding:6px 0;font-size:var(--fs-13)}.status-kv span{color:var(--muted)}.status-kv b{font-weight:600;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}.status-redact{display:flex;gap:14px;flex-wrap:wrap;margin-top:8px}.status-redact label{display:flex;align-items:center;gap:6px;font-size:var(--fs-13);color:var(--text-5)}.status-redact input{width:17px;min-height:17px;accent-color:var(--accent)}@media(max-width:800px){.status-grid,.status-kv{grid-template-columns:1fr}}.token-toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:18px}.token-toolbar select{min-height:36px;padding:4px 10px}@keyframes tokenIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}.token-cards{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;animation:tokenIn .3s ease-out}.token-card{background:var(--paper);border:1px solid var(--line);border-radius:var(--r-12);padding:14px 16px;min-width:0}.token-card span{display:block;color:var(--muted);font-size:var(--fs-12);margin-bottom:6px}.token-card strong{display:block;font-size:var(--fs-19);font-variant-numeric:tabular-nums;color:var(--ink);letter-spacing:-.01em;overflow-wrap:anywhere}.token-card:first-child strong{color:var(--accent-dark)}.token-daily{display:grid;grid-template-columns:repeat(auto-fill,minmax(46px,1fr));align-items:end;gap:6px;min-height:110px;padding-top:10px}.token-day{display:flex;flex-direction:column;align-items:center;gap:5px;min-width:0}.token-day-bar{width:100%;background:linear-gradient(180deg,var(--chart-fill),var(--accent));border-radius:5px 5px 2px 2px;min-height:2px;transition:height .3s ease}.token-day-label{font-size:var(--fs-10);color:var(--muted);white-space:nowrap;transform:scale(.92)}.token-day-value{font-size:var(--fs-11);color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap}@media(max-width:800px){.token-cards{grid-template-columns:repeat(2,minmax(0,1fr))}}.event-list li{display:block;padding:12px 0;border-bottom:1px solid var(--line)}.event-list li:last-child{border-bottom:0}.log-view{max-height:60vh;overflow:auto;border:1px solid var(--line);border-radius:var(--r-12);background:var(--surface-2);padding:10px 12px;font:12px/1.55 ui-monospace,SFMono-Regular,Consolas,'Courier New',monospace;white-space:pre-wrap;overflow-wrap:anywhere}.log-line{display:block;padding:1px 0;color:var(--text-3)}.log-line[data-kind=error]{color:var(--danger)}.log-line[data-kind=warning]{color:var(--warn-text)}.log-line[data-kind=parser]{color:var(--accent)}.event-head{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:5px}.event-time{color:var(--muted);font-size:var(--fs-12);font-variant-numeric:tabular-nums}.event-tag{font-size:var(--fs-11);border-radius:var(--r-999);padding:2px 9px;border:1px solid transparent;white-space:nowrap}.event-tag[data-kind=error]{color:var(--danger);background:var(--accent-soft);border-color:var(--danger-border)}.event-tag[data-kind=limit]{color:var(--warn-text);background:var(--warn-bg);border-color:var(--warn-border)}.event-tag[data-kind=warn]{color:var(--text-5);background:var(--neutral-bg);border-color:var(--neutral-border)}.event-platform{font-size:var(--fs-12);color:var(--accent-dark);font-weight:600}.event-detail{font-size:var(--fs-13);color:var(--text-2);overflow-wrap:anywhere}.event-url{font-size:var(--fs-12);color:var(--muted);overflow-wrap:anywhere;word-break:break-all;margin-top:3px}.monitor-item{background:var(--surface-2);border:1px solid var(--line-soft);border-radius:var(--r-11);padding:13px 14px;min-width:0}.monitor-item span{display:block;color:var(--muted);font-size:var(--fs-12)}.monitor-item strong{display:block;font-size:var(--fs-14);margin-top:5px}.monitor-item strong:before{content:'';display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:7px;background:var(--dot)}.monitor-item strong[data-state=ok]:before{background:var(--success)}.monitor-item strong[data-state=bad]:before{background:var(--danger)}.monitor-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:18px}button:disabled{opacity:.55;cursor:not-allowed}.confirm-dialog{width:min(420px,calc(100% - 32px));border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);color:var(--ink);padding:24px;box-shadow:0 18px 70px var(--shadow-dialog)}.confirm-dialog::backdrop{background:var(--backdrop)}.confirm-dialog h2{margin:0 0 10px;font-size:var(--fs-19)}.confirm-dialog p{color:var(--muted);font-size:var(--fs-14)}.confirm-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:20px}@media(max-width:800px){.monitor-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .game-choices{display:flex;flex-wrap:wrap;gap:8px 18px}.game-choices input{width:17px;min-height:17px;accent-color:var(--accent)}.game-safe-link{color:var(--accent-dark);font-size:var(--fs-13);text-decoration:underline;margin-right:18px}#game-events .event-head{align-items:center}#game-events .event-detail{white-space:pre-wrap}
 .meme-gallery{display:flex;flex-wrap:wrap;gap:12px;margin-top:14px}.meme-item{display:grid;gap:5px;width:108px}.meme-item img{width:108px;height:108px;object-fit:contain;border:1px solid var(--line);border-radius:var(--r-8);background:var(--surface-2)}.meme-item button{min-height:30px;padding:4px 8px;font-size:var(--fs-12)}.controls .parser-toggle input[type=checkbox]{min-width:17px;min-height:17px}
 </style>
@@ -614,6 +614,17 @@ svg.liquid-filter-defs{position:absolute;width:0;height:0;overflow:hidden}
 #botBasicsNav .nav-link:hover{background:var(--surface-hover);color:var(--ink)}
 #botBasicsNav .nav-link.active{background:var(--paper);border-color:var(--line-strong);color:var(--ink);font-weight:500}
 #botBasicsNav .nav-link.active::before{display:none}
+.basics-guide-bar{position:fixed;left:244px;right:0;bottom:18px;margin:0 auto;width:min(920px,calc(100% - 244px - 32px));display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 18px;border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:var(--r-12);background:var(--paper);box-shadow:0 18px 50px var(--shadow-dialog);z-index:40}
+.basics-guide-bar[hidden]{display:none}
+.basics-guide-copy{min-width:0;display:grid;gap:2px}
+.basics-guide-progress{color:var(--accent);font-size:var(--fs-12);font-weight:600;letter-spacing:.04em}
+.basics-guide-copy strong{font-size:var(--fs-16);line-height:1.3}
+.basics-guide-copy .hint{margin:0;line-height:1.45}
+.basics-guide-dots{display:flex;gap:4px;margin-top:4px}
+.basics-guide-dots i{display:block;width:22px;height:3px;border-radius:999px;background:var(--line)}
+.basics-guide-dots i.on{background:var(--accent)}
+.basics-guide-actions{display:flex;gap:8px;flex:none;flex-wrap:wrap}
+@media(max-width:800px){.basics-guide-bar{left:10px;right:10px;bottom:10px;width:auto;margin:0;flex-direction:column;align-items:stretch;gap:10px}.basics-guide-actions{justify-content:flex-end}}
 #panelGrid{display:block;margin-top:18px}
 #panelGrid > .card{min-width:0;margin:0;scroll-margin-top:124px;outline:4px solid var(--tray);outline-offset:0}
 body[data-page="overview"] #panelGrid{margin-top:0}
@@ -735,12 +746,12 @@ html[data-skin="academia"] #app .head-right .btn:hover{background:#5c4033;border
 <div id="shaderField" aria-hidden="true"><canvas id="shaderCanvas"></canvas></div>
 <svg class="liquid-filter-defs" width="0" height="0" aria-hidden="true" focusable="false"><defs><filter id="liquidGlassFilter" x="-10%" y="-10%" width="120%" height="120%" color-interpolation-filters="sRGB"><feTurbulence type="fractalNoise" baseFrequency="0.012 0.018" numOctaves="2" seed="5" result="noise"/><feGaussianBlur in="noise" stdDeviation="1.2" result="soft"/><feDisplacementMap in="SourceGraphic" in2="soft" scale="14" xChannelSelector="R" yChannelSelector="G"/></filter></defs></svg>
 <div id="auth" class="auth-wrap"><div class="auth-card"><div class="brand-mark" aria-hidden="true">✳</div><section id="login"><h1>欢迎回来</h1><p>登录管理控制台，继续照看你的机器人。</p><form onsubmit="login();return false"><label class="auth-label" for="password">管理员密码</label><input id="password" type="password" autocomplete="current-password" placeholder="请输入密码" required><button class="primary" type="submit">登录控制台　→</button></form></section>
-<section id="firstRun" hidden><h1>首次设置密码</h1><p>这是首次登录。请设置新的管理员密码（12 至 256 位），完成后所有设备都需要用新密码重新登录，一次性临时密码文件会被删除。</p><form onsubmit="setupPassword();return false"><label class="auth-label" for="setupPassword">新密码</label><input id="setupPassword" type="password" autocomplete="new-password" minlength="12" maxlength="256" placeholder="至少 12 位" required><label class="auth-label" for="setupPasswordConfirm">确认新密码</label><input id="setupPasswordConfirm" type="password" autocomplete="new-password" minlength="12" maxlength="256" placeholder="再次输入密码" required><button class="primary" type="submit">完成设置并重新登录　→</button></form></section><p id="message" role="status" aria-live="polite"></p><p class="auth-foot">QQ BOT · 管理员控制台 · {{APP_VERSION}}</p></div></div>
+<section id="firstRun" hidden><h1>首次设置密码</h1><p>这是首次登录。请设置新的管理员密码（12 至 256 位），完成后所有设备都需要用新密码重新登录，一次性临时密码文件会被删除。密码设置完成后，面板还会引导你完成 Bot 名称、人格模板、模型设置、主人识别和超级管理员等基本设置。</p><form onsubmit="setupPassword();return false"><label class="auth-label" for="setupPassword">新密码</label><input id="setupPassword" type="password" autocomplete="new-password" minlength="12" maxlength="256" placeholder="至少 12 位" required><label class="auth-label" for="setupPasswordConfirm">确认新密码</label><input id="setupPasswordConfirm" type="password" autocomplete="new-password" minlength="12" maxlength="256" placeholder="再次输入密码" required><button class="primary" type="submit">完成设置并重新登录　→</button></form></section><p id="message" role="status" aria-live="polite"></p><p class="auth-foot">QQ BOT · 管理员控制台 · {{APP_VERSION}}</p></div></div>
 <div id="app" class="shell" hidden><div id="navOverlay" class="nav-overlay" hidden></div><aside class="sidebar" id="appSidebar"><button type="button" class="sb-close" id="navClose" aria-label="关闭导航">×</button><div class="brand"><span class="brand-mark" aria-hidden="true">✳</span><span><span id="botBrandName">达妮娅</span> <span style="color:var(--text-10);font-weight:400">/</span> 控制台</span></div>
 <div class="bot-card"><span class="avatar" id="shellAvatar">达</span><span class="bot-copy"><strong class="bot-name" id="shellBotName">达妮娅</strong><span class="bot-sub" id="shellBotVersion">OneBot · 本地控制台</span></span><span class="bot-live" id="shellBotLive" data-tone="unknown" aria-hidden="true"></span></div>
 <nav class="nav" aria-label="管理导航">
 <div class="nav-caption">工作台</div><a id="overviewLink" class="nav-link active" href="#overview"><span class="nav-icon">▦</span>概览</a>
-<a id="botBasicsLink" class="nav-link" href="#bot-info"><span class="nav-icon">◈</span>Bot 基本情况</a>
+<a id="botBasicsLink" class="nav-link" href="#bot-info"><span class="nav-icon">◈</span>Bot 基本设置</a>
 <a class="nav-link" href="#memes"><span class="nav-icon">☺</span>表情包</a>
 <a class="nav-link" href="#memory"><span class="nav-icon">◈</span>用户记忆</a>
 <a class="nav-link" href="#group"><span class="nav-icon">◉</span>群聊话题</a>
@@ -758,7 +769,7 @@ html[data-skin="academia"] #app .head-right .btn:hover{background:#5c4033;border
 <a class="nav-link" href="#renderer"><span class="nav-icon">◧</span>图片渲染服务</a>
 <div class="nav-caption">运维</div>
 <a class="nav-link" href="#monitor"><span class="nav-icon">◌</span>运行状态</a>
-<a class="nav-link" href="#events"><span class="nav-icon">≡</span>解析日志</a>
+<a class="nav-link" href="#events"><span class="nav-icon">≡</span>运行日志</a>
 <div class="nav-caption">安全</div>
 <a class="nav-link" href="#account"><span class="nav-icon">⚿</span>管理员密码</a>
 <div class="nav-caption">外部服务</div><a id="gsuidConsoleLink" class="nav-link external" href="http://127.0.0.1:8765/app" target="_blank" rel="noopener noreferrer" title="gsuid_core WebConsole（独立登录，默认端口 8765）" aria-label="打开 gsuid_core 游戏账号控制台（端口 8765）"><span class="nav-icon">⚙</span>游戏账号控制台<span class="nav-ext">↗</span></a></nav><div class="side-bottom"><strong>QQ 机器人</strong>本地管理空间 · {{APP_VERSION}}<button type="button" class="side-logout" onclick="logout()">退出登录</button><button type="button" class="side-theme" id="appearanceButton" aria-expanded="false" aria-controls="appearancePopover">◐ 主题设置</button></div></aside>
@@ -766,15 +777,16 @@ html[data-skin="academia"] #app .head-right .btn:hover{background:#5c4033;border
 <div id="appMessage" class="notice-slot" role="status" aria-live="polite"></div>
 <div id="overview" class="overview-page"><section class="hero" aria-labelledby="heroVerdict"><div class="hero-core"><div class="hero-main"><div class="hero-bot"><span class="avatar" id="heroAvatar">达</span><span id="heroBotLine">达妮娅 · OneBot</span><span class="pill" id="heroConnection"><span class="dot" data-tone="unknown"></span>连接中</span></div><div class="verdict-row"><div class="eyebrow" id="heroKicker">CURRENT STATUS</div><h2 class="verdict" id="heroVerdict" aria-live="polite">—</h2><p class="hero-sub" id="heroSub" aria-live="polite">正在读取状态…</p></div><div class="hero-actions"><a class="btn btn-primary" href="#status">查看运行详情 →</a><a class="link" href="#status">状态历史</a></div></div><aside class="hero-side"><div class="side-head"><h2>24h 采样</h2><span class="pill" id="heroHeartbeat"><span class="dot" data-tone="ok"></span>等待</span></div><p class="hb-note" id="heroHbNote">采集于 —</p><div class="ruler-plot" id="heroRuler" role="img" aria-label="过去 24 小时的资源采样"></div><div class="ruler-axis" aria-hidden="true"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div><div class="side-facts"><div class="row"><span>连续运行</span><b id="heroStartedAt">—</b></div><div class="row"><span>最近采集</span><b id="heroLastRefresh">—</b></div><div class="row"><span>当前版本</span><b>{{APP_VERSION}}</b></div></div></aside></div></section>
 <div class="kpis" aria-label="运行概览"><div class="kpi"><span>CPU</span><b id="kpiCpu">—</b><small id="kpiCpuSmall">当前采样</small></div><div class="kpi"><span>内存</span><b id="kpiMem">—</b><small id="kpiMemSmall">已用 / 总量</small></div><div class="kpi"><span>磁盘</span><b id="kpiDisk">—</b><small id="kpiDiskSmall">已用 / 总量</small></div><div class="kpi"><span>今日 Token</span><b id="kpiTokens">—</b><small id="kpiTokensSmall">近 7 天 —</small></div><div class="kpi"><span>p95 延迟</span><b id="kpiP95">—</b><small id="kpiP95Small">暂无数据</small></div><div class="kpi"><span>消息速率</span><b id="kpiRate">—</b><small id="kpiRateSmall">暂无数据</small></div></div></div>
-<nav id="botBasicsNav" class="basics-nav" aria-label="Bot 基本情况" hidden>
+<nav id="botBasicsNav" class="basics-nav" aria-label="Bot 基本设置" hidden>
 <a class="nav-link" href="#bot-info"><span class="nav-icon">◈</span>基本信息</a>
 <a class="nav-link" href="#persona"><span class="nav-icon">✎</span>人格模板</a>
-<a class="nav-link" href="#tokens"><span class="nav-icon">◫</span>Token 消耗</a>
+<a class="nav-link" href="#model-pref"><span class="nav-icon">⇄</span>模型设置</a>
 <a class="nav-link" href="#master"><span class="nav-icon">◇</span>主人识别</a>
 <a class="nav-link" href="#superusers"><span class="nav-icon">⚑</span>超级管理员</a>
+<a class="nav-link" href="#tokens"><span class="nav-icon">◫</span>Token 消耗</a>
 </nav>
 <div id="panelGrid" class="panel-grid">
-<section id="bot-info" class="card" data-page-title="Bot 基本情况">
+<section id="bot-info" class="card" data-page-title="Bot 基本设置">
   <div class="card-head"><div class="card-icon" aria-hidden="true">◈</div><div><h2>bot基本信息</h2><p class="section-description">设置机器人在状态卡、日报、集群卡、灾害卡和指令菜单中显示的 bot-name。保存后立即生效，不需要重启机器人。</p></div></div>
   <div class="controls"><input id="botNameInput" maxlength="40" placeholder="如：达妮娅" aria-label="机器人名称"><button class="primary" type="button" onclick="run(saveBotName)">保存名称</button><button type="button" onclick="run(resetBotName)">恢复默认</button><span id="botNameState" class="hint" role="status"></span></div>
   <p class="hint">只改显示名称，不改人格、唤醒词或模型设置；默认名称为「达妮娅」。名称最多 40 个字符。</p>
@@ -797,6 +809,28 @@ html[data-skin="academia"] #app .head-right .btn:hover{background:#5c4033;border
   <p class="hint"><b>current.jinja2 说明：</b>当前人格正文保存在被 Git 忽略的 <code>nonebot/templates/current.jinja2</code>，<code>git pull</code> 不会覆盖它；它需要随迁移单独备份，<code>git clean -fdx</code> 或重新克隆会删除它。<code>Denia</code>／<code>Shorekeeper</code> 是可读预设，上游更新可能改变内容；加载预设只会复制一份，不会改动预设文件。</p>
   <p class="hint"><b>生效方式：</b>正文文件每次渲染都会重新读取，替换 <code>current.jinja2</code> 无需重启；只有 <code>models.yml</code> 的 <code>template</code> 字段首次从预设切换为 <code>current</code> 时，才需要重启机器人或在主人私聊发送 <code>.model reload</code>。称呼和主人信息仍读 <code>configs/templates.yml</code>。</p>
 </section>
+<section id="model-pref" class="card">
+  <div class="card-head"><div class="card-icon" aria-hidden="true">⇄</div><div><h2>模型设置</h2><p class="section-description">维护默认提供商的 base URL 和 API Key，获取上游模型列表，再选择首选和次选模型。模型保存后下一条回复生效；提供商配置保存后需要重启机器人。</p></div></div>
+  <div class="subsection"><h3>提供商</h3>
+    <div class="parser-grid">
+      <label class="parser-field"><span>Base URL</span><input id="modelBaseUrl" placeholder="http://127.0.0.1:8090/v1" autocomplete="off"><small>OpenAI 兼容地址，通常以 <code>/v1</code> 结尾；不要填查询参数或账号密码。</small></label>
+      <label class="parser-field"><span>API Key</span><input id="modelApiKey" type="password" autocomplete="new-password" placeholder="加载中…"><small>只写不读；留空保持现有 Key。Key 只发给上面的提供商地址。</small></label>
+    </div>
+    <div class="parser-actions"><button id="modelProviderSave" class="primary" type="button" onclick="run(saveModelProvider)" disabled>保存提供商</button><button id="modelUpstreamFetch" type="button" onclick="run(fetchModelUpstream)">获取模型列表</button><span id="modelProviderState" class="hint" role="status"></span></div>
+    <p class="hint" id="modelRestart" hidden>提供商配置已保存。重启机器人后才会使用新的 base URL/Key；模型选择不需要重启。<button type="button" onclick="confirmRestart()">重启机器人</button></p>
+  </div>
+  <div class="subsection"><h3>模型</h3>
+    <div class="parser-grid">
+      <label class="parser-field"><span>首选模型</span><select id="modelPrimary" aria-label="首选模型" onchange="updateModelPrefDetails()"></select><small id="modelPrimaryDetail">加载中…</small></label>
+      <label class="parser-field"><span>次选模型</span><select id="modelSecondary" aria-label="次选模型" onchange="updateModelPrefDetails()"></select><small id="modelSecondaryDetail">加载中…</small></label>
+    </div>
+    <div class="parser-actions"><button id="modelSave" class="primary" type="button" onclick="run(saveModelPref)">保存模型设置</button><button type="button" onclick="run(loadModelPref)">刷新</button><span id="modelPrefState" class="hint" role="status"></span></div>
+    <p class="hint" id="modelPrefCurrent">—</p>
+    <p class="hint" id="modelPrefSwaps">—</p>
+    <p class="hint" id="modelPrefPublication">—</p>
+  </div>
+  <p class="hint">面板只维护默认提供商的地址、Key 和两个模型选择；其他模型条目仍可在主人私聊用 <code>.模型</code> 指令管理。API Key 不会回显，也不会写进页面或日志。</p>
+</section>
 <section id="account" class="card">
   <div class="card-head"><div class="card-icon" aria-hidden="true">⚿</div><div><h2>管理员密码</h2><p class="section-description">首次设置完成后，可在这里修改面板登录密码。保存后所有设备都需要用新密码重新登录；不会影响机器人配置或超级管理员名单。</p></div></div>
   <form onsubmit="changePassword();return false">
@@ -816,7 +850,7 @@ html[data-skin="academia"] #app .head-right .btn:hover{background:#5c4033;border
 <section id="status" class="card"><div class="card-head"><div class="card-icon" aria-hidden="true">◧</div><div><h2>服务器状态</h2><p class="section-description">实时资源与历史趋势；采样由机器人每 5 分钟写入，QQ 数据来自最近一次落盘。</p></div></div><div class="status-toolbar"><label class="parser-toggle"><input id="statusEnabled" type="checkbox" role="switch" onchange="run(toggleStatusEnabled)" disabled>服务器状态总开关</label><button id="statusRefresh" type="button" onclick="run(loadStatus)">刷新</button><span id="statusMode" class="hint" role="status">正在读取状态…</span></div>
 <div id="statusDetails" hidden><div class="status-toolbar"><select id="statusRange" onchange="run(loadStatus)"><option value="1">最近 24 小时</option><option value="7">最近 7 天</option><option value="30">最近 30 天</option></select><span id="statusStamp" class="hint"></span></div><div class="status-grid" id="statusMetrics"></div><div class="subsection"><h3>历史趋势 <span id="statusRangeNote" class="hint"></span></h3><div class="status-chart"><svg id="statusChart" viewBox="0 0 600 150" preserveAspectRatio="none" role="img" aria-label="资源趋势"></svg></div><div class="status-legend"><span><i style="background:var(--chart-cpu)"></i>CPU</span><span><i style="background:var(--chart-mem)"></i>内存</span></div></div><div class="subsection"><h3>磁盘与进程</h3><div class="status-kv" id="statusDisks"></div><ol id="statusProcs" class="topic-ranking"></ol></div><div class="subsection"><h3>异常事件 <span class="hint">最近 20 条</span></h3><p id="statusEventsEmpty" class="parser-empty" hidden>这个区间没有异常。</p><ul id="statusEvents" class="topic-ranking event-list"></ul></div><div class="subsection"><h3>推送与报表</h3><div class="status-kv" id="statusDelivery"></div></div><div class="subsection"><h3>状态卡设置</h3><div class="status-redact" id="statusRedact"></div><div class="status-toolbar" style="margin-top:14px"><label class="parser-toggle">告警<select id="statusAlertsEnabled"><option value="false">关闭</option><option value="true">开启</option></select></label><label class="parser-toggle">日报<select id="statusReportEnabled"><option value="false">关闭</option><option value="true">开启</option></select></label><label class="parser-toggle">日报时间<input id="statusReportTime" type="time" style="min-height:36px"></label><label class="parser-toggle">推送目标<input id="statusTargets" placeholder="群号，多个用逗号隔开" style="min-height:36px"></label><button class="primary" type="button" onclick="saveStatusConfig()">保存</button><span id="statusSaved" class="hint" role="status"></span></div><div class="subsection"><h3>Grafana CPU 温度</h3><p class="section-description">从 Grafana 的 Prometheus 数据源读取温度；查询失败时状态卡省略温度，不影响其他内容。</p><div class="parser-grid"><label class="parser-field"><span>启用</span><select id="statusGrafanaEnabled"><option value="false">关闭</option><option value="true">开启</option></select></label><label class="parser-field"><span>Grafana 地址</span><input id="statusGrafanaUrl" placeholder="http://grafana:3000"></label><label class="parser-field"><span>Datasource UID</span><input id="statusGrafanaUid" placeholder="Prometheus 数据源 UID"></label><label class="parser-field"><span>查询语句（PromQL / Flux）</span><input id="statusGrafanaQuery" placeholder="PromQL 或 Flux；Flux 可用 {window} 占位符"></label><label class="parser-field"><span>平均窗口（分钟）</span><input id="statusGrafanaWindow" type="number" min="1" max="1440"></label><label class="parser-field"><span>API Key</span><input id="statusGrafanaToken" type="password" autocomplete="new-password" placeholder="已配置则留空保持不变"></label></div><div class="status-toolbar" style="margin-top:10px"><button type="button" onclick="loadStatusGrafanaSources()">读取数据源</button><button type="button" onclick="testStatusGrafana()">测试连接</button><span id="statusGrafanaResult" class="hint" role="status"></span></div></div><div class="subsection"><h3>Proxmox VE 集群</h3><p class="section-description">从同一个 Grafana 的 InfluxDB（Flux）读取节点、访客与存储；只有最近窗口内有采样的节点和访客才会出现，已停止的访客通常没有数据。修改后点此保存；测试查询不保存。</p><div class="parser-grid"><label class="parser-field"><span>启用</span><select id="statusClusterEnabled"><option value="false">关闭</option><option value="true">开启</option></select></label><label class="parser-field"><span>卡片标题</span><input id="statusClusterTitle" placeholder="Proxmox VE"></label><label class="parser-field"><span>Bucket</span><input id="statusClusterBucket" placeholder="proxmox"></label><label class="parser-field"><span>Datasource UID</span><input id="statusClusterUid" placeholder="留空沿用上方 Grafana 数据源"></label><label class="parser-field"><span>数据窗口（分钟）</span><input id="statusClusterWindow" type="number" min="1" max="1440"></label><label class="parser-field"><span>节点筛选</span><input id="statusClusterNodes" placeholder="逗号分隔；留空表示全部节点"></label><label class="parser-field"><span>CPU 温度</span><select id="statusClusterTemp"><option value="false">关闭</option><option value="true">开启</option></select></label></div><div class="status-toolbar" style="margin-top:10px"><button class="primary" type="button" onclick="saveStatusConfig()">保存</button><button type="button" onclick="testStatusCluster()">测试集群查询</button><span id="statusClusterResult" class="hint" role="status"></span></div></div><p class="hint">基础配置在插件目录的 data/statuscard.json；监测条目等高级项请直接改该文件。</p></div></div></section>
 <section id="tokens" class="card"><div class="card-head"><div class="card-icon" aria-hidden="true">◫</div><div><h2>Token 消耗</h2><p class="section-description">按天累计的模型用量，以及各模型的消耗排名。</p></div></div><div class="token-toolbar"><label class="parser-toggle">统计区间<select id="tokenDays" onchange="run(loadTokens)"><option value="1">今天</option><option value="7" selected>近 7 天</option><option value="30">近 30 天</option><option value="90">近 90 天</option></select></label><button type="button" onclick="run(loadTokens)">刷新</button><button type="button" onclick="confirmClearTokens()">清空统计</button><span id="tokenRange" class="hint"></span></div><div class="token-cards"><div class="token-card"><span>今日</span><strong id="tkToday">—</strong></div><div class="token-card"><span>昨日</span><strong id="tkYesterday">—</strong></div><div class="token-card"><span>近 7 天</span><strong id="tkWeek">—</strong></div><div class="token-card"><span>近 30 天</span><strong id="tkMonth">—</strong></div><div class="token-card"><span>累计</span><strong id="tkAll">—</strong></div></div><div class="subsection"><h3>模型排名 <span id="tokenModelNote" class="hint"></span></h3><p id="tokenEmpty" class="parser-empty" hidden>这个区间还没有记录。发出一次对话后就会开始统计。</p><ol id="tokenModels" class="topic-ranking"></ol></div><div class="subsection"><h3>每日用量</h3><div id="tokenDaily" class="token-daily"></div></div></section>
-<dialog id="pluginGuide" class="confirm-dialog" aria-labelledby="pluginGuideTitle"><h2 id="pluginGuideTitle">首次启动引导</h2><p>选择要启用的可选插件。现在关闭的插件不会在机器人下次启动时加载，之后可以在「插件管理」中修改。</p><div id="pluginGuideList" style="max-height:44vh;overflow:auto;text-align:left"></div><p class="hint">设置保存在 <code>nonebot/data/plugins.json</code>；关闭 gsuid 时会尝试同步停止对应外部服务。</p><div class="confirm-actions"><button type="button" onclick="run(skipPluginGuide)">稍后设置</button><button class="primary" type="button" onclick="run(finishPluginGuide)">完成引导</button></div></dialog>
+<dialog id="pluginGuide" class="confirm-dialog" aria-labelledby="pluginGuideTitle"><h2 id="pluginGuideTitle">首次启动引导</h2><p>选择要启用的可选插件。现在关闭的插件不会在机器人下次启动时加载，之后可以在「插件管理」中修改。完成后会重启机器人让开关生效，服务会短暂中断。</p><div id="pluginGuideList" style="max-height:44vh;overflow:auto;text-align:left"></div><p class="hint">设置保存在 <code>nonebot/data/plugins.json</code>；关闭 gsuid 时会尝试同步停止对应外部服务。</p><div class="confirm-actions"><button type="button" onclick="run(skipPluginGuide)">稍后设置</button><button class="primary" type="button" onclick="run(finishPluginGuide)">完成并重启bot</button></div></dialog>
 <dialog id="restartDialog" class="confirm-dialog" aria-labelledby="restartTitle"><h2 id="restartTitle">确认重启机器人？</h2><p>机器人服务将短暂中断，正在处理的消息可能被中止。SnowLuma、QQ 和知识库服务继续运行。</p><div class="confirm-actions"><button onclick="$('restartDialog').close()">取消</button><button class="primary" onclick="restartBotNow()">确认重启</button></div></dialog>
 <section id="master" class="card"><div class="card-head"><div class="card-icon" aria-hidden="true">◇</div><div><h2>主人识别</h2><p class="section-description">设置主人 QQ 号与称呼；身份识别始终生效。</p></div></div><div class="weather-grid"><label>主人 QQ 号（多个用逗号隔开）<input id="masterOwners" inputmode="numeric" placeholder="留空沿用已有主人配置"></label><label>主人称呼<input id="masterTitle" placeholder="留空沿用人格配置"></label></div><p class="hint">留空使用原有配置；修改主人身份不会授予管理权限。保存后直接生效。</p><button class="primary" onclick="saveMaster()">保存主人识别设置</button><span id="masterSaved" class="hint" role="status"></span></section>
 <section id="superusers" class="card"><div class="card-head"><div class="card-icon" aria-hidden="true">⚑</div><div><h2>超级管理员</h2><p class="section-description">能用「限流」「换模型」「查看状态」「解析开关」等管理指令的 QQ 号。改完最多 30 秒生效，不用重启机器人。</p></div></div><div class="controls"><input id="superuserInput" inputmode="numeric" placeholder="QQ 号" aria-label="新增管理员 QQ 号"><button class="primary" type="button" onclick="addSuperuser()">添加</button><button type="button" onclick="run(loadSuperusers)">刷新</button><button type="button" class="danger" onclick="resetSuperusers()">回退到 .env</button><span id="superuserSource" class="hint" role="status"></span></div><p id="superuserState" class="status"></p><ul id="superuserList" class="list"></ul><p class="hint">面板第一次保存后以这份名单为准；<code>nonebot/.env</code> 的 <code>SUPERUSERS</code> 只在还没有名单文件时作为初始值。面板登录密码与这里的 QQ 号是两套东西，改名单不会影响登录。</p></section><section id="memory" class="card"><div class="card-head"><div class="card-icon" aria-hidden="true">◈</div><div><h2>用户记忆</h2><p class="section-description">查看和管理机器人为每位用户保存的记忆。</p></div></div><div class="controls"><select id="users" aria-label="选择用户" onchange="loadUser()"></select><button onclick="memoryAction('开启')">开启记忆</button><button onclick="memoryAction('关闭')">关闭记忆</button></div><p id="userState" class="status"></p><ul id="memories" class="list"></ul><div class="subsection"><h3>待处理候选</h3><p class="section-description">检查可能重复或冲突的记忆，再决定如何处理。</p><ul id="candidates" class="list"></ul></div></section>
@@ -969,7 +1003,22 @@ html[data-skin="academia"] #app .head-right .btn:hover{background:#5c4033;border
 </div>
 <div class="weather-actions"><button class="primary" onclick="saveDisaster()">保存灾害预警配置</button><button onclick="run(loadDisaster)">重新加载</button><span id="disasterState" class="hint" role="status"></span></div>
 <p class="hint">保存到 <code>nonebot/data/disaster_warning.json</code>；令牌不会回显。配置保存后由机器人侧读取；数据源接入前不会推送。</p></section>
-<section id="parser" class="card"><div class="card-head"><div class="card-icon" aria-hidden="true">↗</div><div><h2>链接解析</h2><p class="section-description">管理触发规则、媒体处理和各平台解析器。保存后重启机器人生效。</p></div></div><p class="hint">群聊默认自动解析链接；白名单与黑名单每行填写 group:群号 或 private:QQ号。Cookie 和令牌留空时保持原值。</p><div class="parser-overview"><span id="parserCount" class="parser-count">—</span><span id="parserDirty" class="parser-dirty" hidden></span><span class="parser-overview-actions"><button type="button" onclick="parserSetAll(true)">全部开启</button><button type="button" onclick="parserSetAll(false)">全部关闭</button></span></div><div class="parser-toolbar"><input id="parserSearch" type="search" placeholder="搜索设置项，如 cookies、超时、代理" aria-label="搜索设置项" oninput="parserFilter()"><label class="parser-toggle"><input id="parserOnlyEnabled" type="checkbox" onchange="parserFilter()">只看已启用平台</label><label class="parser-toggle"><input id="parserOnlyChanged" type="checkbox" onchange="parserFilter()">只看已改动</label><span id="parserFilterState" class="hint" role="status"></span></div><div class="subsection"><h3>解析仲裁</h3><p class="section-description">群内多个机器人参与时，通过表情协调由谁解析；关闭后可能重复发送。修改后保存并重启机器人生效。</p><div id="parserArbiter" class="parser-grid"></div></div><h3>通用设置</h3><div id="parserGeneral" class="parser-grid"></div><div id="parserNoGeneral" class="parser-empty" hidden>通用设置里没有匹配项。</div><div class="subsection"><h3>平台设置 <span id="parserPlatformCount" class="hint"></span></h3><p class="section-description">展开平台设置启用状态、Cookie 和专属选项。改动过的字段左侧有标记。</p><div id="parserPlatforms" class="parser-platforms"></div><div id="parserNoPlatform" class="parser-empty" hidden>没有匹配的平台。</div></div><div class="parser-actions"><button class="primary" onclick="saveParser()">保存解析设置</button><button onclick="run(loadParser)">重新加载</button><span id="parserSaved" class="hint" role="status"></span></div></section><section id="events" class="card"><div class="card-head"><div class="card-icon" aria-hidden="true">≡</div><div><h2>解析日志</h2><p class="section-description">插件报错、视频时长或资源大小超出阈值、同一链接在防抖窗口内被跳过时记录在这里，最近的在前。</p></div></div><div class="parser-overview"><span id="eventStats" class="parser-count">—</span><span class="parser-overview-actions"><button type="button" onclick="run(loadEvents)">刷新</button><button type="button" onclick="confirmClearEvents()">清空日志</button></span></div><div class="parser-toolbar"><input id="eventSearch" type="search" placeholder="搜索平台、原因或详情" aria-label="搜索日志" oninput="renderEvents()"><label class="parser-toggle"><input id="eventOnlyLimit" type="checkbox" onchange="renderEvents()">只看超出阈值</label><span id="eventFilterState" class="hint"></span></div><p id="eventEmpty" class="parser-empty" hidden>暂时没有记录 —— 说明一切正常。</p><ul id="eventList" class="topic-ranking event-list"></ul></section>
+<section id="parser" class="card"><div class="card-head"><div class="card-icon" aria-hidden="true">↗</div><div><h2>链接解析</h2><p class="section-description">管理触发规则、媒体处理和各平台解析器。保存后重启机器人生效。</p></div></div><p class="hint">群聊默认自动解析链接；白名单与黑名单每行填写 group:群号 或 private:QQ号。Cookie 和令牌留空时保持原值。</p><style>.parser-tabs{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0 16px;padding:6px;background:var(--surface-2);border:1px solid var(--line-soft);border-radius:var(--r-12)}.parser-tab{min-height:34px;padding:5px 12px;border:1px solid transparent;background:transparent;color:var(--text-6);font-size:var(--fs-13);border-radius:var(--r-9)}.parser-tab:hover{background:var(--surface-hover);border-color:var(--line)}.parser-tab[aria-selected="true"]{background:var(--paper);border-color:var(--line-strong);color:var(--ink);font-weight:650;box-shadow:0 1px 2px var(--shadow-card)}.parser-tab[hidden]{display:none}.parser-tab[data-changed="true"]::after{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--accent);margin-left:6px;vertical-align:1px}.parser-platform-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:4px 16px 0;font-weight:600}.parser-credentials{margin:14px 16px 0;padding:12px 14px;border:1px solid var(--line);border-radius:var(--r-10);background:var(--surface-2)}.parser-credentials h3{margin:0 0 8px}.parser-tab-panel .bili-credentials{border:0;padding:0;margin:0;background:transparent}.parser-login{margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}.parser-login-head{display:flex;justify-content:space-between;gap:10px;align-items:baseline;flex-wrap:wrap}.parser-login img{width:180px;height:180px;image-rendering:pixelated;background:#fff;border:1px solid var(--line-strong);border-radius:var(--r-9);margin-top:8px}.parser-login-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}</style><div id="parserTabs" class="parser-tabs" role="tablist" aria-label="链接解析设置"></div><style>.bili-credentials{border:1px solid var(--line);border-radius:var(--r-12);padding:14px 16px;margin:14px 0;background:var(--surface-2)}.bili-credentials-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}.bili-credentials-head h3{margin:0 0 4px}.bili-qr-row{display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap}.bili-qr-row img{width:180px;height:180px;image-rendering:pixelated;background:#fff;border:1px solid var(--line-strong);border-radius:var(--r-9)}</style><template id="biliCredentialsTemplate"><div class="bili-credentials" id="biliCredentials"><div class="bili-credentials-head"><div><h3>B 站登录凭据</h3><p class="hint">粘贴 Cookie 字符串或浏览器导出的 JSON；至少需要 <code>SESSDATA</code> 和 <code>bili_jct</code>。导入成功会立即写入配置和登录态文件，不需要重启。也可以扫码登录。</p></div><span id="biliCookieState" class="hint" role="status">未加载</span></div><div class="parser-grid"><label class="parser-field" for="biliCookieInput"><span>Cookie / JSON</span><textarea id="biliCookieInput" rows="3" placeholder="SESSDATA=...; bili_jct=...; DedeUserID=... 或 {&quot;SESSDATA&quot;: ...}"></textarea><small>导入失败不会覆盖已有凭据；错误会指出缺少哪个字段。</small></label><div class="parser-field"><span>扫码登录</span><div class="bili-qr-row"><img id="biliQrImage" alt="B站登录二维码" hidden><div><button id="biliQrStart" type="button" onclick="run(startBiliQr)">生成二维码</button><p id="biliQrState" class="hint" role="status">未生成</p><small>二维码约 2 分钟内有效；登录成功后凭据立即生效。</small></div></div></div></div><div class="parser-actions"><button id="biliCookieImport" class="primary" type="button" onclick="run(importBiliCookies)">导入 Cookie</button></div></div></template><div class="parser-overview"><span id="parserCount" class="parser-count">—</span><span id="parserDirty" class="parser-dirty" hidden></span><span class="parser-overview-actions"><button type="button" onclick="parserSetAll(true)">全部开启</button><button type="button" onclick="parserSetAll(false)">全部关闭</button></span></div><div class="parser-toolbar"><input id="parserSearch" type="search" placeholder="搜索设置项，如 cookies、超时、代理" aria-label="搜索设置项" oninput="parserFilter()"><label class="parser-toggle"><input id="parserOnlyEnabled" type="checkbox" onchange="parserFilter()">只看已启用平台</label><label class="parser-toggle"><input id="parserOnlyChanged" type="checkbox" onchange="parserFilter()">只看已改动</label><span id="parserFilterState" class="hint" role="status"></span></div><div id="parserGeneralPanel" class="parser-tab-panel" role="tabpanel" aria-labelledby="parserTab-general"><div class="subsection"><h3>解析仲裁</h3><p class="section-description">群内多个机器人参与时，通过表情协调由谁解析；关闭后可能重复发送。修改后保存并重启机器人生效。</p><div id="parserArbiter" class="parser-grid"></div></div><h3>通用设置</h3><div id="parserGeneral" class="parser-grid"></div><div id="parserNoGeneral" class="parser-empty" hidden>通用设置里没有匹配项。</div></div><div id="parserPlatformPanel" class="parser-tab-panel" hidden><div class="subsection"><h3>平台设置 <span id="parserPlatformCount" class="hint"></span></h3><p class="section-description">展开平台设置启用状态、Cookie 和专属选项。改动过的字段左侧有标记。</p><div id="parserPlatforms" class="parser-platforms"></div><div id="parserNoPlatform" class="parser-empty" hidden>没有匹配的平台。</div></div></div><div class="parser-actions"><button id="parserSave" class="primary" onclick="saveParser()">保存解析设置</button><button id="parserReload" onclick="run(loadParser)">重新加载</button><span id="parserSaved" class="hint" role="status"></span></div></section><section id="events" class="card"><div class="card-head"><div class="card-icon" aria-hidden="true">≡</div><div><h2>运行日志</h2><p class="section-description">查看机器人运行日志与解析事件；运行日志支持按错误、解析错误筛选，只读且自动掩码密钥。</p></div></div>
+<div class="parser-toolbar"><label class="parser-toggle">日志类型<select id="logMode" onchange="switchLogMode()"><option value="runtime" selected>运行日志</option><option value="parser">解析事件</option></select></label></div>
+<div id="runtimeLogPanel">
+  <div class="parser-toolbar">
+    <label class="parser-toggle">来源<select id="logSource" onchange="logSourceTouched=true;run(loadRuntimeLogs)"><option value="nonebot.log">最新运行日志</option><option value="nonebot.out.log">标准输出</option><option value="nonebot.err.log">错误输出</option></select></label>
+    <label class="parser-toggle">行数<select id="logTail" onchange="run(loadRuntimeLogs)"><option value="100">100</option><option value="200" selected>200</option><option value="500">500</option><option value="1000">1000</option></select></label>
+    <label class="parser-toggle">筛选<select id="logFilter" onchange="renderRuntimeLog()"><option value="all">全部</option><option value="parser-error">解析错误</option><option value="error">错误</option><option value="parser">解析相关</option><option value="warning">警告</option></select></label>
+    <label class="parser-toggle"><input id="logAutoScroll" type="checkbox" checked>自动滚到底部</label>
+    <button type="button" onclick="run(loadRuntimeLogs)">刷新</button>
+  </div>
+  <div class="parser-toolbar"><input id="logSearch" type="search" placeholder="搜索运行日志" aria-label="搜索运行日志" oninput="renderRuntimeLog()"><span id="logMeta" class="hint" role="status"></span></div>
+  <p id="logEmpty" class="parser-empty" hidden>暂无运行日志。</p>
+  <div id="logView" class="log-view" role="log" aria-live="polite"></div>
+</div>
+<div id="parserEventsPanel" hidden>
+<div class="parser-overview"><span id="eventStats" class="parser-count">—</span><span class="parser-overview-actions"><button type="button" onclick="run(loadEvents)">刷新</button><button type="button" onclick="confirmClearEvents()">清空解析事件</button></span></div><div class="parser-toolbar"><input id="eventSearch" type="search" placeholder="搜索平台、原因或详情" aria-label="搜索日志" oninput="renderEvents()"><label class="parser-toggle">类型<select id="eventKind" onchange="renderEvents()"><option value="">全部</option><option value="error">报错</option><option value="limit">超阈值</option><option value="warn">提示</option></select></label><span id="eventFilterState" class="hint"></span></div><p id="eventEmpty" class="parser-empty" hidden>暂时没有记录 —— 说明一切正常。</p><ul id="eventList" class="topic-ranking event-list"></ul></div></section>
 <div id="appearancePopover" class="appearance-popover" role="dialog" aria-label="主题设置" hidden>
   <div class="appearance-head"><strong>主题设置</strong><button type="button" class="appearance-close" aria-label="关闭" onclick="closeAppearance()">×</button></div>
   <div class="appearance-tabs" role="tablist" aria-label="主题设置分类">
@@ -1050,6 +1099,19 @@ html[data-skin="academia"] #app .head-right .btn:hover{background:#5c4033;border
 </div>
 </div>
 <footer class="page-footer"><span>达妮娅控制台 · {{APP_VERSION}}</span><span>本地管理空间 · 仅管理员</span></footer></main>
+<div id="basicsGuide" class="basics-guide-bar" role="region" aria-label="首次启动引导" hidden>
+  <div class="basics-guide-copy">
+    <span id="basicsGuideProgress" class="basics-guide-progress">第 1 步，共 5 步</span>
+    <strong id="basicsGuideTitle">Bot 名称</strong>
+    <span id="basicsGuideDesc" class="hint">设置机器人在状态卡、日报和指令菜单中显示的名字。</span>
+    <span id="basicsGuideDots" class="basics-guide-dots" aria-hidden="true"></span>
+  </div>
+  <div class="basics-guide-actions">
+    <button type="button" id="basicsGuidePrev" onclick="run(basicsGuidePrev)">上一步</button>
+    <button type="button" class="primary" id="basicsGuideNext" onclick="run(basicsGuideNext)">下一步</button>
+    <button type="button" id="basicsGuideSkip" onclick="run(skipBasicsGuide)">跳过引导</button>
+  </div>
+</div>
 </div>
 <script id="appScript">
 let csrf='';const $=x=>document.getElementById(x);
@@ -1114,7 +1176,93 @@ async function saveEmbedding(){let key=$('embeddingKey').value.trim();if(!key)th
 async function login(){run(async()=>{let x=await api('/api/login',{password:$('password').value});csrf=x.csrf;$('password').value='';$('login').hidden=true;if(x.must_change){showFirstRun();return}await enterApp()})}
 function showFirstRun(){$('app').hidden=true;$('auth').hidden=false;$('login').hidden=true;$('firstRun').hidden=false;$('setupPassword').focus()}
 async function setupPassword(){run(async()=>{const p=$('setupPassword').value,c=$('setupPasswordConfirm').value;if(p.length<12||p.length>256)throw Error('密码长度须为 12 到 256 位');if(p!==c)throw Error('两次输入的密码不一致');await api('/api/setup-password',{password:p,confirm:c});$('setupPassword').value='';$('setupPasswordConfirm').value='';csrf='';$('firstRun').hidden=true;$('login').hidden=false;notice('密码已设置，请使用新密码登录')})}
-async function enterApp(){$('auth').hidden=true;$('app').hidden=false;await run(loadEmbedding);await run(loadBotName);await run(loadPersona);await loadBotStatus();await loadBotUpdate();await loadPlugins();startStatusPolling();await refresh();await loadMaster();await loadParser();await loadEvents();await loadTokens();await loadStatus();await loadSuperusers();await loadEpic();await run(loadRenderer);await run(loadDisaster);await run(loadGameEvents);await run(loadBilibili);await run(loadMemes)}
+let basicsGuidePending=false,basicsGuideStep=0,basicsStepSaveTimer=null;
+const basicsSteps=[
+  {hash:'#bot-info',title:'Bot 名称',desc:'设置状态卡、日报、集群卡、灾害卡和指令菜单中显示的名字。'},
+  {hash:'#persona',title:'人格模板',desc:'选择预设并加载到 current.jinja2，或直接编辑当前人格正文。'},
+  {hash:'#model-pref',title:'模型设置',desc:'维护提供商 Base URL / API Key，并选择首选与次选模型。'},
+  {hash:'#master',title:'主人识别',desc:'设置主人 QQ 号与称呼；身份识别始终生效。'},
+  {hash:'#superusers',title:'超级管理员',desc:'添加可以使用管理指令的 QQ 号。'},
+];
+function clampBasicsStep(value){
+  const step=Number(value);
+  if(!Number.isInteger(step))return 0;
+  return Math.max(0,Math.min(step,basicsSteps.length-1));
+}
+function renderBasicsGuide(){
+  const bar=$('basicsGuide');
+  if(!bar)return;
+  bar.hidden=!basicsGuidePending;
+  if(!basicsGuidePending)return;
+  basicsGuideStep=clampBasicsStep(basicsGuideStep);
+  const step=basicsSteps[basicsGuideStep];
+  $('basicsGuideProgress').textContent=`第 ${basicsGuideStep+1} 步，共 ${basicsSteps.length} 步`;
+  $('basicsGuideTitle').textContent=step.title;
+  $('basicsGuideDesc').textContent=step.desc;
+  $('basicsGuidePrev').disabled=basicsGuideStep===0;
+  $('basicsGuideNext').textContent=basicsGuideStep===basicsSteps.length-1?'完成引导':'下一步';
+  const dots=$('basicsGuideDots');
+  if(dots){
+    dots.replaceChildren();
+    basicsSteps.forEach((_,index)=>{
+      const dot=document.createElement('i');
+      if(index<=basicsGuideStep)dot.className='on';
+      dots.append(dot);
+    });
+  }
+}
+function goToBasicsStep(step){
+  basicsGuideStep=clampBasicsStep(step);
+  const target=basicsSteps[basicsGuideStep].hash;
+  if(location.hash!==target)location.hash=target;
+  else showWorkspaceSection(false);
+  renderBasicsGuide();
+}
+async function saveBasicsStep(step){
+  try{await api('/api/onboarding',{basics_step:step})}
+  catch(e){notice('引导进度未保存：'+e.message)}
+}
+async function loadOnboarding(){
+  const data=await api('/api/onboarding');
+  basicsGuidePending=data.basics_pending===true;
+  basicsGuideStep=clampBasicsStep(data.basics_step);
+  if(!basicsGuidePending){renderBasicsGuide();return}
+  goToBasicsStep(basicsGuideStep);
+}
+function syncBasicsGuideStepFromHash(){
+  if(!basicsGuidePending)return;
+  const index=basicsSteps.findIndex(step=>step.hash===location.hash);
+  if(index<0||index===basicsGuideStep)return;
+  basicsGuideStep=index;
+  renderBasicsGuide();
+  clearTimeout(basicsStepSaveTimer);
+  basicsStepSaveTimer=setTimeout(()=>{saveBasicsStep(basicsGuideStep)},500);
+}
+async function basicsGuideNext(){
+  if(basicsGuideStep>=basicsSteps.length-1){
+    await markBasicsGuideDone('Bot 基本设置引导已完成');
+    return;
+  }
+  const next=basicsGuideStep+1;
+  await saveBasicsStep(next);
+  goToBasicsStep(next);
+}
+async function basicsGuidePrev(){
+  if(basicsGuideStep<=0)return;
+  const prev=basicsGuideStep-1;
+  await saveBasicsStep(prev);
+  goToBasicsStep(prev);
+}
+async function markBasicsGuideDone(message){
+  clearTimeout(basicsStepSaveTimer);
+  await api('/api/onboarding',{basics_done:true});
+  basicsGuidePending=false;
+  renderBasicsGuide();
+  notice(message);
+  if(pluginGuidePending&&!$('pluginGuide').open){pluginGuidePending=false;$('pluginGuide').showModal()}
+}
+async function skipBasicsGuide(){await markBasicsGuideDone('已跳过 Bot 基本设置引导；之后可在「Bot 基本设置」中修改')}
+async function enterApp(){$('auth').hidden=true;$('app').hidden=false;await run(loadOnboarding);await loadPlugins();await run(loadEmbedding);await run(loadBotName);await run(loadPersona);await run(loadModelPref);await loadBotStatus();await loadBotUpdate();startStatusPolling();await refresh();await loadMaster();await loadParser();await loadLogsPage();await loadTokens();await loadStatus();await loadSuperusers();await loadEpic();await run(loadRenderer);await run(loadDisaster);await run(loadGameEvents);await run(loadBilibili);await run(loadMemes)}
 async function resumeSession(){try{let r=await fetch('/api/session');if(!r.ok)return;let x=await r.json();csrf=x.csrf;if(x.must_change){showFirstRun();return}await enterApp()}catch(e){/* 未登录，停在登录框 */}}
 async function changePassword(){run(async()=>{const p=$('newPassword').value,c=$('confirmPassword').value;if(p.length<12||p.length>256)throw Error('密码长度须为 12 到 256 位');if(p!==c)throw Error('两次输入的密码不一致');await api('/api/password',{password:p});$('newPassword').value='';$('confirmPassword').value='';$('accountMessage').textContent='';csrf='';if(statusTimer){clearInterval(statusTimer);statusTimer=null}$('app').hidden=true;$('auth').hidden=false;$('login').hidden=false;$('firstRun').hidden=true;notice('密码已修改，请使用新密码登录')})}
 function options(id,items){let el=$(id),old=el.value;el.replaceChildren();items.forEach(x=>{let o=document.createElement('option');o.value=x.value;o.textContent=x.label;el.append(o)});if(items.some(x=>x.value===old))el.value=old}
@@ -1190,7 +1338,7 @@ async function applyBotUpdate(){
   }catch(e){$('updateState').textContent='更新失败：'+e.message}
   finally{$('updateCheck').disabled=false}
 }
-let pluginSettings=null,pluginDraft=new Set();
+let pluginSettings=null,pluginDraft=new Set(),pluginGuidePending=false;
 function syncPluginChecks(){
   document.querySelectorAll('input[data-plugin-id]').forEach(box=>{
     box.checked=!pluginDraft.has(box.dataset.pluginId);
@@ -1222,7 +1370,10 @@ async function loadPlugins(){
     pluginSettings=await api('/api/plugins');
     pluginDraft=new Set(pluginSettings.disabled||[]);
     renderPluginPanels();
-    if(!pluginSettings.onboarded)$('pluginGuide').showModal();
+    if(!pluginSettings.onboarded){
+      if(basicsGuidePending)pluginGuidePending=true;
+      else if(!$('pluginGuide').open)$('pluginGuide').showModal();
+    }
   }catch(e){$('pluginSaveState').textContent='插件设置读取失败：'+e.message}
 }
 async function persistPlugins(onboarded){
@@ -1238,7 +1389,8 @@ async function savePlugins(){await persistPlugins(true)}
 async function finishPluginGuide(){
   const data=await persistPlugins(true);
   $('pluginGuide').close();
-  if(!data.warning)$('pluginSaveState').textContent='引导已完成；修改后重启机器人生效';
+  if(!data.warning)$('pluginSaveState').textContent='引导已完成，正在重启机器人';
+  await restartBotNow();
 }
 async function skipPluginGuide(){
   const data=await persistPlugins(true);
@@ -1411,6 +1563,77 @@ async function savePersonaBody(){run(async()=>{
   await refreshPersonaView();
   $('personaBodyState').textContent='已保存 · 下一条回复生效，无需重启'+(data.active_is_current?'':'；当前生效模板不是 current，本次修改不会改变正在使用的人格');
 })}
+let modelPrefSnapshot=null,modelUpstreamModels=[];
+function modelPrefSelect(select,current,emptyLabel,allowEmpty){
+  select.replaceChildren();
+  if(allowEmpty){const empty=document.createElement('option');empty.value='';empty.textContent=emptyLabel;select.append(empty)}
+  for(const id of modelUpstreamModels){const option=document.createElement('option');option.value=id;option.textContent=id;select.append(option)}
+  const wanted=String(current||'').toLowerCase();
+  const match=Array.from(select.options).find(option=>option.value&&option.value.toLowerCase()===wanted);
+  if(current&&!match){const stale=document.createElement('option');stale.value=current;stale.textContent=current+'（当前列表中没有）';select.append(stale)}
+  select.value=current?((match&&match.value)||current):(allowEmpty?'':(modelUpstreamModels[0]||''));
+}
+function fillModelSelects(){
+  const state=(modelPrefSnapshot&&modelPrefSnapshot.state)||{};
+  const provider=(modelPrefSnapshot&&modelPrefSnapshot.provider)||{};
+  modelPrefSelect($('modelPrimary'),state.primary_model||provider.model_name||'','',false);
+  modelPrefSelect($('modelSecondary'),state.secondary_model||'','无（不降级）',true);
+}
+function updateModelPrefDetails(){
+  const data=modelPrefSnapshot;if(!data)return;
+  const provider=data.provider||{},state=data.state||{};
+  const primary=$('modelPrimary').value,secondary=$('modelSecondary').value;
+  let primaryText='请选择首选模型';
+  if(primary)primaryText='首选 '+primary+(state.primary_model===primary?' · 当前保存值':(!state.primary_model&&primary===provider.model_name?' · 当前默认模型':' · 保存后切换'));
+  $('modelPrimaryDetail').textContent=primaryText;
+  $('modelSecondaryDetail').textContent=secondary?('次选 '+secondary+(state.secondary_model===secondary?' · 当前保存值':' · 保存后切换')+' · 首选失败时重跑一次'):'未设置 · 首选失败时不会降级';
+  $('modelPrefCurrent').textContent='当前生效：'+(data.active_model||provider.model_name||'—')+'（'+(data.active_source==='model_pref'?'模型首选':'默认模型')+'）';
+  const swaps=state.swaps||{},names=Object.keys(swaps).sort();
+  $('modelPrefSwaps').textContent='今天顶过班：'+(names.length?names.map(name=>name+' '+swaps[name]+' 次').join('、'):'没有');
+}
+function applyModelPref(data){
+  modelPrefSnapshot=data;
+  const provider=data.provider||{},publication=data.publication||{};
+  $('modelBaseUrl').value=provider.base_url||'';
+  $('modelApiKey').value='';
+  $('modelApiKey').placeholder=provider.key_configured?'已配置，留空保持不变':'尚未配置 API Key';
+  $('modelPrefPublication').textContent=publication.published?'配置已发布':'配置未发布，保存提供商已锁定：请先核对 models.yml 并重新发布摘要';
+  $('modelProviderSave').disabled=!publication.published;
+  $('modelRestart').hidden=true;
+  $('modelProviderState').textContent='';
+  $('modelPrefState').textContent='';
+  fillModelSelects();
+  updateModelPrefDetails();
+}
+async function fetchModelUpstream(){
+  const base=$('modelBaseUrl').value.trim(),key=$('modelApiKey').value;
+  const data=await api('/api/model-pref/upstream',{base_url:base,api_key:key});
+  modelUpstreamModels=data.models||[];
+  $('modelApiKey').value='';
+  fillModelSelects();
+  $('modelProviderState').textContent='已获取 '+modelUpstreamModels.length+' 个模型';
+}
+async function loadModelPref(){
+  const data=await api('/api/model-pref');
+  applyModelPref(data);
+  if(data.provider&&data.provider.key_configured){
+    try{await fetchModelUpstream()}catch(e){$('modelProviderState').textContent=e.message}
+  }
+}
+async function saveModelProvider(){
+  const base=$('modelBaseUrl').value.trim(),key=$('modelApiKey').value;
+  const data=await api('/api/model-pref/provider',{base_url:base,api_key:key});
+  $('modelApiKey').value='';
+  applyModelPref(data);
+  $('modelRestart').hidden=false;
+  $('modelProviderState').textContent='提供商已保存 · 重启机器人后生效';
+}
+async function saveModelPref(){
+  const primary=$('modelPrimary').value||null,secondary=$('modelSecondary').value||null;
+  const data=await api('/api/model-pref',{primary,secondary});
+  applyModelPref(data);
+  $('modelPrefState').textContent='已保存 · 下一条回复生效，无需重启';
+}
 async function resetBotName(){run(async()=>{if(!confirm('恢复默认机器人名称「达妮娅」？'))return;const data=await api('/api/bot-name',{reset:true});$('botNameInput').value=data.name;applyBotName(data.name);const labels={file:'面板设置',env:'环境变量',default:'默认名称'};$('botNameState').textContent=`已恢复 · ${labels[data.source]||data.source||'未知'}`})}
 let tokenData=null;
 function formatTokens(n){n=Number(n)||0;if(n<1000)return String(n);if(n<1000000)return (n/1000).toFixed(1)+'K';return (n/1000000).toFixed(2)+'M'}
@@ -1463,21 +1686,74 @@ async function loadTokens(){
   });
 }
 function confirmClearTokens(){if(!confirm('清空全部 token 统计？此操作不可撤销。'))return;run(async()=>{await api('/api/token/clear',{});await loadTokens()})}
-let eventEntries=[];
+let eventEntries=[],runtimeLogData=null,logSourceTouched=false;
 async function loadEvents(){let data=await api('/api/parser-events?limit=200');eventEntries=data.entries||[];let st=data.stats||{};let c=st.counts||{};
   $('eventStats').innerHTML=`共 <b>${st.total||0}</b> 条 · 报错 ${c.error||0} · 超阈值 ${c.limit||0} · 提示 ${c.warn||0}`+(st.latest?` · 最近 ${st.latest}`:'');
   renderEvents()}
+function switchLogMode(){
+  const parser=$('logMode').value==='parser';
+  $('runtimeLogPanel').hidden=parser;
+  $('parserEventsPanel').hidden=!parser;
+}
+async function loadRuntimeLogs(){
+  const name=$('logSource').value,tail=Number($('logTail').value)||200;
+  const data=await api(`/api/logs?name=${encodeURIComponent(name)}&tail=${tail}`);
+  runtimeLogData=data;
+  if(!data.available&&!logSourceTouched&&data.sources){
+    const fallback=data.sources.find(item=>item.available&&item.name!==name);
+    if(fallback){$('logSource').value=fallback.name;return loadRuntimeLogs()}
+  }
+  renderRuntimeLog();
+}
+function classifyRuntimeLog(line){
+  const text=line.toLowerCase();
+  return {
+    error:/\[error\]|\berror\b|traceback|exception|失败|错误/.test(text),
+    parser:/\[parser|media_parser|解析/.test(text),
+    warning:/\[warning\]|\bwarn(ing)?\b|警告/.test(text),
+  };
+}
+function renderRuntimeLog(){
+  const data=runtimeLogData,box=$('logView'),empty=$('logEmpty'),meta=$('logMeta');
+  box.replaceChildren();
+  if(!data){empty.hidden=false;empty.textContent='正在读取运行日志…';meta.textContent='';return}
+  const filter=$('logFilter').value,q=$('logSearch').value.trim().toLowerCase();
+  const shown=(data.lines||[]).filter(line=>{
+    const kind=classifyRuntimeLog(line);
+    if(filter==='error'&&!kind.error)return false;
+    if(filter==='parser-error'&&!(kind.parser&&kind.error))return false;
+    if(filter==='parser'&&!kind.parser)return false;
+    if(filter==='warning'&&!kind.warning)return false;
+    return !q||line.toLowerCase().includes(q);
+  });
+  const total=(data.lines||[]).length;
+  meta.textContent=[data.label||data.name,data.path,data.size?`${data.size} 字节`:'',data.modified,data.truncated?'仅显示尾部':'',`显示 ${shown.length}/${total} 行`].filter(Boolean).join(' · ');
+  empty.hidden=shown.length>0;
+  if(!shown.length)empty.textContent=data.available===false?'暂无此日志。':total?'没有匹配的日志行。':'日志为空。';
+  shown.forEach(line=>{
+    const kind=classifyRuntimeLog(line);
+    const row=document.createElement('div');row.className='log-line';
+    row.dataset.kind=kind.error?'error':kind.warning?'warning':kind.parser?'parser':'info';
+    row.textContent=line;box.append(row);
+  });
+  if($('logAutoScroll').checked)box.scrollTop=box.scrollHeight;
+}
+async function loadLogsPage(){
+  const results=await Promise.allSettled([loadRuntimeLogs(),loadEvents()]);
+  const failed=results.find(result=>result.status==='rejected');
+  if(failed)throw failed.reason;
+}
 function renderEvents(){
-  const q=$('eventSearch').value.trim().toLowerCase(),onlyLimit=$('eventOnlyLimit').checked;
+  const q=$('eventSearch').value.trim().toLowerCase(),kind=$('eventKind').value;
   const list=$('eventList');list.replaceChildren();
   const shown=eventEntries.filter(e=>{
-    if(onlyLimit&&e.kind!=='limit')return false;
+    if(kind&&e.kind!==kind)return false;
     if(!q)return true;
     return `${e.platform||''} ${e.reason||''} ${e.detail||''} ${e.url||''}`.toLowerCase().includes(q);
   });
   $('eventEmpty').hidden=shown.length>0;
   $('eventEmpty').textContent=eventEntries.length?'没有匹配的记录。':'暂时没有记录 —— 说明一切正常。';
-  $('eventFilterState').textContent=(q||onlyLimit)?`筛选中：显示 ${shown.length} 条`:'';
+  $('eventFilterState').textContent=(q||kind)?`筛选中：显示 ${shown.length} 条`:'';
   const labels={error:'报错',limit:'超出阈值',warn:'提示'};
   shown.forEach(e=>{
     const li=document.createElement('li'),head=document.createElement('div');
@@ -1494,7 +1770,7 @@ function renderEvents(){
     list.append(li);
   });
 }
-function confirmClearEvents(){if(!confirm('清空全部解析日志？此操作不可撤销。'))return;run(async()=>{await api('/api/parser-events/clear',{});await loadEvents()})}
+function confirmClearEvents(){if(!confirm('清空全部解析事件？此操作不可撤销。'))return;run(async()=>{await api('/api/parser-events/clear',{});await loadEvents()})}
 let parserVersion='',parserFields=[],parserBaseline={},parserData=null,parserPlatformEls={};
 function parserValue(f){
   if(f.clear?.checked)return '\u0000cleared';
@@ -1511,24 +1787,69 @@ function parserIsChanged(f){
   if(f.spec.type==='int')return String(current)!==String(original??'');
   return String(current)!==String(original??'');
 }
-function parserRefresh(){
-  let changedCount=0,changedPlatforms=new Set();
-  for(const f of parserFields){
-    let changed=parserIsChanged(f);f.el.dataset.changed=changed;
-    if(changed){changedCount++;if(f.scope!=='general')changedPlatforms.add(f.scope)}
+let parserActiveScope='general',parserTabEls={};
+const parserXhsLogin={id:'',phase:'idle',qr:'',code:'',message:'',timer:null,generation:0};
+function parserTab(scope,label,controls){
+  const button=document.createElement('button');
+  button.type='button';button.className='parser-tab';button.id=`parserTab-${scope}`;
+  button.dataset.scope=scope;button.setAttribute('role','tab');
+  button.setAttribute('aria-selected','false');button.setAttribute('aria-controls',controls);
+  button.tabIndex=-1;button.textContent=label;
+  button.addEventListener('click',()=>parserSelectScope(scope,true));
+  button.addEventListener('keydown',parserTabKey);
+  parserTabEls[scope]=button;return button;
+}
+function parserTabKey(event){
+  const tabs=[...document.querySelectorAll('.parser-tab')].filter(tab=>!tab.hidden);
+  const index=tabs.indexOf(event.currentTarget);
+  if(index<0)return;
+  let next=null;
+  if(event.key==='ArrowRight')next=tabs[(index+1)%tabs.length];
+  else if(event.key==='ArrowLeft')next=tabs[(index-1+tabs.length)%tabs.length];
+  else if(event.key==='Home')next=tabs[0];
+  else if(event.key==='End')next=tabs[tabs.length-1];
+  else return;
+  event.preventDefault();parserSelectScope(next.dataset.scope,false);next.focus();
+}
+function parserSelectScope(scope,focus=false){
+  if(scope!=='general'&&!parserPlatformEls[scope])scope='general';
+  parserActiveScope=scope;
+  for(const [name,tab] of Object.entries(parserTabEls)){
+    const active=name===scope;
+    tab.setAttribute('aria-selected',String(active));
+    tab.tabIndex=active?0:-1;
+    if(active&&focus)tab.focus();
   }
+  const general=$('parserGeneralPanel'),platforms=$('parserPlatformPanel');
+  if(general)general.hidden=scope!=='general';
+  if(platforms)platforms.hidden=scope==='general';
+  for(const [name,el] of Object.entries(parserPlatformEls))el.panel.hidden=scope!==name;
+  if(scope==='xhs')renderXhsLogin();
+}
+function parserRefresh(){
+  let changedCount=0,changedPlatforms=new Set(),generalChanged=false;
+  for(const f of parserFields){
+    const changed=parserIsChanged(f);f.el.dataset.changed=changed;
+    if(changed){changedCount++;if(f.scope==='general')generalChanged=true;else changedPlatforms.add(f.scope)}
+  }
+  if(parserXhsLogin.phase==='ready'){changedCount++;changedPlatforms.add('xhs')}
   for(const [name,el] of Object.entries(parserPlatformEls)){
-    let on=parserFields.find(f=>f.scope===name&&f.key==='enable')?.input.checked;
-    el.details.dataset.changed=changedPlatforms.has(name);
+    const on=parserFields.find(f=>f.scope===name&&f.key==='enable')?.input.checked;
+    el.panel.dataset.changed=changedPlatforms.has(name);
     el.state.textContent=on?'已开启':'已关闭';
-    el.details.dataset.enabled=on;
+    el.panel.dataset.enabled=on;
+  }
+  if(parserTabEls.general)parserTabEls.general.dataset.changed=generalChanged;
+  for(const [name,tab] of Object.entries(parserTabEls)){
+    if(name!=='general')tab.dataset.changed=changedPlatforms.has(name);
   }
   const total=Object.keys(parserPlatformEls).length;
-  const onCount=Object.values(parserPlatformEls).filter(x=>x.details.dataset.enabled==='true').length;
+  const onCount=Object.values(parserPlatformEls).filter(x=>x.panel.dataset.enabled==='true').length;
   $('parserCount').innerHTML=`已启用 <b>${onCount}</b> / ${total} 个平台`;
   $('parserPlatformCount').textContent=`· ${onCount} / ${total} 个已启用`;
   const dirty=$('parserDirty');dirty.hidden=!changedCount;
   dirty.textContent=`${changedCount} 项未保存改动`;
+  renderXhsLogin();
   parserFilter();
 }
 function parserFilter(){
@@ -1544,18 +1865,20 @@ function parserFilter(){
   $('parserNoGeneral').hidden=generalShown>0;
   let platformShown=0;
   for(const [name,el] of Object.entries(parserPlatformEls)){
-    const nameHit=!q||`${el.title} ${name}`.toLowerCase().includes(q);
+    const nameHit=!q||`${el.title} ${name} ${el.searchText||''}`.toLowerCase().includes(q);
     let fieldHit=false;
     for(const f of parserFields){
       if(f.scope!==name)continue;
-      const show=hit(f)&&(!onlyChanged||parserIsChanged(f));
+      const show=(nameHit||hit(f))&&(!onlyChanged||parserIsChanged(f));
       f.el.hidden=!show;if(show)fieldHit=true;
     }
-    const enabled=el.details.dataset.enabled==='true',changed=el.details.dataset.changed==='true';
-    const show=(q?(nameHit||fieldHit):true)&&(!onlyEnabled||enabled)&&(!onlyChanged||changed);
-    el.details.hidden=!show;
-    if(show){platformShown++;if(q||onlyChanged)el.details.open=true}
+    const enabled=el.panel.dataset.enabled==='true',changed=el.panel.dataset.changed==='true';
+    const show=(!q||nameHit||fieldHit)&&(!onlyEnabled||enabled)&&(!onlyChanged||changed);
+    if(parserTabEls[name])parserTabEls[name].hidden=!show;
+    if(show)platformShown++;
   }
+  if(parserTabEls.general)parserTabEls.general.hidden=false;
+  if(parserActiveScope!=='general'&&parserTabEls[parserActiveScope]?.hidden)parserSelectScope('general');
   $('parserNoPlatform').hidden=platformShown>0;
   $('parserFilterState').textContent=(q||onlyEnabled||onlyChanged)?`筛选中：显示 ${platformShown} 个平台`:'';
 }
@@ -1585,12 +1908,267 @@ function parserField(scope,key,spec,value,secrets){
   label.dataset.fieldKey=secretKey;
   parserFields.push(field);return label
 }
-async function loadParser(){let data=await api('/api/parser');parserData=data;parserVersion=data.version;parserBaseline=data.baseline||{};parserFields=[];parserPlatformEls={};$('parserArbiter').replaceChildren();$('parserGeneral').replaceChildren();$('parserPlatforms').replaceChildren();$('parserSearch').value='';$('parserOnlyEnabled').checked=false;$('parserOnlyChanged').checked=false;$('parserSaved').textContent='';
-  Object.entries(data.schema).forEach(([key,spec])=>{if(key!=='parsers_template')$(key==='arbiter'?'parserArbiter':'parserGeneral').append(parserField('general',key,spec,data.general[key],data.secrets))});
-  Object.entries(data.schema.parsers_template.templates).forEach(([name,spec])=>{let values=data.platforms[name];if(!values)return;let details=document.createElement('details'),summary=document.createElement('summary'),state=document.createElement('span'),grid=document.createElement('div');details.className='parser-platform';summary.textContent=spec.name||name;state.className='parser-summary-state';summary.append(state);grid.className='parser-grid';details.append(summary,grid);$('parserPlatforms').append(details);parserPlatformEls[name]={details,state,title:spec.name||name};Object.entries(spec.items).forEach(([key,item])=>grid.append(parserField(name,key,item,values[key]??item.default,data.secrets)))})
-  parserRefresh();
+let biliQrTimer=null,biliQrUrl='',biliQrPolling=false;
+function biliSetState(id,text){const el=$(id);if(el)el.textContent=text}
+function biliApplyConfigured(data){
+  if(!data)return;
+  if(data.version)parserVersion=data.version;
+  if(data.secrets&&parserData)parserData.secrets=data.secrets;
+  const secrets=(data.secrets&&data.secrets)||(parserData&&parserData.secrets)||{};
+  const configured=!!secrets['bilibili.cookies'];
+  biliSetState('biliCookieState',configured?'已配置':'未配置');
+  const field=parserFields.find(f=>f.secretKey==='bilibili.cookies');
+  if(field&&configured)field.input.placeholder='已配置，留空保持不变';
 }
-async function saveParser(){run(async()=>{let data={version:parserVersion,general:{},platforms:{},clear_secrets:[]};for(let f of parserFields){if(f.readonly)continue;if(f.clear?.checked){data.clear_secrets.push(f.secretKey);continue}let v;if(f.spec.type==='bool')v=f.input.checked;else if(f.spec.type==='int'){if(!f.input.value||!f.input.checkValidity())throw Error(`${f.spec.description||f.key}须填写范围内的整数`);v=Number(f.input.value);if(!Number.isInteger(v))throw Error(`${f.spec.description||f.key}须为整数`)}else if(f.spec.type==='list')v=f.input.value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);else v=f.input.value;if(f.scope==='general')data.general[f.key]=v;else{data.platforms[f.scope]??={};data.platforms[f.scope][f.key]=v}}await api('/api/parser',data);await loadParser();$('parserSaved').textContent='已保存；重启机器人后生效'})}
+async function importBiliCookies(){
+  const raw=$('biliCookieInput').value.trim();
+  if(!raw)throw Error('请先粘贴 Cookie 或 JSON');
+  biliSetState('biliCookieState','正在导入…');
+  try{
+    const result=await api('/api/parser/bilibili/cookies',{cookies:raw});
+    $('biliCookieInput').value='';
+    biliApplyConfigured(result);
+    biliSetState('biliCookieState',result.message||'已导入');
+  }catch(e){biliSetState('biliCookieState','导入失败：'+e.message);throw e}
+}
+function stopBiliQr(){
+  if(biliQrTimer){clearInterval(biliQrTimer);biliQrTimer=null}
+  biliQrPolling=false;
+  if(biliQrUrl){URL.revokeObjectURL(biliQrUrl);biliQrUrl=''}
+  const image=$('biliQrImage');if(image){image.hidden=true;image.removeAttribute('src')}
+}
+async function startBiliQr(){
+  stopBiliQr();
+  const button=$('biliQrStart');
+  button.disabled=true;
+  biliSetState('biliQrState','正在生成二维码…');
+  try{
+    const response=await fetch('/api/parser/bilibili/qr',{method:'POST',headers:{'X-CSRF-Token':csrf}});
+    if(!response.ok){let detail='生成失败';try{detail=(await response.json()).detail||detail}catch(e){}throw Error(detail)}
+    const blob=await response.blob();
+    if(biliQrUrl)URL.revokeObjectURL(biliQrUrl);
+    biliQrUrl=URL.createObjectURL(blob);
+    $('biliQrImage').src=biliQrUrl;
+    $('biliQrImage').hidden=false;
+    button.textContent='刷新二维码';
+    biliSetState('biliQrState','请用 B 站 App 扫码；二维码约 2 分钟内有效');
+    biliQrTimer=setInterval(pollBiliQr,2000);
+  }catch(e){biliSetState('biliQrState','生成失败：'+e.message)}
+  finally{button.disabled=false}
+}
+async function pollBiliQr(){
+  if(!biliQrTimer||biliQrPolling)return;
+  biliQrPolling=true;
+  try{
+    const response=await fetch('/api/parser/bilibili/qr/status',{method:'POST',headers:{'X-CSRF-Token':csrf}});
+    const result=await response.json();
+    if(!response.ok)throw Error(result.detail||'状态读取失败');
+    biliSetState('biliQrState',result.message||result.status);
+    if(result.status==='success'){
+      stopBiliQr();
+      $('biliQrImage').hidden=true;
+      $('biliQrStart').textContent='重新生成二维码';
+      biliApplyConfigured(result);
+      biliSetState('biliCookieState',result.message||'登录成功');
+    }else if(result.status==='expired'||result.status==='error'||result.status==='missing'){
+      stopBiliQr();
+      $('biliQrStart').textContent='刷新二维码';
+    }
+  }catch(e){stopBiliQr();biliSetState('biliQrState','状态读取失败：'+e.message)}
+  finally{biliQrPolling=false}
+}
+function xhsField(){return parserFields.find(f=>f.secretKey==='xhs.cookies')}
+function xhsSetState(text){const el=$('xhsLoginState');if(el)el.textContent=text}
+function renderXhsLogin(){
+  const state=parserXhsLogin,field=xhsField();
+  const busy=['starting','waiting','scanned','ready','saving'].includes(state.phase);
+  if(field){field.input.disabled=busy;if(field.clear)field.clear.disabled=busy}
+  const image=$('xhsLoginQr'),start=$('xhsLoginStart'),cancel=$('xhsLoginCancel');
+  if(image){
+    if(state.qr){image.src=`data:image/png;base64,${state.qr}`;image.hidden=false}
+    else{image.removeAttribute('src');image.hidden=true}
+  }
+  if(start){
+    start.textContent=state.phase==='idle'?'生成二维码':'刷新二维码';
+    start.disabled=state.phase==='starting'||state.phase==='saving';
+  }
+  if(cancel)cancel.hidden=!['waiting','scanned','ready'].includes(state.phase);
+  const labels={
+    idle:'未开始',starting:'正在生成二维码…',waiting:'请使用小红书 App 扫描并确认',
+    scanned:'已扫码，请在手机上确认',ready:'扫码成功，点击保存解析设置；重启机器人后生效',
+    saving:'正在保存…',expired:'二维码已过期，请重新生成',
+    error:state.code==='risk_control'?'登录页要求额外验证，请稍后重试或手动填写 Cookie':
+      state.code==='invalid_cookie'?'登录成功但未取得有效 Cookie，请重新扫码':
+      '登录失败，请稍后重试或手动填写 Cookie',
+  };
+  xhsSetState(state.message||labels[state.phase]||'未开始');
+}
+function stopXhsPolling(){if(parserXhsLogin.timer){clearTimeout(parserXhsLogin.timer);parserXhsLogin.timer=null}}
+function resetXhsLogin(){parserXhsLogin.generation++;stopXhsPolling();Object.assign(parserXhsLogin,{id:'',phase:'idle',qr:'',code:'',message:''});renderXhsLogin()}
+async function startXhsLogin(){
+  const field=xhsField();
+  if(field&&(field.input.value.trim()||field.clear?.checked)){
+    parserXhsLogin.phase='error';parserXhsLogin.code='';
+    parserXhsLogin.message='请先清空或取消手动 Cookie，再使用扫码登录';
+    renderXhsLogin();return
+  }
+  const previousId=parserXhsLogin.id,previousPhase=parserXhsLogin.phase;
+  parserXhsLogin.generation++;const generation=parserXhsLogin.generation;stopXhsPolling();
+  if(previousId&&['waiting','scanned','ready'].includes(previousPhase)){
+    try{await api('/api/parser/xhs-login/cancel',{id:previousId})}
+    catch(e){
+      if(generation!==parserXhsLogin.generation)return;
+      if(!String(e.message||'').includes('不存在或已过期')){
+        parserXhsLogin.message='刷新前取消失败：'+e.message;
+        renderXhsLogin();return
+      }
+    }
+    if(generation!==parserXhsLogin.generation)return;
+  }
+  Object.assign(parserXhsLogin,{id:'',phase:'starting',qr:'',code:'',message:''});renderXhsLogin();
+  try{
+    const data=await api('/api/parser/xhs-login/start',{});
+    if(generation!==parserXhsLogin.generation)return;
+    parserXhsLogin.id=data.id;parserXhsLogin.qr=data.qr_png;parserXhsLogin.phase='waiting';
+    parserXhsLogin.message='';
+    renderXhsLogin();parserRefresh();
+    parserXhsLogin.timer=setTimeout(()=>pollXhsLogin(generation),2000);
+  }catch(e){
+    if(generation!==parserXhsLogin.generation)return;
+    parserXhsLogin.phase='error';parserXhsLogin.code='';
+    parserXhsLogin.message='生成二维码失败：'+e.message;
+    renderXhsLogin();
+  }
+}
+async function pollXhsLogin(generation){
+  if(generation!==parserXhsLogin.generation)return;
+  try{
+    const data=await api('/api/parser/xhs-login/status',{id:parserXhsLogin.id});
+    if(generation!==parserXhsLogin.generation)return;
+    parserXhsLogin.phase=data.status;parserXhsLogin.code=data.code||'';
+    parserXhsLogin.message='';
+    if(data.status==='waiting'||data.status==='scanned'){
+      renderXhsLogin();parserRefresh();
+      parserXhsLogin.timer=setTimeout(()=>pollXhsLogin(generation),2000);return
+    }
+    if(data.status==='ready'){renderXhsLogin();parserRefresh();return}
+    stopXhsPolling();renderXhsLogin();
+  }catch(e){
+    if(generation!==parserXhsLogin.generation)return;
+    stopXhsPolling();parserXhsLogin.phase='error';parserXhsLogin.code='';
+    parserXhsLogin.message='状态读取失败：'+e.message;
+    renderXhsLogin();
+  }
+}
+async function cancelXhsLogin(){
+  const id=parserXhsLogin.id;
+  parserXhsLogin.generation++;const generation=parserXhsLogin.generation;stopXhsPolling();
+  if(!id){resetXhsLogin();return}
+  try{await api('/api/parser/xhs-login/cancel',{id})}
+  catch(e){
+    if(generation===parserXhsLogin.generation){
+      parserXhsLogin.message='取消失败：'+e.message;
+      renderXhsLogin()
+    }
+    return
+  }
+  if(generation!==parserXhsLogin.generation)return;
+  resetXhsLogin();parserRefresh();
+}
+function parserFocusField(f){
+  $('parserSearch').value='';$('parserOnlyEnabled').checked=false;$('parserOnlyChanged').checked=false;
+  parserFilter();
+  parserSelectScope(f.scope==='general'?'general':f.scope,true);
+  f.el.scrollIntoView({block:'center'});
+  f.input.focus();
+}
+async function loadParser(){
+  let data=await api('/api/parser');
+  parserData=data;parserVersion=data.version;parserBaseline=data.baseline||{};
+  parserFields=[];parserPlatformEls={};parserTabEls={};
+  stopBiliQr();
+  $('parserTabs').replaceChildren();$('parserArbiter').replaceChildren();
+  $('parserGeneral').replaceChildren();$('parserPlatforms').replaceChildren();
+  $('parserSearch').value='';$('parserOnlyEnabled').checked=false;
+  $('parserOnlyChanged').checked=false;$('parserSaved').textContent='';
+  $('parserTabs').append(parserTab('general','通用设置','parserGeneralPanel'));
+  Object.entries(data.schema).forEach(([key,spec])=>{
+    if(key!=='parsers_template')$(key==='arbiter'?'parserArbiter':'parserGeneral')
+      .append(parserField('general',key,spec,data.general[key],data.secrets))
+  });
+  Object.entries(data.schema.parsers_template.templates).forEach(([name,spec])=>{
+    const values=data.platforms[name];if(!values)return;
+    const title=String(spec.name||name).replace(/解析器$/,'').trim();
+    const panel=document.createElement('div');
+    panel.className='parser-platform parser-tab-panel';panel.id=`parserPanel-${name}`;
+    panel.setAttribute('role','tabpanel');panel.setAttribute('aria-labelledby',`parserTab-${name}`);
+    panel.hidden=true;
+    const head=document.createElement('div');head.className='parser-platform-head';
+    const nameEl=document.createElement('strong');nameEl.textContent=title;
+    const state=document.createElement('span');state.className='parser-summary-state';
+    head.append(nameEl,state);
+    const grid=document.createElement('div');grid.className='parser-grid';
+    panel.append(head,grid);$('parserPlatforms').append(panel);
+    parserPlatformEls[name]={panel,state,title};
+    if(name==='bilibili'||name==='xhs')parserPlatformEls[name].searchText='cookies cookie 登录凭据 扫码登录 二维码';
+    $('parserTabs').append(parserTab(name,title,panel.id));
+    const credentials=document.createElement('div');credentials.className='parser-credentials';
+    const credentialTitle=document.createElement('h3');credentialTitle.textContent='账号凭证';
+    credentials.append(credentialTitle);
+    let credentialCount=0;
+    Object.entries(spec.items).forEach(([key,item])=>{
+      if(name==='bilibili'&&key==='cookies')return;
+      const value=key==='enable'&&(values[key]===undefined||values[key]===null)
+        ?false:(values[key]??item.default);
+      const field=parserField(name,key,item,value,data.secrets);
+      const credential=key==='cookies'||(name==='qzone'&&key==='snowluma_access_token');
+      if(credential){credentials.append(field);credentialCount++}
+      else grid.append(field);
+    });
+    if(name==='xhs'){
+      const login=document.createElement('div');login.className='parser-login';login.id='xhsLogin';
+      login.innerHTML='<div class="parser-login-head"><strong>扫码登录</strong><span id="xhsLoginState" class="hint" role="status"></span></div><p class="hint">二维码约 2 分钟有效；成功后保存解析设置，重启机器人后生效。同一小红书账号的其他网页端可能被挤下线。</p><img id="xhsLoginQr" alt="小红书登录二维码" hidden><div class="parser-login-actions"><button type="button" id="xhsLoginStart" onclick="run(startXhsLogin)">生成二维码</button><button type="button" id="xhsLoginCancel" onclick="run(cancelXhsLogin)" hidden>取消扫码</button></div>';
+      credentials.append(login);
+    }
+    if(name==='bilibili'){
+      const template=$('biliCredentialsTemplate');
+      if(template)panel.append(template.content.cloneNode(true));
+    }else if(credentialCount){
+      panel.append(credentials);
+    }
+  });
+  if(!parserPlatformEls[parserActiveScope])parserActiveScope='general';
+  parserSelectScope(parserActiveScope,false);
+  renderXhsLogin();
+  parserRefresh();
+  biliApplyConfigured({version:parserVersion,secrets:data.secrets});
+}
+async function saveParser(){run(async()=>{
+  const data={version:parserVersion,general:{},platforms:{},clear_secrets:[]};
+  for(const f of parserFields){
+    if(f.readonly)continue;
+    if(f.clear?.checked){data.clear_secrets.push(f.secretKey);continue}
+    let v;
+    if(f.spec.type==='bool')v=f.input.checked;
+    else if(f.spec.type==='int'){
+      if(!f.input.value||!f.input.checkValidity()){
+        parserFocusField(f);throw Error(`${f.spec.description||f.key}须填写范围内的整数`)
+      }
+      v=Number(f.input.value);
+      if(!Number.isInteger(v)){parserFocusField(f);throw Error(`${f.spec.description||f.key}须为整数`)}
+    }else if(f.spec.type==='list')v=f.input.value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+    else v=f.input.value;
+    if(f.scope==='general')data.general[f.key]=v;
+    else{data.platforms[f.scope]??={};data.platforms[f.scope][f.key]=v}
+  }
+  if(parserXhsLogin.phase==='ready'&&parserXhsLogin.id)data.xhs_login_id=parserXhsLogin.id;
+  const saved=await api('/api/parser',data);
+  resetXhsLogin();
+  await loadParser();
+  $('parserSaved').textContent=saved?.qr_cleanup_pending
+    ?'已保存；重启机器人后生效；扫码会话将在几分钟内自动清理'
+    :'已保存；重启机器人后生效';
+})}
 const SVG_NS='http://www.w3.org/2000/svg';
 function statusPct(v){return v==null?'—':`${Number(v).toFixed(1)}%`}
 function statusBytes(v){if(v==null)return '—';let n=Number(v),u=['B','KB','MB','GB','TB','PB'],i=0;while(n>=1024&&i<u.length-1){n/=1024;i++}return `${i?n.toFixed(2):Math.round(n)} ${u[i]}`}
@@ -2059,12 +2637,13 @@ const sectionLinks = Array.from(document.querySelectorAll('.nav-link[href^="#"]:
 const pageSections = Array.from(document.querySelectorAll('#panelGrid > section.card[id]'));
 const defaultSection = overviewLink || basicsNav.querySelector('a');
 const sectionLoaders = new Map([
-  ['#events', loadEvents], ['#tokens', loadTokens], ['#status', loadStatus],
+  ['#events', loadLogsPage], ['#tokens', loadTokens], ['#status', loadStatus],
+  ['#model-pref', loadModelPref],
   ['#superusers', loadSuperusers], ['#game-events', loadGameEvents],
   ['#epic', loadEpic], ['#bilibili', loadBilibili], ['#disaster', loadDisaster],
 ]);
 function basicsHashSet(){
-  const hashes=new Set(['#bot-info','#persona','#tokens','#master','#superusers']);
+  const hashes=new Set(['#bot-info','#persona','#model-pref','#master','#superusers','#tokens']);
   if(basicsNav&&typeof basicsNav.querySelectorAll==='function'){
     const links=Array.from(basicsNav.querySelectorAll('a'));
     if(links.length){hashes.clear();links.forEach(link=>{if(link.hash)hashes.add(link.hash)})}
@@ -2154,7 +2733,7 @@ function showWorkspaceSection(refreshSection) {
       if (basicsNav) basicsNav.hidden = !inBasics;
       const heading = target.querySelector('h2');
       const title = (target.dataset.pageTitle || (heading && heading.textContent) || target.id || '章节').trim();
-      const group = hash === '#bot-info' ? navGroupLabel(hash) : (inBasics ? 'Bot 基本情况' : navGroupLabel(hash));
+      const group = hash === '#bot-info' ? navGroupLabel(hash) : (inBasics ? 'Bot 基本设置' : navGroupLabel(hash));
       setPageHeading(title, group || '控制台');
       markActive(hash);
       if (document.body) document.body.dataset.page = 'section';
@@ -2166,7 +2745,7 @@ function showWorkspaceSection(refreshSection) {
     window.scrollTo({ top: 0, behavior: 'auto' });
   }
 }
-window.addEventListener('hashchange', () => showWorkspaceSection(true));
+window.addEventListener('hashchange', () => { showWorkspaceSection(true); syncBasicsGuideStepFromHash(); });
 for (const link of sectionLinks) {
   // A repeat click doesn't fire hashchange; keep the existing click-to-refresh behavior.
   link.addEventListener('click', () => {

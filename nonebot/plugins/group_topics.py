@@ -59,9 +59,9 @@ async def topic_reply(group_id):
         return f'群 {group_id} 暂无近期话题。'
     text = f'群 {group_id} 的话题\n' + '\n'.join(f'{index:02d}  {word}    {count} 条消息' for index,(word,count) in enumerate(rows, 1))
     try:
-        import weather_image
+        import group_topics_image
         async with _render_lock:
-            pages = await asyncio.to_thread(weather_image.render_pages, text, 'GROUP TOPICS  /  群话题', '最近约 7 天 · 按消息数排序')
+            pages = await asyncio.to_thread(group_topics_image.render_pages, group_id, rows)
         from card_delivery import image_message
         return image_message(pages)
     except Exception:

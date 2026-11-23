@@ -43,6 +43,76 @@ function sendJson(res, status, data) {
   res.writeHead(status, {'Content-Type':'application/json; charset=utf-8', 'Cache-Control':'no-store'});
   res.end(JSON.stringify(data));
 }
+// Runs inside the page through page.evaluate, so it must stay self-contained (no Node scope).
+// Splits the direct children of the unique [data-card] root into sheets no taller than `height`:
+// - <footer> and [data-keep-with-prev] never open a page alone; they carry the block before them.
+// - A near-empty last sheet pulls blocks back from the previous sheet (no 200px stub pages).
+// - With data-page-label on the root, continuation sheets start with "label · 第 2/3 页".
+function paginateCard({width, height, maxPages=12, maxPixels=20000000, minLastFraction=0.25}) {
+  const root=document.querySelector('[data-card]');
+  if (!root) return {error:'missing data-card root'};
+  const label=(root.getAttribute('data-page-label') || '').trim();
+  const blocks=[...root.children], parent=root.parentNode, sheets=[];
+  const sticky=el => el.tagName==='FOOTER' || el.hasAttribute('data-keep-with-prev');
+  const items=sheet => [...sheet.children].filter(el => !el.hasAttribute('data-render-continued'));
+  const tall=sheet => sheet.getBoundingClientRect().height>height;
+  const newSheet=() => {
+    const sheet=root.cloneNode(false); sheet.removeAttribute('id');
+    sheet.style.width=width+'px'; sheet.style.minHeight='200px'; sheet.style.height='auto';
+    sheet.dataset.renderPage='1';
+    if (label && sheets.length) {
+      const head=document.createElement('div');
+      head.setAttribute('data-render-continued','');
+      head.style.cssText='white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
+      head.textContent=label;
+      sheet.appendChild(head);
+    }
+    parent.insertBefore(sheet,root); sheets.push(sheet); return sheet;
+  };
+  let current=newSheet();
+  for (const block of blocks) {
+    current.appendChild(block);
+    if (!tall(current)) continue;
+    current.removeChild(block);
+    const kept=items(current);
+    if (!kept.length) return {error:'single block exceeds page height'};
+    const group=[block];
+    while (sticky(group[0]) && kept.length>1) group.unshift(kept.pop());
+    const previous=current;
+    current=newSheet();
+    for (const el of group) current.appendChild(el);
+    while (tall(current) && group.length>1) previous.appendChild(group.shift());
+    if (tall(current)) return {error:'single block exceeds page height'};
+    if (sheets.length>maxPages) return {error:'too many pages'};
+  }
+  if (sheets.length>1) {
+    const last=sheets[sheets.length-1], prev=sheets[sheets.length-2];
+    const size=sheet => sheet.getBoundingClientRect().height;
+    while (size(last)<height*minLastFraction) {
+      const pool=items(prev);
+      const group=[pool.pop()];
+      while (sticky(group[0]) && pool.length) group.unshift(pool.pop());
+      if (!pool.length) break;
+      const anchor=items(last)[0] || null;
+      for (const el of group) last.insertBefore(el,anchor);
+      if (tall(last) || size(last)>size(prev)) {
+        for (const el of group) prev.appendChild(el);
+        break;
+      }
+    }
+  }
+  sheets.forEach((sheet,index) => {
+    const head=[...sheet.children].find(el => el.hasAttribute('data-render-continued'));
+    if (head) head.textContent=`${label} · 第 ${index+1}/${sheets.length} 页`;
+  });
+  root.remove(); let pixels=0;
+  for (const sheet of sheets) {
+    const bounds=sheet.getBoundingClientRect();
+    if (sheet.scrollWidth>width || bounds.height>height) return {error:'page overflow'};
+    pixels+=Math.ceil(bounds.width)*Math.ceil(bounds.height);
+  }
+  return pixels>maxPixels ? {error:'pixel budget exceeded'} : {count:sheets.length};
+}
 function createRendererServer({chromium, maxConcurrent=2, maxBody=2*1024*1024, token=''} = {}) {
   let browserPromise=null, liveBrowser=null, ready=false, closing=false;
   let active=0, renders=0, failures=0, lastMs=0;
@@ -121,34 +191,7 @@ function createRendererServer({chromium, maxConcurrent=2, maxBody=2*1024*1024, t
           if (size.width>width || size.height>height) throw new HttpError(422,'card overflows viewport');
           return [await page.screenshot({type:'png',fullPage:false,timeout})];
         }
-        const result=await page.evaluate(({width,height}) => {
-          const root=document.querySelector('[data-card]');
-          if (!root) return {error:'missing data-card root'};
-          const blocks=[...root.children], parent=root.parentNode;
-          const newPage=() => {
-            const sheet=root.cloneNode(false); sheet.removeAttribute('id');
-            sheet.style.width=width+'px'; sheet.style.minHeight='200px'; sheet.style.height='auto';
-            sheet.dataset.renderPage='1'; parent.insertBefore(sheet,root); return sheet;
-          };
-          let current=newPage(); const pages=[current];
-          for (const block of blocks) {
-            current.appendChild(block);
-            if (current.getBoundingClientRect().height>height) {
-              current.removeChild(block);
-              if (!current.children.length) return {error:'single block exceeds page height'};
-              current=newPage(); pages.push(current); current.appendChild(block);
-              if (current.getBoundingClientRect().height>height) return {error:'single block exceeds page height'};
-            }
-            if (pages.length>12) return {error:'too many pages'};
-          }
-          root.remove(); let pixels=0;
-          for (const sheet of pages) {
-            const bounds=sheet.getBoundingClientRect();
-            if (sheet.scrollWidth>width || bounds.height>height) return {error:'page overflow'};
-            pixels+=Math.ceil(bounds.width)*Math.ceil(bounds.height);
-          }
-          return pixels>20000000 ? {error:'pixel budget exceeded'} : {count:pages.length};
-        },{width,height});
+        const result=await page.evaluate(paginateCard,{width,height,maxPages:12,maxPixels:MAX_PIXELS});
         if (result.error) throw new HttpError(422,result.error);
         const output=[];
         for (let i=0;i<result.count;i++) output.push(await page.locator('[data-render-page]').nth(i).screenshot({type:'png',timeout}));
@@ -197,7 +240,7 @@ function createRendererServer({chromium, maxConcurrent=2, maxBody=2*1024*1024, t
   server.on('close',() => { closing=true; clearInterval(retry); liveBrowser?.close().catch(() => {}); });
   return server;
 }
-module.exports={createRendererServer,HttpError,readJson};
+module.exports={createRendererServer,HttpError,readJson,paginateCard};
 if (require.main===module) {
   const server=createRendererServer({maxConcurrent:integer(process.env.MAX_CONCURRENT,2,1,8),
     maxBody:integer(process.env.MAX_BODY_BYTES,2*1024*1024,1024,8*1024*1024),token:process.env.RENDER_TOKEN || ''});

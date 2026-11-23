@@ -7,7 +7,7 @@
 - `status_logic`  格式化、视图装配、阈值判定、报表聚合（无 I/O）
 - `status_collect` psutil / 系统命令采集
 - `status_store`  JSON 状态 + SQLite 采样库
-- `status_image`  达妮娅主题 Pillow 渲染
+- `status_image`  达妮娅主题 HTML 模板（同机 Playwright 渲染）
 - `status_monitor` 五类服务探测 + 判定
 - `status_llm`    包一层 provider 记 LLM 质量
 - `status_cluster` Proxmox VE 集群查询与视图（Grafana InfluxDB）
@@ -1413,7 +1413,7 @@ def diagnose() -> str:
     counters = runtime.counters
     lines = [
         '【状态卡诊断】',
-        f'版本：{__plugin_meta__.name} · 本地 Pillow 渲染',
+        f'版本：{__plugin_meta__.name} · 本机容器渲染',
         f'平台：OneBot v11 · 已连接 Bot：{len(bots)} 个',
         f'目标 Bot：{", ".join(str(getattr(b, "self_id", "?")) for b in bots.values()) or "无"}',
         f'在线状态缓存：{"有" if bot_cache.get("online") else "无"}'

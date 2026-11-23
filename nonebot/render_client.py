@@ -151,11 +151,15 @@ async def render_document_async(html: str, **kwargs: Any) -> list[bytes]:
 async def render_html(html: str, *, width: int = 900, height: int = 1200,
                       timeout_ms: int = 20000, url: str | None = None,
                       source: str = 'legacy', token: str = '',
-                      client: httpx.AsyncClient | None = None) -> bytes:
+                      client: httpx.AsyncClient | None = None,
+                      whole_card: bool = False) -> bytes:
+    """Single PNG. whole_card=True captures the unique data-card root (/render-card), so the
+    image height follows the content and is never clipped to a fixed viewport."""
     if client is None:
         return (await asyncio.to_thread(_render_sync, html, width=width, height=height,
-                timeout=timeout_ms/1000+3, source=source, pages=False, token=token))[0]
-    payload_bytes(html, width, height, timeout_ms)
+                timeout=timeout_ms/1000+3, source=source, pages=False, token=token,
+                whole_card=whole_card))[0]
+    payload_bytes(html, width, height, timeout_ms, whole_card=whole_card)
     if not _pending.acquire(blocking=False):
         raise RenderError('render queue full', status=429)
     started = time.monotonic()
@@ -172,8 +176,9 @@ async def render_html(html: str, *, width: int = 900, height: int = 1200,
                     await asyncio.sleep(.025)
             remaining_ms = max(1000, timeout_ms-int((time.monotonic()-started)*1000)) if queued else timeout_ms
             # Preserve the requested timeout when there was no queue delay.
-            body = payload_bytes(html, width, height, remaining_ms)
-            async with client.stream('POST', base_url()+'/render', content=body,
+            body = payload_bytes(html, width, height, remaining_ms, whole_card=whole_card)
+            path = '/render-card' if whole_card else '/render'
+            async with client.stream('POST', base_url()+path, content=body,
                                      headers=_headers(source, token), timeout=remaining_ms/1000+2) as response:
                 chunks, size = [], 0
                 async for chunk in response.aiter_bytes():
@@ -182,7 +187,7 @@ async def render_html(html: str, *, width: int = 900, height: int = 1200,
                         raise RenderError('renderer response too large')
                     chunks.append(chunk)
                 result = httpx.Response(response.status_code, headers=response.headers, content=b''.join(chunks))
-            return decode_response(result, False)[0]
+            return decode_response(result, False, whole_card=whole_card)[0]
     except TimeoutError as exc:
         raise RenderError('render deadline exceeded', status=504) from exc
     except httpx.HTTPError as exc:

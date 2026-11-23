@@ -4,7 +4,7 @@ import os
 import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 import httpx
 
 PATH = Path(__file__).resolve().parent / 'data' / 'weather.sqlite3'
@@ -58,7 +58,71 @@ def claim_push(id, date, path=PATH):
     with db(path) as c:
         return bool(c.execute('UPDATE pushes SET last_date=? WHERE id=? AND last_date!=?', (date,id,date)).rowcount)
 
-async def query(host, key, city, forecast=False, client=None):
+ATTRIBUTION = '数据来源：和风天气 https://developer.qweather.com/attribution.html'
+BEIJING = timezone(timedelta(hours=8))
+WEEKDAYS = '一二三四五六日'
+
+
+def _value(node, *path):
+    """按路径取和风 v1 的字段；叶子是 {'value': x} 或 {'text': x} 时自动拆开，缺失返回 None。"""
+    for key in path:
+        if not isinstance(node, dict):
+            return None
+        node = node.get(key)
+    if isinstance(node, dict):
+        node = node.get('value', node.get('text'))
+    return None if node in (None, '') else node
+
+
+def _number(value):
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return int(number) if number.is_integer() else round(number, 1)
+
+
+def _shown(value):
+    return '?' if value is None else value
+
+
+def _day_label(date_text, today):
+    try:
+        day = datetime.strptime(date_text, '%Y-%m-%d').date()
+    except (TypeError, ValueError):
+        return date_text or '—', ''
+    delta = (day - today).days
+    label = {0: '今天', 1: '明天', 2: '后天'}.get(delta, '周' + WEEKDAYS[day.weekday()])
+    return label, f'{day.month}/{day.day}'
+
+
+def _current_facts(x):
+    """可选格：接口返回了才显示。字段名按和风 v1 的常见写法兼容几种，取不到就跳过。"""
+    facts = []
+    humidity = _number(_value(x, 'relativeHumidity')) if _value(x, 'relativeHumidity') is not None else _number(_value(x, 'humidity'))
+    if humidity is not None:
+        facts.append(('湿度', f'{humidity}%'))
+    wind = x.get('wind') if isinstance(x.get('wind'), dict) else {}
+    direction = _value(wind, 'direction', 'text') or _value(wind, 'directionText') or _value(wind, 'direction')
+    scale = _value(wind, 'scale')
+    speed = _number(_value(wind, 'speed'))
+    if isinstance(direction, (int, float)):
+        direction = None  # 只有角度时不显示，避免出现「270 风」
+    if direction or scale is not None or speed is not None:
+        part = f'{scale} 级' if scale is not None else (f'{speed} km/h' if speed is not None else '')
+        facts.append(('风', ' '.join(p for p in (str(direction or ''), part) if p) or '—'))
+    visibility = _number(_value(x, 'visibility'))
+    if visibility is not None:
+        facts.append(('能见度', f'{visibility} km'))
+    return facts[:3]
+
+
+def _now():
+    return datetime.now(BEIJING)
+
+
+async def fetch_view(host, key, city, forecast=False, client=None, now=None):
+    """查询并返回卡片用的结构化视图；文字回退用 `format_text(view)`。"""
     host = validate_host(host)
     if not key: raise ValueError('天气服务尚未配置')
     if not city or len(city)>40: raise ValueError('请提供城市或区县名称')
@@ -79,17 +143,54 @@ async def query(host, key, city, forecast=False, client=None):
         r = await client.get(f'https://{host}/weather/v1/{endpoint}/{lat:.2f}/{lon:.2f}', headers=headers, params={'lang':'zh','localTime':'true', **({'days':3} if forecast else {})})
         check_response(r)
         data = r.json()
-        name = ' '.join(dict.fromkeys(x for x in (loc.get('adm1'),loc.get('adm2'),loc.get('name')) if x))
-        if forecast:
-            lines = [f"{d.get('forecastStartTime','')[:10]} {d.get('daytime',{}).get('condition',{}).get('text','未知')} {d.get('temperatureMin',{}).get('value','?')}～{d.get('temperatureMax',{}).get('value','?')}℃" for d in data.get('days',[])]
-            if not lines: raise ValueError('没有可用预报')
-            body = '\n'.join(lines)
-        else:
-            x = data.get('current', data.get('weather', data))
-            body = f"{x.get('condition',{}).get('text','未知')} {x.get('temperature',{}).get('value','?')}℃，体感 {x.get('feelsLike',{}).get('value','?')}℃"
-        return f'{name}\n{body}\n数据来源：和风天气 https://developer.qweather.com/attribution.html'
     finally:
         if own: await client.aclose()
+    now = (now or _now()).astimezone(BEIJING)
+    view = {
+        'kind': 'forecast' if forecast else 'now',
+        'city': city.strip(),
+        'place': ' '.join(dict.fromkeys(x for x in (loc.get('adm1'),loc.get('adm2'),loc.get('name')) if x)),
+        'queried_at': f'{now.month}月{now.day}日 周{WEEKDAYS[now.weekday()]} {now:%H:%M}',
+        'attribution': ATTRIBUTION,
+    }
+    if forecast:
+        days = []
+        for d in data.get('days') or []:
+            if not isinstance(d, dict):
+                continue
+            date = str(d.get('forecastStartTime') or '')[:10]
+            label, short = _day_label(date, now.date())
+            days.append({
+                'date': date, 'label': label, 'short': short,
+                'condition': _value(d, 'daytime', 'condition', 'text') or '未知',
+                'min': _number(_value(d, 'temperatureMin')),
+                'max': _number(_value(d, 'temperatureMax')),
+            })
+        if not days: raise ValueError('没有可用预报')
+        view['days'] = days
+    else:
+        x = data.get('current', data.get('weather', data))
+        x = x if isinstance(x, dict) else {}
+        view.update({
+            'condition': _value(x, 'condition', 'text') or '未知',
+            'temperature': _number(_value(x, 'temperature')),
+            'feels_like': _number(_value(x, 'feelsLike')),
+            'facts': _current_facts(x),
+        })
+    return view
+
+
+def format_text(view):
+    """与改版前 `query()` 完全一致的纯文本：图片失败时的回退，也给旧调用方用。"""
+    if view['kind'] == 'forecast':
+        body = '\n'.join(f"{d['date']} {d['condition']} {_shown(d['min'])}～{_shown(d['max'])}℃" for d in view['days'])
+    else:
+        body = f"{view['condition']} {_shown(view['temperature'])}℃，体感 {_shown(view['feels_like'])}℃"
+    return f"{view['place']}\n{body}\n{view['attribution']}"
+
+
+async def query(host, key, city, forecast=False, client=None):
+    return format_text(await fetch_view(host, key, city, forecast, client))
 
 def check_response(response):
     if response.status_code in (401, 403): raise ValueError('天气服务认证失败或账号无权限，请检查配置')

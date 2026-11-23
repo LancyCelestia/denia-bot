@@ -17,9 +17,18 @@
 
 ## 2. 启动顺序
 
-重启机器后：
+默认入口（Docker SnowLuma + systemd NoneBot/面板/gsuid）：
 
-1. `docker compose up -d`（SnowLuma，需要先有登录态；否则去 6081 扫码）
+```bash
+sudo bash deploy-linux/install.sh   # 首次：venv、依赖、配置、迁移、面板密码、systemd 单元
+sudo bash deploy-linux/start.sh     # 启动 SnowLuma → gsuid（可选）→ qqbot → 面板
+```
+
+`deploy-linux/README.md` 记录参数、首次扫码、配置和排障。SnowLuma 镜像默认 `motricseven7/snowluma:latest`；公开镜像不可用时，在 `docker/snowluma/.env.local` 设置 `SNOWLUMA_IMAGE`（私有仓库先 `docker login`）。`install.sh` 在 pull 失败但本地已有镜像时会继续，不会覆盖缓存。
+
+以下手动顺序用于自定义部署或排查：
+
+1. `docker compose --env-file docker/snowluma/.env.local -f compose.yml up -d`（SnowLuma，需要先有登录态；否则去 6081 扫码）
 2. RAG（可选，需先按 §7 建独立环境与索引）：`rag/.venv/bin/python rag/serve.py`
 3. gsuid_core（启用游戏账号查询时）：先运行 `gsuid/install.sh` 完成安装；启动时 `cd gsuid/core && uv run core`（或 compose `docker compose up -d`）；**必须先于 NoneBot 启动**，否则适配器首连失败；core 启动后下一条消息会重试，必要时重启机器人
 4. NoneBot：`cd nonebot && ../.venv/bin/python bot.py`
@@ -66,7 +75,7 @@ SnowLuma 是**进程级注入**，同一 QQ 客户端里登录的所有号都会
 |---|---|
 | NoneBot 主日志（UTF-8 文件 sink） | `nonebot/logs/<日期>.log` |
 | RAG | `rag/logs/` |
-| 协议端 | `docker compose logs -f snowluma` |
+| 协议端 | `docker logs -f qqbot-snowluma`（或 `docker compose --env-file docker/snowluma/.env.local -f compose.yml logs -f snowluma`） |
 | 面板 | `journalctl -u qqbot-dashboard -f` |
 
 **优先看 loguru 自己的文件 sink**：重定向到控制台/文件的那份在非 UTF-8 环境下会因表情符号编码失败而丢行。
@@ -270,6 +279,7 @@ python dashboard.py --init
 |---|---|
 | `data/dashboard-auth.json` | 0600；只存 scrypt 盐和哈希，以及 `must_change` 标记 |
 | `data/dashboard-initial-password` | 0600 的明文一次性密码；首次改密成功后自动删除 |
+| `data/dashboard-onboarding.json` | 首次改密后写入的引导状态；完成或跳过后保留 `basics_pending:false` |
 | 未初始化就登录 | `POST /api/login` 返回 401「密码错误或后台尚未配置」 |
 | 未登录访问管理接口 | 401「请登录」 |
 | 首次登录后 | 改密前其他接口返回 403「请先修改初始密码」 |
@@ -278,7 +288,9 @@ python dashboard.py --init
 | 暴力尝试 | 同一 IP 5 分钟内失败 8 次后返回 429 |
 | 会话 | Cookie `admin_session`，8 小时；面板重启后仍然有效，改密后全部失效 |
 
-两个文件权限必须是 0600；Windows 上至少保证 `nonebot/data/` 不对其他用户共享。不要删除认证文件来「重置」面板——那会让面板回到未初始化状态，所有登录继续 401。
+认证文件、一次性密码文件和引导状态文件权限必须是 0600；Windows 上至少保证 `nonebot/data/` 不对其他用户共享。不要删除认证文件来「重置」面板——那会让面板回到未初始化状态，所有登录继续 401。
+
+首次改密成功后，面板会在下次登录时自动跳到「Bot 基本设置」并显示分步引导（第 1/5 步至第 5/5 步）：Bot 名称、人格模板、模型设置、主人识别、超级管理员，用「上一步 / 下一步」切换。步骤进度和完成状态写入同目录的 `data/dashboard-onboarding.json`，完成或跳过后不再显示；引导未完成时，插件首次引导会延后到它之后。
 
 面板默认地址是 `http://127.0.0.1:8092`。机器人与面板共用同一组进程环境变量 `DASHBOARD_HOST` / `DASHBOARD_PORT`（写在 `nonebot/.env` 里不会生效，systemd 用 `Environment=`，Windows 用系统环境变量或启动前 `set`）：
 
@@ -291,6 +303,48 @@ python dashboard.py --init
 面板「bot基本信息」设置状态卡、日报 / 周报、Proxmox 集群卡、灾害卡和 `.help` 指令菜单统一显示的机器人名称（`bot-name`）。面板写入 `data/bot-name.json`，机器人每次出图时读取，因此保存后下一张卡立即生效，不需要重启。
 
 解析顺序：`data/bot-name.json` → 进程环境或 `local/bot.env` / `nonebot/.env` 的 `BOT_NAME` / `QQBOT_NAME` → 默认 `达妮娅`。名称仅影响显示，不改人格模板、唤醒词、账号或模型设置。面板可恢复默认；文件损坏时自动回退到环境变量或默认名称。
+
+## 8.2 二维码登录与 Cookie 路径
+
+管理面板「链接解析」顶部是「通用设置」和按 schema 顺序排列的 18 个平台标签，点击标签只显示该平台的设置。小红书与 B 站的二维码登录都在面板进程内完成，不依赖额外服务或容器。
+
+### 小红书（面板内置 Python Playwright）
+
+链路：
+
+1. 面板 `POST /api/parser/xhs-login/start` → `xhs_login.start()` → 在当前面板进程启动 headless Chromium。
+2. Playwright 打开小红书官网二维码页并截图；面板轮询 `/api/parser/xhs-login/status`，取消走 `/cancel`。同一时间只允许一个待扫码会话。
+3. 用户点击「保存解析设置」→ `POST /api/parser` 携带 `xhs_login_id` → `xhs_login.claim()` / `settle()` → `parser_settings.save()`。
+4. Cookie 写入 `nonebot/data/media_parser/config.json` 的 `xhs.cookies`；重启机器人后生效。面板 API 和网页都不返回 Cookie 明文，浏览器在保存、取消、过期或错误后关闭。
+
+依赖与浏览器：
+
+```bash
+# 面板 venv 已按 requirements.lock 安装 playwright 包
+./.venv/bin/python -m playwright install chromium
+
+# Linux root 首次缺少系统库时
+./.venv/bin/python -m playwright install --with-deps chromium
+```
+
+`deploy-linux/install.sh` 和 `tools/startup-preflight.ps1` 会安装/补齐 Python 包与 Chromium。没有额外端口、令牌文件、systemd unit 或 compose；启动面板即可使用。重启面板会中断未保存的扫码会话，重新点击「生成二维码」即可。
+
+Linux root 默认关闭 Chromium 沙箱（root 下沙箱通常无法启动）；非 root 和 Windows 默认开启。可用 `QQBOT_XHS_LOGIN_SANDBOX=0/1` 覆盖。浏览器仍以面板进程权限运行，建议面板使用非 root 账户。页面请求只允许小红书 HTTPS 域名，Cookie 只在面板进程内保存，保存时才通过 `claim/settle` 交给解析设置。
+
+官网风控、页面结构变化、网络异常或缺少 Playwright/Chromium 时，面板会显示明确错误；此时仍可手动填写 Cookie。二维码登录可能使同一账号的其他网页端下线。
+
+### B 站（宿主机 Python，无需容器）
+
+链路：
+
+1. 面板 `POST /api/parser/bilibili/qr` → `parser_credentials.create_bilibili_qr()` → `BilibiliLogin.login_with_qrcode()`。
+2. 后者用 Python `qrcode` 生成二维码，并用 `curl_cffi` 直接请求 `passport.bilibili.com` 的二维码接口；不经过浏览器或容器。
+3. 面板轮询 `/api/parser/bilibili/qr/status` → `poll_bilibili_qr()` → `BilibiliLogin.poll_qr_state()`。
+4. 扫码成功后，`BilibiliLogin.save_cookies()` 原子写入 `nonebot/data/media_parser/cookies/bilibili_credential.json`；`save_bilibili_config()` 同时写入 `nonebot/data/media_parser/config.json` 的 `bilibili.cookies`。机器人按文件 mtime 自动重载登录态，不需要重启。
+
+面板进程会自动把 `nonebot/parser_deps` 加入 `sys.path`，与机器人共用同一份解析依赖（清单见 `nonebot/media_parser/requirements.txt`）；缺少依赖时面板返回 503 并提示缺哪个包，手动 Cookie 仍可保存。
+
+入口在「链接解析 → B站 → 账号凭证」；手动 Cookie/JSON 导入与扫码共用同一保存路径。此路径在 Windows 和 Linux 都只依赖宿主 Python 环境，不依赖 Docker。
 
 ## 8.5 服务器状态卡
 
@@ -445,8 +499,9 @@ journalctl -u qqbot -n 80 --no-pager | grep -i epic
 
 ## 8.9.1 插件管理与首次引导
 
-首次登录面板会显示一次插件引导，可选择要启用的可选插件。之后在侧栏「插件管理」中修改；开关保存在 `nonebot/data/plugins.json`（0600，Git 忽略），普通 `git pull` 不会覆盖。
+首次登录面板会先显示分步 Bot 基本设置引导，完成或跳过后再显示一次插件引导，可选择要启用的可选插件。之后在侧栏「插件管理」中修改；开关保存在 `nonebot/data/plugins.json`（0600，Git 忽略），普通 `git pull` 不会覆盖。
 
+- 插件引导的「完成并重启bot」会先保存开关再重启机器人；「稍后设置」只保存，之后可在「插件管理」中修改并手动重启。
 - 核心插件（消息入口、模型接线、提示词/引用/图片保护、QQ 超级管理员、主人识别等）在面板中锁定，不能关闭。
 - 关闭插件不会删除插件代码、数据或配置；机器人下次启动时不再加载。
 - `gsuid` 开关还会尝试处理对应的外部服务：Linux 优先停止并禁用 `qqbot-gsuid-core.service`（或 Docker 容器 `gsuid_core`），Windows 停止 `logs/gsuid-core.pid`/命令行匹配的 gsuid_core 进程；重新启用时再启动。服务操作失败会在面板显示原因，不会静默忽略。
@@ -478,6 +533,22 @@ curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8092/api/bilibili   # 
 
 2026-11-17 已在测试服务器完成部署，并修正侧栏与内容顺序不一致（「表情包」卡片在实际内容里排在「运行状态」前面）；面板、只读读取真实状态库与侧栏顺序均已验证。
 
+## 8.11 B站解析凭据
+
+面板「链接解析 → B站解析」维护 B 站解析所需凭据，不必再手工编辑数据目录：
+
+- **粘贴导入**：支持 `SESSDATA=...; bili_jct=...; DedeUserID=...`、JSON 对象、JSON 数组，以及带 `{"cookies": [...]}` 包装的 JSON。`SESSDATA`、`bili_jct`、`DedeUserID` 必填，`DedeUserID` 必须是数字；格式错误返回 400，原凭据保持不变。
+- **扫码登录**：点击「获取二维码」，用 B 站 App 扫码；二维码 2 分钟有效，过期或出错后可点「刷新二维码」重新获取。面板每 2 秒轮询一次状态，登录成功后显示「B 站 Cookie 已配置」。
+- **保存位置**：凭据写入 `nonebot/data/media_parser/cookies/bilibili_credential.json`（POSIX 0600，原子替换），同时更新 `nonebot/data/media_parser/config.json` 中 B 站 `cookies` 字段；面板不回显明文，日志不记录 Cookie。
+- **免重启**：解析器的 `BilibiliLogin` 在每次取 Cookie 前检查凭据文件 mtime，面板导入或扫码成功后，正在运行的机器人下一次解析请求即使用新凭据，无需重启。
+- **失败保护**：粘贴内容或二维码轮询失败不会覆盖已有凭据；只更新 B 站 `cookies` 字段，不覆盖其他解析器设置。
+
+相关接口（均要求面板登录 + CSRF）：`POST /api/parser/bilibili/cookies`、`POST /api/parser/bilibili/qr`、`POST /api/parser/bilibili/qr/status`。定向测试：
+
+```bash
+cd nonebot && python -m pytest tests/test_parser_credentials.py tests/test_parser_credentials_api.py -q
+```
+
 ## 9. 上线前检查
 
 - [ ] 5099 / 6081 / 8080 全都只绑内网或 `127.0.0.1`，**不要对公网开**
@@ -505,7 +576,8 @@ curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8092/api/bilibili   # 
 | `local/bot.env` | — | 被 Git 忽略的本机私有值；`QQBOT_SELF_ID` 优先从这里读取 |
 | `local/private/` | — | 私有交接文档、旧备份和调试快照；不进入版本控制 |
 | `/etc/systemd/system/qqbot-dashboard.service` 及 `.d/` | `nonebot/qqbot-dashboard.service` | 仓库 unit 默认绑 `127.0.0.1`，真实监听地址放 drop-in |
-| `snowluma/config/`、`compose.yml` | `docker/snowluma/` 模板 | 协议端配置 |
+| `snowluma/config/`、`snowluma/data/`、`compose.yml` | `docker/snowluma/` 模板（已跟踪） | 协议端配置与登录态；`compose.yml` 由 `deploy-linux/install.sh` 从模板生成 |
+| `docker/snowluma/.env.local` | `docker/snowluma/.env.example` | VNC 密码与 SnowLuma 绑定地址，0600，已忽略 |
 
 敏感值持久化规则：
 
@@ -522,10 +594,12 @@ curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8092/api/bilibili   # 
 ```bash
 git -C /opt/qqbot fetch --all --prune
 git -C /opt/qqbot pull --ff-only
-cd /opt/qqbot/nonebot
-../.venv/bin/python migrate_db.py upgrade
-systemctl restart qqbot qqbot-dashboard
+sudo systemctl stop qqbot qqbot-dashboard
+sudo bash /opt/qqbot/deploy-linux/install.sh --no-pull
+sudo systemctl start qqbot qqbot-dashboard
 ```
+
+先停 qqbot/面板再跑安装脚本，避免迁移和 pip 安装与正在使用的进程并发；SnowLuma 容器可以保持运行。`install.sh` 会按 `requirements.lock` 的摘要判断是否需要更新 `.venv`，并重装 systemd 单元；不覆盖已有的 `.env`、模型/人格配置和 SnowLuma 数据。手动排查时也可以继续用 `cd /opt/qqbot/nonebot && ../.venv/bin/python migrate_db.py upgrade`。
 
 **禁止把下载的 zip/tar 解压覆盖到旧检出。** 覆盖不会删除旧检出里已从仓库移除的文件，`git status` / `git diff` 失去可比对基线，示例配置和旧数据还可能盖掉真实文件。需要全新目录时：
 

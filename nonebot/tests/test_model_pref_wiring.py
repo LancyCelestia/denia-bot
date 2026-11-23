@@ -213,10 +213,12 @@ def use_temp_state(**over):
     path = Path(tempfile.mkdtemp()) / "model_pref.json"
     pref.STATE_PATH = path
     pref._state_cache = None
+    pref._state_token_value = None
     s = mp.new_state()
     s.update({"primary": None, "secondary": None}, **over)
     mp.save_state(path, s)
     pref._state_cache = None
+    pref._state_token_value = None
     pref.build_pair = lambda name: (_ for _ in ()).throw(AssertionError("这个用例不该换人"))
     pref.ORIGINAL_STREAM = fake_ask_stream
     pref.ORIGINAL_ASK = fake_ask
@@ -583,6 +585,21 @@ def t_the_command_only_fires_for_the_master_in_private():
     assert asyncio.run(pref.is_model_command(event(".模型 查看", group=GROUP))) is False, "群里不许发指令"
     assert asyncio.run(pref.is_model_command(event(".模型 查看", user=OTHER))) is False, "只有主人能改模型"
     assert asyncio.run(pref.is_model_command(event("今天天气不错"))) is False, "普通聊天不能被指令吃掉"
+
+
+def t_the_panel_writing_state_is_seen_without_restart():
+    """面板是另一个进程：它写完 data/model_pref.json，下一条回复就要读到新选择。"""
+    path = use_temp_state(primary=None, secondary=None)
+    assert pref.state()["primary"] is None
+
+    changed = mp.new_state()
+    changed.update(primary="relay", primary_model="upstream-a", secondary="echo-test")
+    mp.save_state(path, changed)
+
+    got = pref.state()
+    assert got["primary"] == "relay", got
+    assert got["primary_model"] == "upstream-a", got
+    assert got["secondary"] == "echo-test", got
 
 
 def t_setting_the_primary_persists_to_disk():

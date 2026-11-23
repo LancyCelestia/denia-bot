@@ -3,10 +3,12 @@ import asyncio
 import hashlib
 import hmac
 import json
+import logging
 import os
 import secrets
 import sqlite3
 import time
+from contextlib import asynccontextmanager
 from pathlib import Path
 from urllib.parse import urlsplit
 from fastapi import FastAPI, HTTPException, Request
@@ -16,8 +18,10 @@ import app_version
 import bilibili_panel
 import bot_updater
 import bot_identity
+import dashboard_onboarding
 import meme_logic
 import memory_logic as memory
+import model_pref_panel
 import group_topics_logic as topics
 import weather_service as weather
 import epic_free_config as epic_config
@@ -28,7 +32,9 @@ import disaster_config as disaster_config_mod
 import disaster_render as disaster_render_mod
 import render_settings
 import disaster_store as disaster_store_mod
+import log_viewer
 import master_settings
+import parser_credentials
 import parser_settings
 import persona_settings
 import plugin_control
@@ -39,12 +45,27 @@ import status_grafana as status_grafana_mod
 import status_store as status_store_mod
 import superuser_settings
 import theme_panel
+import xhs_login
 from bot_monitor import Monitor, Restart, RestartController, WindowsRestart  # noqa: F401 - 测试仍按旧名引用
 
 ROOT = Path(__file__).resolve().parent
 AUTH_FILE = ROOT / 'data' / 'dashboard-auth.json'
 attempts = {}
-app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+log = logging.getLogger(__name__)
+
+
+def onboarding_path() -> Path:
+    """First-run guide state lives beside the auth file for test isolation."""
+    return dashboard_onboarding.path_for(AUTH_FILE)
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    yield
+    await xhs_login.close()
+
+
+app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
 meme_library = meme_logic.Library()
 monitor = Monitor()
 restart_worker = Restart(monitor)
@@ -323,12 +344,42 @@ async def setup_password(req: Request):
     if password_matches(password, saved):
         raise HTTPException(400, '新密码不能与原密码相同')
     set_password(password, must_change=False)
+    try:
+        dashboard_onboarding.mark_pending(onboarding_path())
+    except OSError:
+        log.warning('无法写入首次设置引导状态', exc_info=True)
     sessions.clear()
     save_sessions(sessions)
     (AUTH_FILE.parent / INITIAL_PASSWORD_FILE).unlink(missing_ok=True)
     response = JSONResponse({'ok': True})
     response.delete_cookie('admin_session', path='/')
     return response
+
+
+@app.get('/api/onboarding')
+def onboarding_state(req: Request):
+    authorized(req)
+    return dashboard_onboarding.load(onboarding_path())
+
+
+@app.post('/api/onboarding')
+async def set_onboarding_state(req: Request):
+    mutate(req)
+    body = await req.json()
+    if not isinstance(body, dict):
+        raise HTTPException(400, '请求内容无效')
+    if body.get('basics_done') is True:
+        try:
+            return dashboard_onboarding.complete(onboarding_path())
+        except OSError:
+            raise HTTPException(503, '引导状态无法保存')
+    try:
+        return dashboard_onboarding.set_step(onboarding_path(), body.get('basics_step'))
+    except ValueError:
+        raise HTTPException(400, '引导步骤无效')
+    except OSError:
+        raise HTTPException(503, '引导状态无法保存')
+
 
 @app.post('/api/password')
 async def change_password(req: Request):
@@ -517,6 +568,59 @@ async def change_bot_name(req: Request):
     except OSError:
         raise HTTPException(503, '机器人名称无法保存')
 
+@app.get('/api/model-pref')
+def model_pref_config(req: Request):
+    authorized(req)
+    try:
+        return model_pref_panel.view()
+    except (OSError, ValueError, KeyError):
+        raise HTTPException(503, '模型设置无法读取')
+
+@app.post('/api/model-pref')
+async def set_model_pref_config(req: Request):
+    mutate(req)
+    body = await req.json()
+    if not isinstance(body, dict):
+        raise HTTPException(400, '请求体必须是对象')
+    if 'primary' not in body or 'secondary' not in body:
+        raise HTTPException(400, '必须同时提供 primary 和 secondary')
+    try:
+        return model_pref_panel.save_models(body.get('primary'), body.get('secondary'))
+    except (ValueError, TypeError) as e:
+        raise HTTPException(400, str(e))
+    except OSError:
+        raise HTTPException(503, '模型设置无法保存')
+
+@app.post('/api/model-pref/provider')
+async def set_model_provider(req: Request):
+    mutate(req)
+    body = await req.json()
+    if not isinstance(body, dict):
+        raise HTTPException(400, '请求体必须是对象')
+    try:
+        return model_pref_panel.save_provider(body.get('base_url'), body.get('api_key'))
+    except model_pref_panel.Unpublished:
+        raise HTTPException(409, '模型配置尚未发布：请先核对 configs/models.yml 并重新发布摘要')
+    except (ValueError, TypeError) as e:
+        raise HTTPException(400, str(e))
+    except OSError:
+        raise HTTPException(503, '提供商配置无法保存')
+
+@app.post('/api/model-pref/upstream')
+async def list_model_upstream(req: Request):
+    mutate(req)
+    body = await req.json()
+    if not isinstance(body, dict):
+        raise HTTPException(400, '请求体必须是对象')
+    try:
+        return model_pref_panel.fetch_upstream(body.get('base_url'), body.get('api_key'))
+    except model_pref_panel.UpstreamError as e:
+        raise HTTPException(502, str(e))
+    except (ValueError, TypeError) as e:
+        raise HTTPException(400, str(e))
+    except OSError:
+        raise HTTPException(503, '无法读取模型提供商配置')
+
 @app.get('/api/persona')
 def persona_config(req: Request):
     authorized(req)
@@ -576,16 +680,174 @@ def parser_config(req: Request):
 @app.post('/api/parser')
 async def set_parser_config(req: Request):
     mutate(req)
-    try: return parser_settings.save(await req.json())
+    try:
+        payload = await req.json()
+    except (ValueError, TypeError):
+        raise HTTPException(400, '请求格式无效')
+    if not isinstance(payload, dict):
+        raise HTTPException(400, '请求格式无效')
+    login_id = payload.pop('xhs_login_id', None)
+    if login_id is not None:
+        if not xhs_login.valid_session_id(login_id):
+            raise HTTPException(400, '扫码会话无效')
+        platforms = payload.get('platforms')
+        if platforms is None:
+            platforms = {}
+            payload['platforms'] = platforms
+        if not isinstance(platforms, dict):
+            raise HTTPException(400, '解析平台格式无效')
+        xhs_changes = platforms.get('xhs')
+        if xhs_changes is not None and not isinstance(xhs_changes, dict):
+            raise HTTPException(400, '小红书平台格式无效')
+        if isinstance(xhs_changes, dict) and xhs_changes.get('cookies'):
+            raise HTTPException(400, '扫码保存时不要同时填写小红书 Cookie')
+        cleared = payload.get('clear_secrets')
+        if isinstance(cleared, list) and 'xhs.cookies' in cleared:
+            raise HTTPException(400, '扫码保存时不要同时清除小红书 Cookie')
+        admin_session = req.cookies.get('admin_session', '')
+        try:
+            claimed = await xhs_login.claim(admin_session, login_id)
+        except xhs_login.XhsLoginError as e:
+            raise HTTPException(e.status, e.detail)
+        xhs_changes = platforms.get('xhs')
+        if xhs_changes is None:
+            xhs_changes = {}
+            platforms['xhs'] = xhs_changes
+        xhs_changes['cookies'] = claimed['cookies']
+        try:
+            saved = parser_settings.save(payload)
+        except Exception as exc:
+            try:
+                await xhs_login.settle(admin_session, login_id, claimed['claim_id'], False)
+            except xhs_login.XhsLoginError:
+                pass
+            if isinstance(exc, FileExistsError):
+                raise HTTPException(409, str(exc))
+            if isinstance(exc, (ValueError, TypeError)):
+                raise HTTPException(400, str(exc))
+            if isinstance(exc, (OSError, sqlite3.Error)):
+                raise HTTPException(503, '解析器配置无法保存，请稍后重试')
+            raise
+        try:
+            await xhs_login.settle(admin_session, login_id, claimed['claim_id'], True)
+        except xhs_login.XhsLoginError:
+            saved = dict(saved)
+            saved['qr_cleanup_pending'] = True
+        return saved
+    try:
+        return parser_settings.save(payload)
     except FileExistsError as e: raise HTTPException(409, str(e))
     except (ValueError, TypeError) as e: raise HTTPException(400, str(e))
     except (OSError, sqlite3.Error): raise HTTPException(503, '解析器配置无法保存，请稍后重试')
+
+@app.post('/api/parser/bilibili/cookies')
+async def import_bilibili_cookies(req: Request):
+    mutate(req)
+    try:
+        body = await req.json()
+    except (ValueError, TypeError):
+        raise HTTPException(400, '请求格式无效')
+    raw = body.get('cookies') if isinstance(body, dict) else None
+    if not isinstance(raw, str):
+        raise HTTPException(400, '请提供 Cookie 字符串或 JSON')
+    try:
+        cookies = parser_credentials.parse_cookie_input(raw)
+        return parser_credentials.save_bilibili_cookies(cookies)
+    except FileExistsError as e:
+        raise HTTPException(409, str(e))
+    except (ValueError, TypeError) as e:
+        raise HTTPException(400, str(e))
+    except OSError:
+        raise HTTPException(503, 'B 站 Cookie 无法保存，请稍后重试')
+
+
+@app.post('/api/parser/bilibili/qr')
+async def bilibili_qr(req: Request):
+    mutate(req)
+    try:
+        png = await parser_credentials.create_bilibili_qr()
+    except ImportError as e:
+        raise HTTPException(503, f'缺少 B 站登录依赖：{e}')
+    except Exception as e:
+        raise HTTPException(502, f'生成 B 站二维码失败：{e}')
+    return Response(content=png, media_type='image/png', headers={'Cache-Control': 'no-store'})
+
+
+@app.post('/api/parser/bilibili/qr/status')
+async def bilibili_qr_status(req: Request):
+    mutate(req)
+    try:
+        return await parser_credentials.poll_bilibili_qr()
+    except ImportError as e:
+        raise HTTPException(503, f'缺少 B 站登录依赖：{e}')
+    except Exception as e:
+        return {'status': 'error', 'message': f'读取二维码状态失败：{e}'}
+
+
+async def _xhs_login_body(req: Request) -> dict:
+    try:
+        body = await req.json()
+    except (ValueError, TypeError):
+        raise HTTPException(400, '请求格式无效')
+    if not isinstance(body, dict):
+        raise HTTPException(400, '请求格式无效')
+    return body
+
+
+@app.post('/api/parser/xhs-login/start')
+async def xhs_login_start(req: Request):
+    mutate(req)
+    try:
+        payload = await xhs_login.start(req.cookies.get('admin_session', ''))
+    except xhs_login.XhsLoginError as e:
+        raise HTTPException(e.status, e.detail)
+    return JSONResponse(payload, headers={'Cache-Control': 'no-store'})
+
+
+@app.post('/api/parser/xhs-login/status')
+async def xhs_login_status(req: Request):
+    mutate(req)
+    body = await _xhs_login_body(req)
+    session_id = body.get('id')
+    if not isinstance(session_id, str):
+        raise HTTPException(400, '扫码会话无效')
+    try:
+        payload = await xhs_login.status(req.cookies.get('admin_session', ''), session_id)
+    except xhs_login.XhsLoginError as e:
+        raise HTTPException(e.status, e.detail)
+    return JSONResponse(payload, headers={'Cache-Control': 'no-store'})
+
+
+@app.post('/api/parser/xhs-login/cancel')
+async def xhs_login_cancel(req: Request):
+    mutate(req)
+    body = await _xhs_login_body(req)
+    session_id = body.get('id')
+    if not isinstance(session_id, str):
+        raise HTTPException(400, '扫码会话无效')
+    try:
+        payload = await xhs_login.cancel(req.cookies.get('admin_session', ''), session_id)
+    except xhs_login.XhsLoginError as e:
+        raise HTTPException(e.status, e.detail)
+    return JSONResponse(payload, headers={'Cache-Control': 'no-store'})
+
 
 @app.get('/api/parser-events')
 def parser_events(req: Request, limit: int = 100):
     authorized(req)
     try: return parser_settings.events(limit=max(1, min(limit, 500)))
     except (OSError, ValueError): raise HTTPException(503, '解析日志无法读取')
+
+
+@app.get('/api/logs')
+def runtime_logs(req: Request, name: str = 'nonebot.log', tail: int = 200):
+    authorized(req)
+    try:
+        return log_viewer.read_log(name, tail)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    except OSError:
+        raise HTTPException(503, '运行日志无法读取')
 
 @app.post('/api/parser-events/clear')
 async def clear_parser_events(req: Request):
