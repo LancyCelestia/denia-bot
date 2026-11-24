@@ -162,7 +162,7 @@ python dashboard.py --init    # 首次部署：生成面板密码，只写认证
 python bot.py
 ```
 
-`python bot.py` 启动后，日志里会打印一行 `[dashboard] 管理面板: http://127.0.0.1:8092（独立进程，需单独启动）`。地址按 `DASHBOARD_HOST` / `DASHBOARD_PORT` 生成，未设置时就是默认回环地址；面板仍需按下面「管理面板单独启动」的命令另行启动。Linux 上可用 `journalctl -u qqbot -n 50 | grep dashboard` 查看。
+`python bot.py` 启动后，日志里会打印一行 `[dashboard] 管理面板: http://127.0.0.1:8092（独立进程，需单独启动）`。地址按 `DASHBOARD_HOST` / `DASHBOARD_PORT` 生成，未设置时就是默认回环地址；Linux 或直接运行 `bot.py` 时面板仍需按下面「管理面板启动」的命令另行启动，Windows 一键启动脚本会自动拉起它。Linux 上可用 `journalctl -u qqbot -n 50 | grep dashboard` 查看。
 
 在 `.env` 中配置 `ONEBOT_ACCESS_TOKEN`、初始 `SUPERUSERS` 和监听地址；在 `configs/models.yml` 中配置模型地址、模型名和密钥。协议端的反向 WebSocket 地址指向 `ws://<机器人地址>:8080/onebot/v11/ws`，并使用相同的 OneBot token。初次运行后，超级管理员可在面板维护。
 
@@ -181,7 +181,7 @@ curl --fail http://127.0.0.1:3100/health
 
 首次部署的 Python 依赖安装不会自动安装 Playwright 浏览器；Windows 的 `启动所有` 脚本也不会自动启动这个服务。没有渲染服务时，具体功能按各自实现回退文本或原始媒体。
 
-管理面板单独启动（先完成上面的 `--init`），例如在已激活虚拟环境的 `nonebot` 目录运行：
+管理面板启动（Linux 或直接运行 `bot.py` 时手动启动；Windows 一键启动已包含），例如在已激活虚拟环境的 `nonebot` 目录运行：
 
 ```bash
 uvicorn dashboard:app --host 127.0.0.1 --port 8092
@@ -237,7 +237,7 @@ python serve_cloud.py --port 8091
 
 ## Windows 本机（开发）
 
-Windows 上使用 `tools\启动所有.bat` / `tools\停止所有.bat` 启停；根目录的 `启动机器人.bat` / `停止机器人.bat` 只是调用它们的薄入口。脚本按自身位置解析检出目录，启动前先运行 `tools\startup-preflight.ps1`：检查 `nonebot\.venv` 和 SnowLuma 运行时，必要时用 Python 3.12 创建虚拟环境，并按 `requirements.lock` 安装/校验依赖；依赖检查失败时不会启动任何服务。依赖安装可能耗时，完成后才继续后续启动。启动前还会检查 8080 是否已有实例，并清理 `NO_PROXY` 中无法识别的 IPv6 回环条目（`::1` / `[::1]`），避免本机回环请求被系统代理或代理例外规则拦住。启动横幅和结尾的 connection info 都会打印管理面板地址（默认 `http://127.0.0.1:8092`，设置了 `DASHBOARD_HOST` / `DASHBOARD_PORT` 就照实显示）；面板是独立进程，仍需按上面的命令单独启动。直接运行启动脚本失败时控制台会暂停；根目录入口始终保留控制台。它们是本机开发/调试入口；生产部署仍走 Linux + systemd。
+Windows 上使用 `tools\启动所有.bat` / `tools\停止所有.bat` 启停；根目录的 `启动机器人.bat` / `停止机器人.bat` 只是调用它们的薄入口。脚本按自身位置解析检出目录，启动前先运行 `tools\startup-preflight.ps1`：检查 `nonebot\.venv` 和 SnowLuma 运行时，必要时用 Python 3.12 创建虚拟环境，并按 `requirements.lock` 安装/校验依赖；依赖检查失败时不会启动任何服务。依赖安装可能耗时，完成后才继续后续启动。启动前还会检查 8080 是否已有实例，并清理 `NO_PROXY` 中无法识别的 IPv6 回环条目（`::1` / `[::1]`），避免本机回环请求被系统代理或代理例外规则拦住。启动横幅和结尾的 connection info 都会打印管理面板地址（默认 `http://127.0.0.1:8092`，设置了 `DASHBOARD_HOST` / `DASHBOARD_PORT` 就照实显示）；启动器会拉起管理面板，停止器会一并停止它；直接运行 `bot.py` 或 Linux systemd 时面板仍是独立进程，需按上面的命令单独启动。直接运行启动脚本失败时控制台会暂停；根目录入口始终保留控制台。它们是本机开发/调试入口；生产部署仍走 Linux + systemd。
 
 RAG 由启动器按云端路径拉起：只有 `rag\index-siliconflow`（或 `KB_CLOUD_INDEX`）和 `nonebot\data\embedding_secrets.json` 里的 `api_key` 都存在时才运行 `rag\serve_cloud.py`；缺任何一项都会明确打印「RAG 未启用（需要 SiliconFlow Key/索引）」，不会假装启动，也不会回退到本地 ONNX。停止脚本同时清理 `serve_cloud.py` 和残留的旧 `serve.py` 进程。
 
