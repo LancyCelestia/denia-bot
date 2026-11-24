@@ -18,10 +18,17 @@ $botDir = Join-Path $rootPath 'nonebot'
 $venvDir = Join-Path $botDir '.venv'
 $python = Join-Path $venvDir 'Scripts\python.exe'
 $requirements = Join-Path $rootPath 'requirements.lock'
-$ragIndex = Join-Path $rootPath 'rag\index\vectors.npy'
+$ragIndex = Join-Path $rootPath 'rag\index-siliconflow'
+if ($env:KB_CLOUD_INDEX) {
+    $ragIndex = $env:KB_CLOUD_INDEX
+    if (-not [IO.Path]::IsPathRooted($ragIndex)) {
+        $ragIndex = Join-Path $rootPath $ragIndex
+    }
+}
+$ragKeyFile = Join-Path $rootPath 'nonebot\data\embedding_secrets.json'
 $ragPython = Join-Path $rootPath 'rag\.venv\Scripts\python.exe'
-if (Test-Path -LiteralPath (Join-Path $rootPath 'rag\.venv-gpu\Scripts\python.exe')) {
-    $ragPython = Join-Path $rootPath 'rag\.venv-gpu\Scripts\python.exe'
+if (-not (Test-Path -LiteralPath $ragPython -PathType Leaf)) {
+    $ragPython = Join-Path $rootPath 'nonebot\.venv\Scripts\python.exe'
 }
 $gsuidPython = Join-Path $rootPath 'gsuid\core\.venv\Scripts\python.exe'
 $pluginSettings = Join-Path $botDir 'data\plugins.json'
@@ -400,14 +407,26 @@ if (-not $SkipInstall) {
     Write-Ok 'Playwright Chromium is installed'
 }
 
-if (Test-Path -LiteralPath $ragIndex -PathType Leaf) {
-    if (Test-Path -LiteralPath $ragPython -PathType Leaf) {
-        Write-Ok 'Optional RAG service: index and venv are ready'
-    } else {
-        Write-Warn "RAG index exists but its venv is missing: $ragPython (RAG will be skipped)"
+$ragVectors = Join-Path $ragIndex 'vectors.npy'
+$ragKeyConfigured = $false
+if (Test-Path -LiteralPath $ragKeyFile -PathType Leaf) {
+    try {
+        $ragSecrets = Get-Content -LiteralPath $ragKeyFile -Raw -Encoding UTF8 | ConvertFrom-Json
+        $ragKeyConfigured = [bool]("$($ragSecrets.api_key)".Trim())
+    } catch {
+        $ragKeyConfigured = $false
     }
+}
+if ((Test-Path -LiteralPath $ragVectors -PathType Leaf) -and $ragKeyConfigured) {
+    if (Test-Path -LiteralPath $ragPython -PathType Leaf) {
+        Write-Ok "Optional RAG service: cloud index and SiliconFlow key are ready ($ragIndex)"
+    } else {
+        Write-Warn "RAG prerequisites exist but no Python environment was found: $ragPython (RAG will be skipped)"
+    }
+} elseif (-not (Test-Path -LiteralPath $ragVectors -PathType Leaf)) {
+    Write-Warn "RAG not enabled (needs SiliconFlow key/index): index missing $ragVectors"
 } else {
-    Write-Warn 'Optional RAG service is not configured (rag\index\vectors.npy is missing; RAG will be skipped)'
+    Write-Warn "RAG not enabled (needs SiliconFlow key/index): api_key missing in $ragKeyFile"
 }
 
 $gsuidEnabled = $true

@@ -25,6 +25,16 @@ title QQ Bot - Start
 for %%I in ("%~dp0..") do set "ROOT=%%~fI"
 set "LOG=%ROOT%\logs"
 
+rem Cloud RAG index: KB_CLOUD_INDEX may be absolute or relative to the repo root.
+set "RAG_INDEX=%ROOT%\rag\index-siliconflow"
+if defined KB_CLOUD_INDEX (
+    set "RAG_INDEX=%KB_CLOUD_INDEX%"
+    if "%KB_CLOUD_INDEX:~0,1%"=="\" goto :rag_index_ready
+    if "%KB_CLOUD_INDEX:~1,1%"==":" goto :rag_index_ready
+    set "RAG_INDEX=%ROOT%\%KB_CLOUD_INDEX%"
+)
+:rag_index_ready
+
 rem Python falls back to GBK when stdout is redirected on Windows
 set "PYTHONUTF8=1"
 set "PYTHONIOENCODING=utf-8"
@@ -33,9 +43,10 @@ rem Drop [::1] / ::1 from NO_PROXY so loopback traffic is not proxied.
 rem Other entries are kept as-is and the value is never printed.
 call :strip_loopback
 
-rem RAG vectors were built on GPU(fp16); query with the same CUDA venv if present
+rem RAG uses SiliconFlow cloud only (BAAI/bge-m3). Prefer rag\.venv for building,
+rem then fall back to the NoneBot venv (fastapi/numpy/uvicorn are in requirements.lock).
 set "RAG_PY=%ROOT%\rag\.venv\Scripts\python.exe"
-if exist "%ROOT%\rag\.venv-gpu\Scripts\python.exe" set "RAG_PY=%ROOT%\rag\.venv-gpu\Scripts\python.exe"
+if not exist "%RAG_PY%" set "RAG_PY=%ROOT%\nonebot\.venv\Scripts\python.exe"
 set "GS_PY=%ROOT%\gsuid\core\.venv\Scripts\python.exe"
 set "NONE_PY=%ROOT%\nonebot\.venv\Scripts\python.exe"
 
@@ -101,13 +112,19 @@ set "NB_READY=0"
 set "SNOW_EXPECT=0"
 set "SNOW_READY=0"
 
-rem ---------- 1/4 RAG service (8091) ----------
+rem ---------- 1/4 RAG service (8091, SiliconFlow cloud) ----------
 echo [1/4] RAG service (8091) ...
 call :is_listening 8091
 if not errorlevel 1 goto :rag_running
-if not exist "%ROOT%\rag\index\vectors.npy" goto :rag_no_index
-if not exist "%RAG_PY%" goto :rag_no_venv
-call :start_service "%RAG_PY%" "serve.py" "%ROOT%\rag" "rag" ""
+if not exist "%RAG_INDEX%\vectors.npy" goto :rag_no_index
+if not exist "%ROOT%\nonebot\data\embedding_secrets.json" goto :rag_no_key
+findstr /C:"api_key" "%ROOT%\nonebot\data\embedding_secrets.json" >nul 2>&1
+if errorlevel 1 goto :rag_no_key
+findstr /C:"sk-" "%ROOT%\nonebot\data\embedding_secrets.json" >nul 2>&1
+if errorlevel 1 goto :rag_no_key
+if not exist "%RAG_PY%" goto :rag_no_python
+set "KB_CLOUD_INDEX=%RAG_INDEX%"
+call :start_service "%RAG_PY%" "serve_cloud.py --port 8091" "%ROOT%\rag" "rag" ""
 if errorlevel 1 (
     echo       [!!] failed to start, see log: %LOG%\rag.err.log
     goto :rag_done
@@ -123,11 +140,15 @@ set "RAG_READY=1"
 goto :rag_done
 
 :rag_no_index
-echo       [--] index missing (rag\index\vectors.npy), run rag\build_index.py first
+echo       [--] RAG not enabled (needs SiliconFlow key/index): index missing %RAG_INDEX%
 goto :rag_done
 
-:rag_no_venv
-echo       [!!] RAG venv missing: %RAG_PY%
+:rag_no_key
+echo       [--] RAG not enabled (needs SiliconFlow key/index): missing api_key in nonebot\data\embedding_secrets.json
+goto :rag_done
+
+:rag_no_python
+echo       [--] RAG not enabled (needs SiliconFlow key/index): Python env missing %RAG_PY%
 goto :rag_done
 
 :rag_done
@@ -262,6 +283,7 @@ if "%SNOW_EXPECT%%SNOW_READY%"=="00" echo   [--] SnowLuma not started
 
 if "%RAG_EXPECT%%RAG_READY%"=="11" echo   [OK] RAG service       : http://127.0.0.1:8091
 if "%RAG_EXPECT%%RAG_READY%"=="10" echo   [!!] RAG not ready, see log: %LOG%\rag.out.log
+if "%RAG_EXPECT%%RAG_READY%"=="00" echo   [--] RAG not enabled (needs SiliconFlow key/index)
 
 if "%GS_EXPECT%%GS_READY%"=="11" echo   [OK] gsuid_core WebUI  : http://127.0.0.1:8765/app
 if "%GS_EXPECT%%GS_READY%"=="10" echo   [!!] gsuid_core not ready (optional), see log: %LOG%\gsuid.out.log

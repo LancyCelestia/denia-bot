@@ -19,7 +19,7 @@ Denia Bot 面向希望自行管理机器人的 QQ 群管理员和个人部署者
 | 人格聊天 | MuiceBot 对接模型；支持模型首选和故障切换、图片理解、按会话隔离及群聊限流。 |
 | 群聊工具 | 默认只回应 @ 机器人的群消息，每人每群按日限制回话次数，超限完全静默；主人可私聊「限流」调整。群话题统计按群开关，只记关键词和发言次数，不记录消息原文。 |
 | 表情包 | 管理面板上传、分类及设置会话范围，由聊天模型按场景选择发送。 |
-| 知识库与记忆 | 可选 RAG 检索注入和长期记忆；语料及模型服务需要单独配置。 |
+| 知识库与记忆 | 可选 RAG 检索注入和长期记忆；RAG 只走 SiliconFlow `BAAI/bge-m3`，需要单独配置 API Key 和云端索引。 |
 | 链接解析 | 解析受支持平台的链接，发送预览卡片和原始媒体；平台和网络状态会影响结果。 |
 | 天气和灾害预警 | 天气查询及定时推送；灾害 V1 覆盖 Jian 气象、海啸和 Wolfx 地震，EQSC／台风不在当前验收范围。 |
 | 游戏活动 | 管理不同游戏和区服的活动订阅、查询与到期提醒；初始无订阅，支持按会话限制。 |
@@ -115,7 +115,7 @@ denia-bot/
 │   ├─ templates/         Jinja2 人格模板
 │   ├─ dashboard.py|html  管理面板
 │   └─ media_parser/      链路解析插件（适配版）
-├─ rag/                   本地检索服务（serve.py / core.py / build_index.py / eval_gate.py）
+├─ rag/                   云端检索服务（serve_cloud.py / rebuild_index.py / core.py；legacy-local 不支持的旧 ONNX）
 ├─ deploy-linux/          Linux 一键部署：venv/依赖、配置、systemd、SnowLuma Docker
 ├─ tools/                 启停脚本、账号隔离、自检脚本
 ├─ docker/snowluma/       QQ 协议端 compose 模板
@@ -206,25 +206,40 @@ git push origin v0.1.0rc1
 
 ### 可选：知识库检索（RAG）
 
-`knowledge/*.md` 是仓库跟踪的语料，`rag/index/` 是 `rag/build_index.py` 生成的可重建产物，已被 `.gitignore` 忽略；新检出没有索引是正常的，不代表语料缺失。`rag/models/` 里的 bge-m3 ONNX 权重也不进仓库。
+RAG 唯一支持的路径是 **SiliconFlow `BAAI/bge-m3`**（1024 维，`siliconflow-bge-m3-v1`）。
+`knowledge/*.md` 是仓库跟踪的语料；`rag/index-siliconflow/` 是
+`rag/rebuild_index.py` 生成的可重建产物，已被 `.gitignore` 忽略，新检出没有索引是正常的。
+本地 ONNX 方案（`serve.py` / `build_index.py` / 模型权重）已移到
+`rag/legacy-local/`，仅作历史参考，不受支持，也不要把它的索引或向量接回服务。
 
-RAG 依赖**不在** `requirements.lock` 里，必须在仓库根目录单独建环境：
+需要准备：一个 SiliconFlow API Key（管理面板「知识库 Embedding」保存到
+`nonebot/data/embedding_secrets.json`，权限 600）和云端索引。RAG 运行依赖不在
+`requirements.lock` 里，单独建环境：
 
 ```bash
 cd rag
 python3.12 -m venv .venv
 . .venv/bin/activate
-pip install onnxruntime jieba tokenizers numpy fastapi uvicorn   # GPU 改为 onnxruntime-gpu
-# 按 core.MODEL_DIR 放置 bge-m3 ONNX 权重（文件清单见 rag/download_model.sh，路径按本机修改）
-python build_index.py --dir ../knowledge
-python serve.py --port 8091
+pip install jieba numpy fastapi uvicorn
+python rebuild_index.py --knowledge ../knowledge --output index-siliconflow
+python serve_cloud.py --port 8091
 ```
 
-`serve.py` 的本地 `/embed` 模型标识是 `bge-m3-fp16-v1`；`serve_cloud.py`（SiliconFlow）与长期记忆使用 `siliconflow-bge-m3-v1`。两套索引和向量不能混用：切换服务必须重建索引，记忆库里已有的旧向量按用户访问逐步重算。未启动检索服务时知识库插件按「未命中」处理，不影响聊天。详见 [运维手册 §7](docs/OPERATIONS.md#7-知识库rag)。
+`/health` 会返回 `embed_backend=siliconflow`、`model=BAAI/bge-m3` 和**实际加载的索引目录**
+`index`；管理面板按它显示当前生效索引，不再猜最新目录。`serve_cloud.py` 支持
+`KB_CLOUD_INDEX`、`KB_RAG_PORT`；`rag/siliconflow.py` 的超时由 `KB_EMBED_TIMEOUT`
+控制（默认 20 秒），网络错误、429 和 5xx 有有限重试并记录 provider 错误。
+
+长期记忆和表情学习在写入向量前会检查 `/health`：服务未就绪、后端不是 `siliconflow`
+或模型不是 `BAAI/bge-m3` 时直接报错，不写混合向量。旧版本可能已经写入过按云端标签
+保存的本地向量，升级后按 §7 的一次性迁移说明清理并重算。未启动检索服务时知识库插件
+按「未命中」处理，不影响聊天。详见 [运维手册 §7](docs/OPERATIONS.md#7-知识库rag)。
 
 ## Windows 本机（开发）
 
 Windows 上使用 `tools\启动所有.bat` / `tools\停止所有.bat` 启停；根目录的 `启动机器人.bat` / `停止机器人.bat` 只是调用它们的薄入口。脚本按自身位置解析检出目录，启动前先运行 `tools\startup-preflight.ps1`：检查 `nonebot\.venv` 和 SnowLuma 运行时，必要时用 Python 3.12 创建虚拟环境，并按 `requirements.lock` 安装/校验依赖；依赖检查失败时不会启动任何服务。依赖安装可能耗时，完成后才继续后续启动。启动前还会检查 8080 是否已有实例，并清理 `NO_PROXY` 中无法识别的 IPv6 回环条目（`::1` / `[::1]`），避免本机回环请求被系统代理或代理例外规则拦住。启动横幅和结尾的 connection info 都会打印管理面板地址（默认 `http://127.0.0.1:8092`，设置了 `DASHBOARD_HOST` / `DASHBOARD_PORT` 就照实显示）；面板是独立进程，仍需按上面的命令单独启动。直接运行启动脚本失败时控制台会暂停；根目录入口始终保留控制台。它们是本机开发/调试入口；生产部署仍走 Linux + systemd。
+
+RAG 由启动器按云端路径拉起：只有 `rag\index-siliconflow`（或 `KB_CLOUD_INDEX`）和 `nonebot\data\embedding_secrets.json` 里的 `api_key` 都存在时才运行 `rag\serve_cloud.py`；缺任何一项都会明确打印「RAG 未启用（需要 SiliconFlow Key/索引）」，不会假装启动，也不会回退到本地 ONNX。停止脚本同时清理 `serve_cloud.py` 和残留的旧 `serve.py` 进程。
 
 若 `nonebot\.venv\Scripts\python.exe` 缺失，脚本优先用 `runtime\python312\python.exe` 创建虚拟环境，不复用系统或 uv 的 Python。若缓存解释器也缺失，正常启动会从 GitHub 下载固定版本的 python-build-standalone 3.12.13（约 21 MB），校验 SHA256 后解压到临时目录，再安装到 `runtime\python312`。
 
@@ -337,7 +352,7 @@ cp configs/templates.yml.example configs/templates.yml
 cd <检出目录>
 git pull --ff-only
 # 被 Git 忽略的本地配置与数据必须原样保留，不要复制任何 .example 覆盖：
-# nonebot/.env、configs/models.yml、configs/templates.yml、local/、nonebot/data/、rag/index/
+# nonebot/.env、configs/models.yml、configs/templates.yml、local/、nonebot/data/、rag/index-siliconflow*/
 cd nonebot
 python migrate_db.py upgrade
 python dashboard.py --init     # 已有认证文件时提示并退出，不会重置密码

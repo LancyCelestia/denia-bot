@@ -19,7 +19,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from pydantic import BaseModel
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from core import SOURCES, Embedder, Index, search  # noqa: E402
 from core import GATE_MODE  # noqa: E402

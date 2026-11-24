@@ -1,6 +1,16 @@
-"""RAG HTTP API backed by a separately built SiliconFlow vector index."""
+"""RAG HTTP API backed by a separately built SiliconFlow vector index.
+
+Run directly (the Windows launchers and `rebuild_index.py --activate` do this):
+
+    python rag/serve_cloud.py --port 8091
+
+The index directory comes from `KB_CLOUD_INDEX` and defaults to
+`rag/index-siliconflow/`.  `/health` reports the directory this process actually
+loaded so the dashboard can show the serving index instead of guessing.
+"""
 from __future__ import annotations
 
+import argparse
 import os
 import time
 from contextlib import asynccontextmanager
@@ -10,9 +20,9 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 import core
-from siliconflow import KEY_FILE, MODEL, MODEL_ID, CloudEmbeddingError, SiliconFlowEmbedder
+from siliconflow import MODEL, MODEL_ID, CloudEmbeddingError, SiliconFlowEmbedder, key_configured
 
-core.INDEX_DIR = Path(os.environ.get('KB_CLOUD_INDEX', Path(__file__).resolve().parent / 'index-siliconflow'))
+core.INDEX_DIR = Path(os.environ.get('KB_CLOUD_INDEX', Path(__file__).resolve().parent / 'index-siliconflow')).resolve()
 state = {'idx': None, 'emb': SiliconFlowEmbedder()}
 
 
@@ -44,11 +54,12 @@ class SearchReq(BaseModel):
 @app.get('/health')
 def health():
     idx = state['idx']
-    return {'ready': bool(idx and idx.ready and KEY_FILE.is_file()), 'chunks': idx.size if idx else 0,
+    return {'ready': bool(idx and idx.ready and key_configured()), 'chunks': idx.size if idx else 0,
             'dim': idx.meta.get('dim') if idx else None, 'gate_mode': core.GATE_MODE,
             'gate_margin': idx.gate_margin if idx else None, 'gate_stats': idx.meta.get('gate_stats') if idx else None,
             'entries': len(idx.lexicon) if idx else 0, 'embed_backend': 'siliconflow', 'provider': 'SiliconFlow',
-            'model': MODEL, 'vector_mem_mb': round(idx.vectors.nbytes / 1048576, 1) if idx else 0,
+            'model': MODEL, 'index': str(Path(core.INDEX_DIR).resolve()),
+            'vector_mem_mb': round(idx.vectors.nbytes / 1048576, 1) if idx else 0,
             'sources': idx.meta.get('sources', []) if idx else []}
 
 
@@ -85,3 +96,22 @@ def do_search(req: SearchReq):
 @app.post('/reindex')
 def reindex():
     raise HTTPException(409, 'Build and validate a new cloud index offline before activation')
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description='Serve the SiliconFlow RAG index on localhost.')
+    parser.add_argument('--host', default=os.environ.get('KB_RAG_HOST', '127.0.0.1'))
+    try:
+        default_port = int(os.environ.get('KB_RAG_PORT', '8091'))
+    except ValueError:
+        default_port = 8091
+    parser.add_argument('--port', type=int, default=default_port)
+    parser.add_argument('--log-level', default=os.environ.get('KB_RAG_LOG_LEVEL', 'info'))
+    args = parser.parse_args(argv)
+    import uvicorn
+    uvicorn.run(app, host=args.host, port=args.port, log_level=args.log_level)
+    return 0
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

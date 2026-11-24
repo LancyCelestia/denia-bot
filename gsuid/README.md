@@ -137,6 +137,11 @@ uv run core
    插件的前缀、开关、权限、白/黑名单也都在 WebConsole 的「插件配置 / 核心配置」里，
    能热更新的立即生效，标注需要重启的用 `.core重启`。
 
+> **AI / 向量配置**：gsuid_core 本身不处理聊天或知识库嵌入。若某个上游插件要求填
+> AI/Embedding 接口，只填 SiliconFlow：`https://api.siliconflow.cn/v1`，模型
+> `BAAI/bge-m3`（1024 维），Key 用与管理面板同一个。不要指向本地 ONNX 入口
+> （`rag/legacy-local/serve.py`，不受支持）。
+
 ## 6. 连接 NoneBot
 
 在 `nonebot/.env` 设置（模板见 `nonebot/.env.example` 的 gsuid_core 段）：

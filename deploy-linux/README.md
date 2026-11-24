@@ -105,6 +105,24 @@ sudo systemctl daemon-reload
 sudo systemctl restart qqbot-dashboard
 ```
 
+## RAG（可选，SiliconFlow 云端）
+
+唯一支持的检索/嵌入路径是 SiliconFlow `BAAI/bge-m3`（1024 维），不再安装或运行本地
+ONNX 模型。`install.sh --with-rag` 只创建 `rag/.venv` 并安装 `jieba numpy fastapi uvicorn`：
+
+```bash
+# 1) 在管理面板保存 SiliconFlow API Key（写入 nonebot/data/embedding_secrets.json）
+# 2) 构建云端索引
+rag/.venv/bin/python rag/rebuild_index.py --knowledge knowledge --output rag/index-siliconflow
+# 3) 启动服务（生产机可用 systemd 单元 qqbot-rag-cloud，设置 KB_CLOUD_INDEX）
+rag/.venv/bin/python rag/serve_cloud.py --port 8091
+```
+
+`/health` 返回 `embed_backend=siliconflow`、`model=BAAI/bge-m3` 和实际索引目录 `index`。
+`rebuild_index.py --activate` 在 Linux 且安装了 `qqbot-rag-cloud` unit 时走 systemd；
+Windows 本机则停止 8091、原子替换目录并重新拉起 `serve_cloud.py`。旧的本地 ONNX
+入口只在 `rag/legacy-local/` 保留作历史参考，不受支持。
+
 ## systemd 单元
 
 `install.sh` 会把仓库模板里的 `/opt/qqbot` 替换成实际 `--root` 后安装：
@@ -139,5 +157,5 @@ python -m pytest nonebot/tests/test_linux_deploy.py -q
 - 5099（SnowLuma WebUI）和 6081（noVNC）默认只绑 `127.0.0.1`；需要内网访问时改 `BIND_ADDR` 并用防火墙限制来源，绝不对公网开放。
 - SnowLuma 容器需要 `SYS_PTRACE` + `seccomp=unconfined`，只在自己独占的机器上运行。
 - 账号注入是 PID 级，不能按 UIN 过滤；`SNOWLUMA_HOOK_AUTOLOAD=0` 只恢复已接入账号。
-- 备份 `nonebot/data/`、`nonebot/templates/current.jinja2`、`snowluma/`、`local/`、`rag/index/`；不要 `git clean -fdx`。
+- 备份 `nonebot/data/`、`nonebot/templates/current.jinja2`、`snowluma/`、`local/`、`rag/index-siliconflow*/`；不要 `git clean -fdx`。
 - 本脚本不替代防火墙、SSH 隧道、反向代理和 QQ 小号风控。

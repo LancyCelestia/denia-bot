@@ -45,19 +45,25 @@
 | 只发图不打字，模型回一句「你想说什么」 | 正文为空，提示词只剩 `<发言人> ` | `image_guard` 补 `（对方发来一张图片，没有配文字）`；没补说明就检查 `IMAGE_VISION` |
 | **只发一张图 + @ 她，完全没反应**，日志里连 `收到消息文本` 都没有 | MuiceBot 的 `at_event` 命令是 `re.compile(".+")`，纯图片消息 `extract_plain_text()` 为空，handler 根本进不去 | `image_guard` 在 priority 1 补 `[图片]` 占位符；占位符必须插在图片**前面**，否则 Alconna 仍可能匹配不到 |
 
-## 3. RAG / GPU
+## 3. RAG（SiliconFlow 云端）
 
 | 现象 | 原因 | 修法 |
 |---|---|---|
-| 装了 `onnxruntime-gpu` 却在 CPU 上跑，**没有报错** | 找不到 CUDA DLL 时 ORT **静默回落** CPU | 把 CUDA DLL 目录加进搜索路径；启动后**必须打印 provider** 校验，别信「没报错就是成功」 |
-| 转 fp16 之后反而更慢 | fp16 在 CPU 上比 fp32 慢一半 | fp16 只在 CUDA 上用；CPU 版继续用 fp32 |
+| 启动器说 `RAG 未启用（需要 SiliconFlow Key/索引）` | 缺 `nonebot/data/embedding_secrets.json` 里的 `api_key`，或 `rag/index-siliconflow/vectors.npy`（`KB_CLOUD_INDEX`）不存在 | 在管理面板保存 Key，并按 `docs/OPERATIONS.md` §7 构建云端索引；不要回退本地 ONNX |
+| `/embed` 偶发 503 / `embedding provider HTTP 429` | 免费额度限流或上游短暂 5xx | `rag/siliconflow.py` 会按 `KB_EMBED_TIMEOUT`（默认 20s）和 `KB_EMBED_RETRIES`（默认 2）重试并记录 provider 错误；持续失败看日志里的状态码/响应体 |
+| 记忆/表情学习报「向量后端不一致」或「模型不一致」 | 8091 上跑的不是 SiliconFlow `BAAI/bge-m3`，而是残留的本地 ONNX 服务 | 停掉旧进程，启动 `rag/serve_cloud.py`；确认 `/health` 的 `embed_backend=siliconflow`、`model=BAAI/bge-m3`、`index` 指向云端索引 |
+| 面板显示的重建索引不是正在服务的那个 | 重建目录在激活前就存在，按目录名排序会把临时产物当生效索引 | 面板优先读 `/health` 的 `index`；服务不可达时读 `rag-rebuild.json` / 显式配置，不再猜最新目录 |
+| Windows 面板重建成功但服务还是旧索引 | 旧版本激活依赖 systemd，Windows 直接跳过 | 当前 `rebuild_index.py --activate` 会停 8091、原子换目录、重启 `serve_cloud.py` 并等 `/health`；失败自动回滚 |
 | 闸门永远全放行/全拦死 | BM25 的 `df` 按词频累加而不是按文档累加，热门词 df 爆表 | `df` 必须按文档更新：`self.df.update(tf.keys())` |
 | 什么烂问题都能命中词条 | 语料里模板标题重复上千次，它们不是词条 | 按标题出现次数、按路径覆盖块数过滤词条池 |
 | 单字/高频词误命中 | 常用词恰好也是标题 | 短词出现在 5% 以上块里就判为常用词踢掉 |
 | 唤醒词被当成设定问题去检索 | 唤醒词本身就是个大词条；群里还会在句首拼发言人昵称 | `nonebot/kb_logic.py` 先剥句首 @/`<昵称>`，再判「紧贴一小截谓语 = 在问她本人」，整句保留 |
 | 「X 是谁」永远不命中 | 上面那条的反面：无脑剥句首昵称把主语剥没了 | 剩下那截够短且以「是谁/啥/怎/几」开头就不剥 |
 | `/kb 查` 报「未命中」，但服务明明答得出来 | 诊断指令套了聊天那套剥离，剥成空串后连 HTTP 都没发 | 诊断走原文；并区分「没去查 / 没问成 / 查了没命中 / 命中」四种说法 |
-| 索引在别的机器上重建失败 | `meta.json` 里记的是**建索引时**的语料绝对路径 | 检索只读 `rag/index/`；重建前确认 `knowledge/*.md` 就位，或改 `core.SOURCES` |
+| 索引在别的机器上重建失败 | `meta.json` 里记的是**建索引时**的语料绝对路径 | 检索只读当前激活索引；重建前确认 `knowledge/*.md` 就位，或改 `rebuild_index.py` 的 `--knowledge` |
+
+旧本地 ONNX 的 GPU/fp16 问题（`onnxruntime-gpu` 静默回落 CPU 等）只存在于
+`rag/legacy-local/`，该目录不受支持，不要再接回启动流程。
 
 ## 4. 模型网关（AxonHub）
 

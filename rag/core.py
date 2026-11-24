@@ -43,7 +43,7 @@ GATE_FLOOR, GATE_CEIL = 0.08, 0.30
 # ---------------------------------------------------------------------------
 # 词条词典闸门
 # ---------------------------------------------------------------------------
-# 分数闸门在全量语料上不成立（rag/analyze_gate.py 实测）：
+# 分数闸门在全量语料上不成立（rag/legacy-local/analyze_gate.py 实测）：
 # 「外面下雨了」的 top-全库均值=0.235 高于「你用什么武器」的 0.201，
 # 因为全库均值随话题密度上升，恰好在最该注入的时候关死闸门；
 # 而 340 万字的梗语料里确实有「哈哈哈」「晚安」这类条目，任何分数阈值都分不开
@@ -626,7 +626,7 @@ def search(
 
     if gate == "lexicon":
         if not idx.lexicon:
-            raise RuntimeError("索引里没有 lexicon.json.gz，重跑 build_index.py 生成词条词典")
+            raise RuntimeError("索引里没有 lexicon.json.gz，重跑 rebuild_index.py 生成词条词典")
         if not entries:
             return []
         # 只在命中词条的块里排序：把库外行的分数钉成 -1，argsort 自然把它们甩到最后

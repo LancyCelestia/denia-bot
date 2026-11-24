@@ -10,8 +10,8 @@ import secrets
 from contextlib import contextmanager
 from urllib.parse import urlsplit
 
-import httpx
 import meme_logic
+from rag_client import embed as _rag_embed
 
 MAX_PENDING = 200
 
@@ -61,19 +61,12 @@ async def process(store, job, describe, embed, *, pre_send_error=(), can_defer=N
     except Exception as e:
         if isinstance(e, pre_send_error) and (can_defer is None or can_defer()):
             return False
-        await asyncio.to_thread(store.fail, job['id'], type(e).__name__)
+        await asyncio.to_thread(store.fail, job['id'], f'{type(e).__name__}: {e}'[:200])
     return True
 
 
 async def embed(text):
-    async with httpx.AsyncClient(timeout=8, trust_env=False) as client:
-        response = await client.post('http://127.0.0.1:8091/embed', json={'text': text[:2000]})
-        response.raise_for_status()
-        data = response.json()
-    vector = data.get('vector')
-    if data.get('model') != 'siliconflow-bge-m3-v1' or not isinstance(vector, list) or len(vector) != 1024:
-        raise ValueError('向量服务返回无效结果')
-    return valid_vector(vector)
+    return await _rag_embed(text)
 
 
 def valid_vector(vector):

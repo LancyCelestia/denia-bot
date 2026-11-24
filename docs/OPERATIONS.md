@@ -8,7 +8,7 @@
 |---|---|---|---|
 | SnowLuma（QQ 协议端） | 5099 WebUI / 6081 noVNC | Docker `qqbot-snowluma` | compose 环境变量 + `/opt/qqbot/snowluma/config` |
 | NoneBot2 + MuiceBot | 8080 | `python bot.py` | `nonebot/.env`、`nonebot/configs/models.yml` |
-| RAG 检索服务（可选） | 8091 | `rag/.venv/bin/python rag/serve.py` | 独立 venv；环境变量 `KB_GATE_MODE` 等，见 `rag/core.py`；索引 `rag/index/` |
+| RAG 检索服务（可选） | 8091 | `rag/.venv/bin/python rag/serve_cloud.py --port 8091` | SiliconFlow `BAAI/bge-m3`；`KB_CLOUD_INDEX` 默认 `rag/index-siliconflow/`；Key 在 `nonebot/data/embedding_secrets.json` |
 | 管理面板 | 8092 | `uvicorn dashboard:app` | `nonebot/data/dashboard-auth.json`（0600）；监听地址用 `DASHBOARD_HOST` / `DASHBOARD_PORT`（默认 `127.0.0.1:8092`） |
 | 模型网关 AxonHub（可选） | 8090 | 独立二进制 | `axonhub/config.yml` |
 | gsuid_core（可选） | 8765 | `cd gsuid/core && uv run core`，或 compose 服务 | `gsuid/core/data/config.json` |
@@ -29,7 +29,7 @@ sudo bash deploy-linux/start.sh     # 启动 SnowLuma → gsuid（可选）→ q
 以下手动顺序用于自定义部署或排查：
 
 1. `docker compose --env-file docker/snowluma/.env.local -f compose.yml up -d`（SnowLuma，需要先有登录态；否则去 6081 扫码）
-2. RAG（可选，需先按 §7 建独立环境与索引）：`rag/.venv/bin/python rag/serve.py`
+2. RAG（可选，需先按 §7 配置 SiliconFlow Key 并构建云端索引）：`rag/.venv/bin/python rag/serve_cloud.py --port 8091`
 3. gsuid_core（启用游戏账号查询时）：先运行 `gsuid/install.sh` 完成安装；启动时 `cd gsuid/core && uv run core`（或 compose `docker compose up -d`）；**必须先于 NoneBot 启动**，否则适配器首连失败；core 启动后下一条消息会重试，必要时重启机器人
 4. NoneBot：`cd nonebot && ../.venv/bin/python bot.py`
 5. 面板：首次启动前先在 `nonebot/` 执行 `python dashboard.py --init`（生成认证文件与一次性密码，见 §8.0），再 `systemctl start qqbot-dashboard`（见 `nonebot/qqbot-dashboard.service`）。未初始化时面板可以启动，但登录必然返回 401。
@@ -74,7 +74,7 @@ SnowLuma 是**进程级注入**，同一 QQ 客户端里登录的所有号都会
 | 内容 | 位置 |
 |---|---|
 | NoneBot 主日志（UTF-8 文件 sink） | `nonebot/logs/<日期>.log` |
-| RAG | `rag/logs/` |
+| RAG | `logs/rag.out.log`、`logs/rag.err.log`（Windows 启动器与索引激活） |
 | 协议端 | `docker logs -f qqbot-snowluma`（或 `docker compose --env-file docker/snowluma/.env.local -f compose.yml logs -f snowluma`） |
 | 面板 | `journalctl -u qqbot-dashboard -f` |
 
@@ -203,62 +203,107 @@ IMAGE_MAX_COUNT=4     # 一条消息最多带几张图
 被 `quote_fix` 渲染成文字 `[图片]`，也不会作为图送给模型。
 
 ## 7. 知识库（RAG）
+
+RAG/嵌入只保留一条路径：**SiliconFlow `BAAI/bge-m3`**（1024 维，`/embed` 标识
+`siliconflow-bge-m3-v1`）。本地 ONNX 入口已移到 `rag/legacy-local/`，仅作历史参考，
+不受支持；不要再把 `rag/index/` 或本地模型产生的向量接回 8091。
+
 ```
-knowledge/*.md  ──build_index──▶  rag/index/{chunks,tokens,lexicon,vectors}  ──serve──▶  :8091
+knowledge/*.md  ──rebuild_index.py──▶  rag/index-siliconflow/{chunks,tokens,lexicon,vectors}
+                                             │
+                                             ▼
+                              serve_cloud.py :8091  ──/health /search /embed──▶  NoneBot
 ```
 
-`knowledge/*.md`（`达妮娅.md`、`梗知识.md`、`鸣潮库街区百科.md`）由 Git 跟踪；`rag/index/` 是
-`rag/build_index.py` 生成的可重建产物，已被 `.gitignore` 忽略。新检出没有索引是正常的，
-不是语料缺失。`rag/models/` 的 bge-m3 ONNX 权重同样不进仓库，需要按 `core.MODEL_DIR`
-放置（`rag/download_model.sh` 是要下载的文件清单示例，其中路径按本机修改）。
+`knowledge/*.md`（`达妮娅.md`、`梗知识.md`、`鸣潮库街区百科.md`）由 Git 跟踪；
+`rag/index-siliconflow/` 是可重建产物，已被 `.gitignore` 忽略，新检出没有索引是正常的。
+索引目录用 `KB_CLOUD_INDEX` 覆盖（默认 `rag/index-siliconflow/`）。索引的 `meta.json`
+必须带 `embed_backend=siliconflow`、`embed_model=BAAI/bge-m3`，否则 `serve_cloud.py`
+启动直接报模型不匹配。
 
-RAG 依赖**不在** `requirements.lock` 里，必须在仓库根目录单独建环境：
+前置条件：
+
+- SiliconFlow API Key（免费 `BAAI/bge-m3`），管理面板「知识库 Embedding」保存到
+  `nonebot/data/embedding_secrets.json`（0600，不回显）；也可以用 `KB_EMBED_KEY_FILE`
+  指定其他路径。
+- 一个已经构建好的云端索引（见下文）。只有 Key、没有索引时服务不会启动。
+
+RAG 运行依赖**不在** `requirements.lock` 里，单独建环境：
 
 ```bash
 cd rag
 python3.12 -m venv .venv
 . .venv/bin/activate
-pip install onnxruntime jieba tokenizers numpy fastapi uvicorn   # GPU 换成 onnxruntime-gpu
-python build_index.py --dir ../knowledge      # 全量几小时，支持断点续跑
-python serve.py --port 8091
+pip install jieba numpy fastapi uvicorn
+python rebuild_index.py --knowledge ../knowledge --output index-siliconflow
+python serve_cloud.py --port 8091
 ```
 
-两种服务不能混用：
+`rebuild_index.py` 会调用 SiliconFlow 批量编码并校准词条闸门。语料全量重建耗时与费用
+取决于规模，不要当日常刷新；`--limit N` 可做小规模冒烟，`--dry-run` 只列出语料。
+服务的环境变量：
 
-| 模式 | 入口 | `/embed` 模型标识 | 索引要求 |
-|---|---|---|---|
-| 本地 ONNX | `rag/serve.py` | `bge-m3-fp16-v1` | `rag/index/`，`meta.embed_backend` 为 `cpu`/`gpu` |
-| 云端 SiliconFlow | `rag/serve_cloud.py` | `siliconflow-bge-m3-v1` | `KB_CLOUD_INDEX`（默认 `rag/index-siliconflow/`），`meta.embed_backend=siliconflow` 且 `embed_model=BAAI/bge-m3` |
+| 变量 | 默认 | 作用 |
+|---|---|---|
+| `KB_CLOUD_INDEX` | `rag/index-siliconflow` | 服务实际加载的索引目录 |
+| `KB_RAG_PORT` | `8091` | `serve_cloud.py` 监听端口（也可 `--port`） |
+| `KB_RAG_HOST` | `127.0.0.1` | 监听地址，保持回环 |
+| `KB_EMBED_TIMEOUT` | `20` | 单次 SiliconFlow 请求超时（秒） |
+| `KB_EMBED_RETRIES` | `2` | 网络错误/429/5xx 的有限重试次数（0~5） |
+| `KB_RAG_TIMEOUT` | `8` | NoneBot 侧 `/health`、`/embed` 请求超时 |
 
-`rag/build_index.py` 只产出本地 ONNX 索引（`embed_backend` 为 `cpu`/`gpu`）；云端索引要用 SiliconFlow 的 `BAAI/bge-m3` 单独离线构建，并让 `meta.json` 带上 `embed_backend=siliconflow`、`embed_model=BAAI/bge-m3`，否则 `serve_cloud.py` 启动时直接报模型不匹配。
+`/health` 返回 `ready`、`chunks`、`embed_backend=siliconflow`、`model=BAAI/bge-m3` 和
+实际加载目录 `index`。管理面板显示「生效索引」时优先读 `/health`；服务不可达时退回
+`nonebot/data/rag-rebuild.json` 的 `active_index` 或显式 `KB_CLOUD_INDEX`/systemd
+`Environment`，不再按目录名猜最新索引。
 
-长期记忆（`nonebot/memory_logic.py`）把向量按 `siliconflow-bge-m3-v1` 记录，调用的是
-8091 的 `/embed`。因此本地向量和云端向量**不能写进同一个记忆库**，也不能拿本地索引直接
-给云端服务启动；切换服务必须重建索引，旧记忆向量按用户访问逐步重新生成。
+### Windows 索引激活
 
-- 检索只在判定「相关」时注入 1~2 块，无关一条都不塞
-- 索引里记了 `embed_backend`（`cpu`/`gpu`）和 `dim`，**CPU 与 GPU 版索引不能混用**；fp16 只在 CUDA 上更快
-- 语料改了要重建（几小时，支持断点续跑）；改检索阈值前后都要跑 `rag/eval_gate.py` 做闸门回归
-- 服务挂了或超时（2.5s），插件一律当「没命中」，不影响正常聊天
+`rebuild_index.py --activate` 在 Windows（以及没有 systemd 的 POSIX）会：
 
-开发服务器（2026-11-01）的部署采用云端方案：`qqbot-rag-cloud` 提供同一回环地址的 `/health`、
-`/search` 和 `/embed`，使用硅基流动 `BAAI/bge-m3`；管理面板「知识库 Embedding」
-可更新密钥，密钥保存于 `nonebot/data/embedding_secrets.json`（权限 600，不回显）。
-云端索引位于 `rag/index-siliconflow-20261101/`，包括原有语料和角色档案；原索引
-`rag/index/` 保留。原本地模型服务 `qqbot-rag` 已停用且取消开机启动，不要和云端
-服务同时绑定 8091。`/reindex` 在云端服务上返回 409，必须离线构建并验证新索引，
-不能直接用本地模型索引替换云端索引。
+1. 找到监听 8091 的进程并停止（`taskkill /T /F`），确认端口释放；
+2. 把旧目录改名为 `<active>.previous-<时间戳>`，再把新索引原子改名到 `active`；
+3. 以 `rag/serve_cloud.py --port 8091` 拉起独立进程，工作目录 `rag/`，日志
+   `logs/rag.out.log` / `logs/rag.err.log`，环境里写死 `KB_CLOUD_INDEX=<active>`；
+4. 轮询 `/health`，要求 `ready`、`chunks` 等于新索引块数、`index` 等于 active 目录；
+5. 任一步失败：停掉新进程、把失败目录改名为 `.failed-<时间戳>`、恢复旧目录并重新
+   拉起旧服务；回滚也失败时错误信息会同时列出原因。
 
-面板「知识库 Embedding」提供「重建 RAG 索引」按钮。按钮会先展示本次重建读取的
-`knowledge/` 下全部 `.md`/`.txt` 语料和可选的
-`rag/imports/character-profiles-*/chunks.jsonl`，点击后还会弹出二次确认。确认后
-后台调用 `rag/rebuild_index.py`：新索引写入同目录的临时重建目录，旧索引在构建期间
-继续服务；验证成功后停止 `qqbot-rag-cloud`、原子替换索引并重启，健康检查失败会
-自动回滚。重建会调用硅基流动 API，耗时和费用取决于语料规模，不要把它当成日常刷新。
+实现位于 `rag/service_control.py`（仅标准库），测试会 mock 其中的停/启函数。
+Linux 且系统里有 `systemctl` 时仍走原来的 `systemctl stop/start qqbot-rag-cloud`，
+行为保持不变。
 
-切换部署的原始文件备份在服务器 `/opt/qqbot/.deploy-embedding-siliconflow-20261101/backup/`。
-回退需先停止机器人和云端检索服务，再恢复备份的机器人记忆文件及面板文件、启用
-`qqbot-rag`，最后启动面板与机器人。回退前先检查这些文件是否有后续修改。
+### 向量一致性护栏
+
+长期记忆（`nonebot/plugins/memory.py`）和表情学习（`nonebot/meme_learning.py`）在每次
+写向量前都通过 `nonebot/rag_client.py` 检查 `/health`：
+
+- `ready != true`、`embed_backend != siliconflow` 或 `model != BAAI/bge-m3`：直接抛
+  `RagConsistencyError`，不写库，也不回退到本地向量；错误会进日志/任务失败原因。
+- `/embed` 返回的模型标识或维度不对：同样拒绝写入。
+
+一次性迁移（旧版本可能把本地 ONNX 向量按 `siliconflow-bge-m3-v1` 存过；先停机器人并
+备份数据库）：
+
+```bash
+sqlite3 nonebot/data/memories.sqlite3 'DELETE FROM memory_vectors;'
+sqlite3 nonebot/data/memes/library.sqlite3 'DELETE FROM meme_details;'
+```
+
+记忆向量会在用户下次访问时按需重建；表情包的 `meme_details` 含描述和向量，删掉后需要
+重新学习/重新描述（已上传图片仍保留，手工图片仍可随机选择）。不要只改 `model` 标签，
+那正是混库的来源。
+
+其他运行约束：
+
+- 检索只在判定「相关」时注入 1~2 块，无关一条都不塞；服务挂了或超时（2.5s）插件当
+  「没命中」，不影响正常聊天。
+- 改检索阈值前后跑 `rag/eval_gate.py`（它只调 8091 的 HTTP 服务）做闸门回归。
+- `/reindex` 在云端服务上返回 409；必须离线构建、验证后按上面的激活流程切换。
+- 面板「知识库 Embedding」的「重建 RAG 索引」会先展示本次读取的 `knowledge/` 下全部
+  `.md`/`.txt` 和可选的 `rag/imports/character-profiles-*/chunks.jsonl`，二次确认后
+  后台调用 `rag/rebuild_index.py`；新索引写到临时目录，验证成功后激活并健康检查，
+  失败自动回滚。
 
 ## 8. 管理面板
 
@@ -556,9 +601,9 @@ cd nonebot && python -m pytest tests/test_parser_credentials.py tests/test_parse
 - [ ] 数据卷 `qqbot-qq-config` / `qqbot-qq-data` **绝对不能删**，删了要重新扫码
 - [ ] `sysctl kernel.yama.ptrace_scope` ≤ 2（= 3 会直接拒绝注入）
 - [ ] 给容器加 `mem_limit` / `cpus`
-- [ ] 备份：数据库、`gate.json`、`model_pref.json`、`nonebot/templates/current.jinja2`、`rag/index`、`data/statuscard*`、`data/theme-presets.json`、`data/appearance-backgrounds/`、`gsuid/core/data`（启用 gsuid_core 时含账号绑定与 `config.json`）
+- [ ] 备份：数据库、`gate.json`、`model_pref.json`、`nonebot/templates/current.jinja2`、`rag/index-siliconflow*`、`data/statuscard*`、`data/theme-presets.json`、`data/appearance-backgrounds/`、`gsuid/core/data`（启用 gsuid_core 时含账号绑定与 `config.json`）
 - [ ] 面板已执行 `python dashboard.py --init` 且首次密码已修改；`data/dashboard-auth.json` 权限为 0600，一次性密码文件 `data/dashboard-initial-password` 已删除
-- [ ] 启用 RAG 时：独立 venv 已装 `onnxruntime` 等依赖，索引已构建；本地与云端索引/向量没有混用
+- [ ] 启用 RAG 时：`rag/.venv` 已装 `jieba numpy fastapi uvicorn`，SiliconFlow Key 已保存，云端索引已构建；`/health` 返回 `embed_backend=siliconflow`、`model=BAAI/bge-m3`；本地 ONNX 索引/向量没有混入
 - [ ] 状态卡默认已勾选「主机名」「进程信息」脱敏；公开群再加「网络数据」
 
 ## 10. 部署本地文件与同步排除
@@ -572,7 +617,7 @@ cd nonebot && python -m pytest tests/test_parser_credentials.py tests/test_parse
 | `nonebot/configs/templates.yml` | `nonebot/configs/templates.yml.example` | 人格配置；`userinfos` 含主人 QQ |
 | `nonebot/templates/current.jinja2` | — | 面板加载的当前人格正文；被 Git 忽略，`git pull` 保留，迁移必须单独复制 |
 | `nonebot/data/` | — | 运行时状态与凭据 |
-| `rag/index/`、`rag/models/` | — | 可重建的索引与模型权重；不随 Git 更新，迁移时复制可省去数小时重建 |
+| `rag/index-siliconflow*/` | — | 可重建的云端索引；不随 Git 更新，迁移时复制可省去数小时重建 |
 | `local/bot.env` | — | 被 Git 忽略的本机私有值；`QQBOT_SELF_ID` 优先从这里读取 |
 | `local/private/` | — | 私有交接文档、旧备份和调试快照；不进入版本控制 |
 | `/etc/systemd/system/qqbot-dashboard.service` 及 `.d/` | `nonebot/qqbot-dashboard.service` | 仓库 unit 默认绑 `127.0.0.1`，真实监听地址放 drop-in |
@@ -608,7 +653,7 @@ git clone <仓库地址> /opt/qqbot-new
 # 或：git -C /opt/qqbot worktree add /opt/qqbot-new <分支>
 ```
 
-然后从旧目录只复制上表列出的被忽略配置与数据，再切换 systemd 的 `WorkingDirectory`。不要用 `git clean -fdx`：它会删掉 `nonebot/data/`、`local/`、`rag/index/` 等未跟踪内容。
+然后从旧目录只复制上表列出的被忽略配置与数据，再切换 systemd 的 `WorkingDirectory`。不要用 `git clean -fdx`：它会删掉 `nonebot/data/`、`local/`、`rag/index-siliconflow*/` 等未跟踪内容。
 
 `nonebot/configs/models.yml` 与 `templates.yml` 本来就被 Git 忽略、未被跟踪，`git pull` 不会碰它们；不要为了「保险」再从 `.example` 复制一遍。
 

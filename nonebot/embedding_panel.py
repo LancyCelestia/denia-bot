@@ -11,6 +11,8 @@ import subprocess
 import sys
 import tempfile
 import time
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 from fastapi import HTTPException, Request
@@ -18,20 +20,44 @@ from fastapi import HTTPException, Request
 STATE_FILE = 'rag-rebuild.json'
 LOG_FILE = 'rag-rebuild.log'
 SERVICE = 'qqbot-rag-cloud'
+HEALTH_TIMEOUT = 1.5
 
 
 def _repo(root) -> Path:
     return Path(root).resolve().parent
 
 
-def _active_index(root) -> Path | None:
-    """Find the index path used by the systemd unit, with a local fallback."""
-    repo = _repo(root)
+def _repo_path(repo: Path, value) -> Path | None:
+    if not isinstance(value, str) or not value.strip():
+        return None
+    path = Path(value.strip())
+    path = path if path.is_absolute() else repo / path
+    path = path.resolve()
+    if path == repo or repo in path.parents:
+        return path
+    return None
+
+
+def _serving_index(root) -> Path | None:
+    """Ask the running service which directory it actually loaded."""
+    base = os.environ.get('KB_RAG_URL', 'http://127.0.0.1:8091').rstrip('/')
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    try:
+        with opener.open(base + '/health', timeout=HEALTH_TIMEOUT) as response:
+            data = json.load(response)
+    except (OSError, ValueError, urllib.error.URLError):
+        return None
+    if not isinstance(data, dict):
+        return None
+    return _repo_path(_repo(root), data.get('index'))
+
+
+def _configured_index(repo: Path) -> Path | None:
+    """Explicit deployment configuration, used when the service is not reachable."""
     configured = os.environ.get('KB_CLOUD_INDEX', '').strip()
     if configured:
-        path = Path(configured)
-        path = path if path.is_absolute() else repo / path
-        if path == repo or repo in path.parents:
+        path = _repo_path(repo, configured)
+        if path is not None:
             return path
     for unit in (Path('/etc/systemd/system/qqbot-rag-cloud.service'), Path('/lib/systemd/system/qqbot-rag-cloud.service')):
         try:
@@ -40,13 +66,30 @@ def _active_index(root) -> Path | None:
             continue
         match = re.search(r'^\s*Environment\s*=\s*KB_CLOUD_INDEX=(\S+)', text, re.MULTILINE)
         if match:
-            path = Path(match.group(1))
-            path = path if path.is_absolute() else repo / path
-            if path == repo or repo in path.parents:
+            path = _repo_path(repo, match.group(1))
+            if path is not None:
                 return path
-    rag = repo / 'rag'
-    candidates = sorted(p for p in rag.glob('index-siliconflow*') if p.is_dir() and '.rebuild-' not in p.name)
-    return candidates[-1] if candidates else None
+    return None
+
+
+def _active_index(root) -> Path | None:
+    """Report the serving index from /health or an explicit state/config path.
+
+    Never guess from the newest `index-siliconflow*` directory: the build output
+    exists before activation and a failed rebuild must not look active.
+    """
+    repo = _repo(root)
+    served = _serving_index(root)
+    if served is not None and served.is_dir():
+        return served
+    state_index = _read_state(root).get('active_index')
+    path = _repo_path(repo, state_index)
+    if path is not None and path.is_dir():
+        return path
+    configured = _configured_index(repo)
+    if configured is not None and configured.is_dir():
+        return configured
+    return None
 
 
 def _profile_path(root) -> Path | None:
@@ -136,8 +179,14 @@ def _pid_alive(pid) -> bool:
 
 
 def _python_for(root) -> str:
-    rag = _repo(root) / 'rag'
-    for candidate in (rag / '.venv' / 'bin' / 'python', rag / '.venv' / 'Scripts' / 'python.exe'):
+    repo = _repo(root)
+    candidates = (
+        repo / 'rag' / '.venv' / 'bin' / 'python',
+        repo / 'rag' / '.venv' / 'Scripts' / 'python.exe',
+        repo / 'nonebot' / '.venv' / 'bin' / 'python',
+        repo / 'nonebot' / '.venv' / 'Scripts' / 'python.exe',
+    )
+    for candidate in candidates:
         if candidate.is_file():
             return str(candidate)
     return sys.executable
@@ -156,11 +205,13 @@ def _start_rebuild(root, *, sources: dict, active: Path | None, state: dict, log
     script = repo / 'rag' / 'rebuild_index.py'
     if not script.is_file():
         raise HTTPException(503, '重建脚本不存在：rag/rebuild_index.py')
+    # The cloud launcher serves `index-siliconflow` by default. If no service or
+    # explicit active index is present (clean Windows checkout), rebuild into
+    # that default and activate it instead of leaving an inert timestamped dir.
+    if active is None:
+        active = repo / 'rag' / 'index-siliconflow'
     stamp = time.strftime('%Y%m%d-%H%M%S')
-    if active is not None:
-        output = active.with_name(f'{active.name}.rebuild-{stamp}')
-    else:
-        output = repo / 'rag' / f'index-siliconflow-{stamp}'
+    output = active.with_name(f'{active.name}.rebuild-{stamp}')
     command = [
         _python_for(root), str(script),
         '--knowledge', str(repo / 'knowledge'),
@@ -175,6 +226,10 @@ def _start_rebuild(root, *, sources: dict, active: Path | None, state: dict, log
         command += [
             '--active', str(active),
             '--service', SERVICE,
+            '--health-url', os.environ.get(
+                'KB_RAG_HEALTH_URL',
+                f"http://127.0.0.1:{os.environ.get('KB_RAG_PORT', '8091')}/health",
+            ),
             '--activate',
         ]
     log_path.parent.mkdir(parents=True, exist_ok=True)
