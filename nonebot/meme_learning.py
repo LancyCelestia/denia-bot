@@ -180,7 +180,7 @@ class Store:
                 db.execute('INSERT INTO categories VALUES (?,?,?)', (category_id, name, category_description))
             if not db.execute('SELECT 1 FROM meme_details WHERE digest=?', (job[0],)).fetchone():
                 image_id = secrets.token_hex(6)
-                db.execute('INSERT INTO images VALUES (?,?,?,?)', (image_id, category_id, job[1], job[2]))
+                db.execute('INSERT INTO images(id,category,content,mime) VALUES (?,?,?,?)', (image_id, category_id, job[1], job[2]))
                 db.execute('INSERT INTO meme_details VALUES (?,?,?,?)', (image_id, job[0], description, json.dumps(vector)))
             db.execute("UPDATE meme_learning_jobs SET status='done',content=NULL,error='' WHERE id=?", (job_id,))
 
