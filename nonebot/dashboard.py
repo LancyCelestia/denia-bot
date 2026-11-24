@@ -536,7 +536,7 @@ async def set_plugin_settings(req: Request):
 def user(uid: str, req: Request):
     authorized(req)
     if not uid.isdigit(): raise HTTPException(400)
-    return {'memories':memory.list_memories(memory.DEFAULT_PATH,uid),'candidates':memory.list_candidates(memory.DEFAULT_PATH,uid),'enabled':memory.is_enabled(memory.DEFAULT_PATH,uid)}
+    return memory.describe_user(memory.DEFAULT_PATH, uid)
 
 @app.get('/api/master-aware')
 def master_aware_settings(req: Request):
