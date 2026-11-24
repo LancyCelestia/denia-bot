@@ -117,8 +117,11 @@ def _clean_origin(origin, owner_id):
     group = origin.get('group_id')
     group = _safe_id(group) if group not in (None, '', '-1') else None
     bot = _safe_id(origin.get('bot_id')) or ''
+    raw_participants = origin.get('participants')
+    if not isinstance(raw_participants, (list, tuple)):
+        raw_participants = ()
     participants = []
-    for raw in origin.get('participants') or ():
+    for raw in raw_participants:
         pid = _safe_id(raw)
         if pid and pid != str(owner_id) and pid not in participants:
             participants.append(pid)
@@ -139,6 +142,16 @@ def _as_int(value):
         return int(value)
     except (TypeError, ValueError):
         return None
+
+
+def _relation_index(value):
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str) and value.isdigit():
+        return int(value)
+    return None
 
 
 def _clamp_weight(value, default):
@@ -400,8 +413,7 @@ def _link_cross(con, user_id, memory_id, packed, origin):
         JOIN memory_vectors v ON v.memory_id=m.id AND v.model='siliconflow-bge-m3-v1'
         WHERE m.user_id IN ({marks}) AND m.user_id != ?
           AND EXISTS (SELECT 1 FROM memory_observations o
-              WHERE o.memory_id=m.id AND o.group_id=? AND ABS(o.origin_ts-?) <= ?)
-        GROUP BY m.id LIMIT 40''',
+              WHERE o.memory_id=m.id AND o.group_id=? AND ABS(o.origin_ts-?) <= ?)''',
         (*participants, str(user_id), origin['group_id'], int(origin['origin_ts']),
          CROSS_WINDOW)).fetchall()
     scored = []
@@ -749,7 +761,7 @@ def parse_relations(raw, allowed):
     for link in data['links'][:20]:
         if not isinstance(link, dict):
             continue
-        src, dst = _as_int(link.get('from')), _as_int(link.get('to'))
+        src, dst = _relation_index(link.get('from')), _relation_index(link.get('to'))
         if src is None or dst is None:
             continue
         if src not in allowed or dst not in (allowed[src] or ()):

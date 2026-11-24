@@ -51,6 +51,23 @@ class MemoryGraphTest(unittest.TestCase):
                           origin=origin(ts=1003 + index))
         self.assertEqual(m.describe_user(self.db, '1')['memories'][0]['observation_count'], 20)
 
+    def test_candidate_queue_full_is_reported(self):
+        for index in range(m.MAX_CANDIDATES):
+            outcomes = m.apply_facts(
+                self.db, '1', 'private', 0,
+                [{'action': 'candidate', 'text': f'候选记忆{index:02d}',
+                  'similar_id': None, 'reason': 'similar', 'weight': 0.5}],
+                event_id=f'c{index}')
+            self.assertEqual(outcomes[0]['status'], 'candidate')
+        self.assertEqual(len(m.list_candidates(self.db, '1')), m.MAX_CANDIDATES)
+        outcomes = m.apply_facts(
+            self.db, '1', 'private', 0,
+            [{'action': 'candidate', 'text': '超出队列的候选记忆', 'similar_id': None,
+              'reason': 'similar', 'weight': 0.5}],
+            event_id='overflow')
+        self.assertEqual(outcomes[0], {'status': 'candidate_full', 'id': None})
+        self.assertEqual(len(m.list_candidates(self.db, '1')), m.MAX_CANDIDATES)
+
     def test_conflict_candidate_then_accept_creates_edge(self):
         saved = self.save('1', '用户喜欢咖啡', [1, 0], event='e1')
         outcomes = m.apply_facts(self.db, '1', 'group', 0,
@@ -99,6 +116,11 @@ class MemoryGraphTest(unittest.TestCase):
         recalled = m.recall(self.db, '1', [1, 0], '咖啡')
         self.assertEqual([row['text'] for row in recalled], ['用户喜欢咖啡'])
 
+    def test_clean_origin_ignores_malformed_participants(self):
+        self.assertEqual(
+            m._clean_origin({'origin_ts': 1, 'participants': '12'}, '1'),
+            {'group_id': None, 'bot_id': '', 'origin_ts': 1, 'participants': []})
+
     def test_parse_relations_rejects_invalid_and_dedupes(self):
         raw = '''```json
 {"links":[
@@ -107,7 +129,9 @@ class MemoryGraphTest(unittest.TestCase):
  {"from":1,"to":2,"kind":"corroborates","weight":0.9},
  {"from":0,"to":9,"kind":"corroborates","weight":0.8},
  {"from":0,"to":2,"kind":"bogus","weight":0.8},
- {"from":true,"to":2,"kind":"related","weight":0.8}
+ {"from":true,"to":2,"kind":"related","weight":0.8},
+ {"from":0.5,"to":2,"kind":"related","weight":0.8},
+ {"from":"-1","to":2,"kind":"related","weight":0.8}
 ]}
 ```'''
         links = m.parse_relations(raw, {0: {2}, 1: {2}})
@@ -115,6 +139,14 @@ class MemoryGraphTest(unittest.TestCase):
             {'from': 0, 'to': 2, 'kind': 'contradicts', 'weight': 0.6},
             {'from': 1, 'to': 2, 'kind': 'corroborates', 'weight': 0.9},
         ])
+        self.assertEqual(m.parse_relations(
+            '{"links":[{"from":"0","to":"2","kind":"refines","weight":0.4}]}',
+            {0: {2}}),
+            [{'from': 0, 'to': 2, 'kind': 'refines', 'weight': 0.5}])
+        self.assertEqual(m.parse_relations(
+            '{"links":[{"from":0.5,"to":2,"kind":"related","weight":0.8}]}', {0: {2}}), [])
+        self.assertEqual(m.parse_relations(
+            '{"links":[{"from":"-1","to":2,"kind":"related","weight":0.8}]}', {0: {2}}), [])
         self.assertEqual(m.parse_relations('not json', {0: {2}}), [])
 
     def test_correct_and_forget_remove_edges_and_observations(self):
