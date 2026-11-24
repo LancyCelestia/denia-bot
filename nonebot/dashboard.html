@@ -1247,8 +1247,8 @@ async function loadMemes(){
   }
   $('memeEmpty').hidden=data.categories.length>0
 }
-async function importMemes(){run(async()=>{const data=await api('/api/memes/import',{});const failed=(data.errors||[]).length;$('memeImportState').textContent=`导入 ${data.imported} 张，跳过重复 ${data.skipped} 张，新建 ${data.categories} 个分类${failed?`，${failed} 条失败`:''}`;await loadMemes()})}
-async function autoTagMemes(){run(async()=>{const data=await api('/api/memes/auto-tag',{});$('memeImportState').textContent=`已重新标注 ${data.updated} 张`;await loadMemes()})}
+async function importMemes(){run(async()=>{$('memeImportState').textContent='正在扫描 data/stickers…';const data=await api('/api/memes/import',{});const failed=(data.errors||[]).length;$('memeImportState').textContent=`导入 ${data.imported} 张，跳过重复 ${data.skipped} 张，新建 ${data.categories} 个分类${failed?`，${failed} 条失败`:''}`;await loadMemes()})}
+async function autoTagMemes(){run(async()=>{$('memeImportState').textContent='正在重新标注…';const data=await api('/api/memes/auto-tag',{});$('memeImportState').textContent=`已重新标注 ${data.updated} 张`;await loadMemes()})}
 async function createMemeCategory(){run(async()=>{await api('/api/memes/category',{name:$('memeName').value,description:$('memeDescription').value});$('memeName').value='';$('memeDescription').value='';await loadMemes()})}
 async function saveMemeRules(){run(async()=>{await api('/api/memes/rules',{enabled:$('memeEnabled').checked,disabled_scopes:$('memeDisabledScopes').value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean)});$('memeSaved').textContent='已保存';await loadMemes()})}
 async function loadEmbedding(){let x=await api('/api/embedding');$('embeddingKey').value='';$('embeddingKey').placeholder=x.configured?'已配置，留空保持不变':'请输入 API Key';$('embeddingState').textContent=x.configured?`已配置 · ${x.provider||'SiliconFlow'} · ${x.model||'BAAI/bge-m3'}`:'未配置';await loadEmbeddingRebuild()}
