@@ -35,6 +35,7 @@ hyperframe==6.1.0
 idna==3.20
 importlib_metadata==10.1.0
 Jinja2==3.1.6
+jieba==0.42.1
 jiter==0.18.0
 jsonschema==4.26.0
 jsonschema-specifications==2025.9.1
