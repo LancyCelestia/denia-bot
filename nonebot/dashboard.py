@@ -754,13 +754,37 @@ async def import_bilibili_cookies(req: Request):
         raise HTTPException(400, '请提供 Cookie 字符串或 JSON')
     try:
         cookies = parser_credentials.parse_cookie_input(raw)
-        return parser_credentials.save_bilibili_cookies(cookies)
+        rows = parser_credentials.parse_bilibili_cookie_rows(raw)
+        return parser_credentials.save_bilibili_cookies(cookies, rows=rows)
     except FileExistsError as e:
         raise HTTPException(409, str(e))
     except (ValueError, TypeError) as e:
         raise HTTPException(400, str(e))
     except OSError:
         raise HTTPException(503, 'B 站 Cookie 无法保存，请稍后重试')
+
+
+@app.post('/api/parser/cookies')
+async def import_parser_cookies(req: Request):
+    mutate(req)
+    try:
+        body = await req.json()
+    except (ValueError, TypeError):
+        raise HTTPException(400, '请求格式无效')
+    if not isinstance(body, dict):
+        raise HTTPException(400, '请求格式无效')
+    platform = body.get('platform')
+    raw = body.get('cookies')
+    if not isinstance(platform, str) or not isinstance(raw, str):
+        raise HTTPException(400, '请提供平台和 Cookie 内容')
+    try:
+        return parser_credentials.save_platform_cookies(platform, raw)
+    except FileExistsError as e:
+        raise HTTPException(409, str(e))
+    except (ValueError, TypeError) as e:
+        raise HTTPException(400, str(e))
+    except OSError:
+        raise HTTPException(503, 'Cookie 文件无法写入，请稍后重试')
 
 
 @app.post('/api/parser/bilibili/qr')

@@ -2,6 +2,7 @@
 
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
@@ -67,6 +68,102 @@ class ParserCredentialApiTest(unittest.TestCase):
                 self.assertTrue(
                     client.get('/api/parser').json()['secrets']['bilibili.cookies']
                 )
+
+    def test_generic_cookie_import_requires_auth_csrf_and_filters_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            config = Path(tmp) / 'config.json'
+            far = int(time.time()) + 86400
+            raw = (
+                '# Netscape HTTP Cookie File\n'
+                f'#HttpOnly_.xiaohongshu.com\tTRUE\t/\tTRUE\t{far}\tweb_session\tsecret-xhs\n'
+                '.xiaohongshu.com\tTRUE\t/\tFALSE\t0\ta1\tabc\n'
+            )
+            with patch.object(parser_settings, 'PATH', config), \
+                 patch.object(d, 'session_store_path', lambda: Path(tmp) / 'sessions.json'):
+                payload = {'platform': 'xhs', 'cookies': raw}
+                self.assertEqual(
+                    TestClient(d.app).post('/api/parser/cookies', json=payload).status_code,
+                    401,
+                )
+                client, headers = self._login(tmp)
+                self.assertEqual(
+                    client.post('/api/parser/cookies', json=payload).status_code, 403
+                )
+                self.assertEqual(
+                    client.post(
+                        '/api/parser/cookies',
+                        json={'platform': 'unknown', 'cookies': raw},
+                        headers=headers,
+                    ).status_code,
+                    400,
+                )
+                mismatch = client.post(
+                    '/api/parser/cookies',
+                    json={
+                        'platform': 'xhs',
+                        'cookies': '# Netscape HTTP Cookie File\n'
+                        '.example.com\tTRUE\t/\tFALSE\t0\tweb_session\tnope\n',
+                    },
+                    headers=headers,
+                )
+                self.assertEqual(mismatch.status_code, 400)
+                self.assertIn('域名', mismatch.json()['detail'])
+                expired = client.post(
+                    '/api/parser/cookies',
+                    json={
+                        'platform': 'xhs',
+                        'cookies': '# Netscape HTTP Cookie File\n'
+                        '.xiaohongshu.com\tTRUE\t/\tFALSE\t1\tweb_session\told\n',
+                    },
+                    headers=headers,
+                )
+                self.assertEqual(expired.status_code, 400)
+                self.assertIn('过期', expired.json()['detail'])
+                self.assertFalse(config.exists())
+
+                response = client.post('/api/parser/cookies', json=payload, headers=headers)
+                self.assertEqual(response.status_code, 200, response.text)
+                data = response.json()
+                self.assertEqual(data['count'], 2)
+                self.assertEqual(data['platform'], 'xhs')
+                self.assertTrue(data['secrets']['xhs.cookies'])
+                self.assertTrue(data['file_written'])
+                self.assertNotIn('secret-xhs', response.text)
+                self.assertNotIn('abc', response.text)
+                target = Path(tmp) / 'cookies' / 'xhs_cookies.txt'
+                self.assertTrue(target.exists())
+                content = target.read_text(encoding='utf-8')
+                self.assertIn('#HttpOnly_.xiaohongshu.com', content)
+                self.assertIn('\tweb_session\tsecret-xhs', content)
+                self.assertEqual(
+                    client.get('/api/parser').json()['secrets']['xhs.cookies'], True
+                )
+
+    def test_bilibili_netscape_import_writes_cookie_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            config = Path(tmp) / 'config.json'
+            raw = (
+                '# Netscape HTTP Cookie File\n'
+                '#HttpOnly_.bilibili.com\tTRUE\t/\tTRUE\t0\tSESSDATA\tsess\n'
+                '.bilibili.com\tTRUE\t/\tFALSE\t0\tbili_jct\tjct\n'
+            )
+            with patch.object(parser_settings, 'PATH', config), \
+                 patch.object(d, 'session_store_path', lambda: Path(tmp) / 'sessions.json'), \
+                 patch.object(parser_credentials, 'write_bilibili_credential') as write:
+                client, headers = self._login(tmp)
+                response = client.post(
+                    '/api/parser/bilibili/cookies',
+                    json={'cookies': raw},
+                    headers=headers,
+                )
+                self.assertEqual(response.status_code, 200, response.text)
+                self.assertTrue(response.json()['cookie_file_written'])
+                target = Path(tmp) / 'cookies' / 'bilibili_cookies.txt'
+                self.assertTrue(target.exists())
+                content = target.read_text(encoding='utf-8')
+                self.assertIn('#HttpOnly_.bilibili.com', content)
+                self.assertIn('\tSESSDATA\tsess', content)
+                write.assert_called_once()
 
     def test_qr_endpoints_are_authenticated_and_csrf_checked(self):
         with tempfile.TemporaryDirectory() as tmp:

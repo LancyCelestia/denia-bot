@@ -10,6 +10,109 @@ from nonebot import logger
 
 from .config import ParserItem, PluginConfig
 
+NETSCAPE_HEADER = "# Netscape HTTP Cookie File"
+HTTP_ONLY_PREFIX = "#HttpOnly_"
+
+
+@dataclass(frozen=True, slots=True)
+class NetscapeCookie:
+    """One row of a browser-exported Netscape cookie file."""
+
+    domain: str
+    include_subdomains: bool
+    path: str
+    secure: bool
+    expires: int
+    name: str
+    value: str
+    http_only: bool = False
+
+    def to_netscape_line(self) -> str:
+        domain = f"{HTTP_ONLY_PREFIX}{self.domain}" if self.http_only else self.domain
+        return "\t".join(
+            (
+                domain,
+                "TRUE" if self.include_subdomains else "FALSE",
+                self.path,
+                "TRUE" if self.secure else "FALSE",
+                str(self.expires),
+                self.name,
+                self.value,
+            )
+        )
+
+
+def parse_netscape_cookie_line(line: str) -> NetscapeCookie | None:
+    """Parse one Netscape cookie line without touching any CookieJar state.
+
+    ``#HttpOnly_`` rows are accepted and keep the HttpOnly flag; other
+    comments and malformed rows return ``None``.
+    """
+    if not line.strip():
+        return None
+
+    line = line.lstrip("\ufeff").lstrip()
+    http_only = line.startswith(HTTP_ONLY_PREFIX)
+    if http_only:
+        line = line.removeprefix(HTTP_ONLY_PREFIX)
+    elif line.startswith("#"):
+        return None
+
+    parts = line.split("\t")
+    if len(parts) != 7:
+        return None
+
+    domain, include_subdomains, path, secure, expires, name, value = parts
+    if not domain or not path or not name:
+        return None
+    if path[0] != "/":
+        return None
+    if any(sep in domain for sep in ("=", ";")):
+        return None
+    if any(char.isspace() for char in domain):
+        return None
+    if any(sep in name for sep in ("=", ";")):
+        return None
+    if any(char.isspace() for char in name):
+        return None
+    if include_subdomains.upper() not in {"TRUE", "FALSE"}:
+        return None
+    if secure.upper() not in {"TRUE", "FALSE"}:
+        return None
+
+    try:
+        expires_at = int(expires)
+    except ValueError:
+        return None
+
+    return NetscapeCookie(
+        domain=domain,
+        include_subdomains=include_subdomains.upper() == "TRUE",
+        path=path,
+        secure=secure.upper() == "TRUE",
+        expires=expires_at,
+        name=name,
+        value=value,
+        http_only=http_only,
+    )
+
+
+def is_netscape_cookie_file(cookies_str: str) -> bool:
+    """Detect Netscape files, including single-row exports without a header."""
+    valid_rows = 0
+    for line in (cookies_str or "").splitlines():
+        stripped = line.strip().lstrip("\ufeff")
+        if not stripped:
+            continue
+        if stripped.lower() == NETSCAPE_HEADER.lower():
+            return True
+        if stripped.startswith("#") and not stripped.startswith(HTTP_ONLY_PREFIX):
+            continue
+        if parse_netscape_cookie_line(line) is None:
+            return False
+        valid_rows += 1
+    return valid_rows > 0
+
 
 @dataclass(slots=True)
 class Cookie:
@@ -67,9 +170,10 @@ class CookieJar:
 
         self.cookie_file = config.cookie_dir / f"{parser_cfg.name}_cookies.txt"
         self.cookies: list[Cookie] = []
+        self._cookies_str = ""
+        self._file_mtime = self._cookie_file_mtime()
 
         self.raw_cookies = parser_cfg.cookies
-        self.cookies_str = ""
 
         if self.raw_cookies:
             self.cookies_str = self.clean_cookies_str(self.raw_cookies)
@@ -78,6 +182,33 @@ class CookieJar:
 
         if self.cookie_file.exists():
             self.load_from_file()
+
+    @property
+    def cookies_str(self) -> str:
+        """Cookie header text, refreshed when the dashboard rewrites the file."""
+        self.reload_if_changed()
+        return self._cookies_str
+
+    @cookies_str.setter
+    def cookies_str(self, value: str) -> None:
+        self._cookies_str = value
+
+    def _cookie_file_mtime(self) -> int | None:
+        try:
+            return self.cookie_file.stat().st_mtime_ns
+        except OSError:
+            return None
+
+    def reload_if_changed(self) -> bool:
+        """Reload a cookies file written by the dashboard without a restart."""
+        if not self.cookie_file.exists():
+            return False
+        mtime = self._cookie_file_mtime()
+        if mtime is None or mtime == self._file_mtime:
+            return False
+        self._file_mtime = mtime
+        self.load_from_file()
+        return True
 
     # ---------------- public ----------------
 
@@ -127,6 +258,7 @@ class CookieJar:
     def _ordered_matching_cookies(
         self, path: str = "/", secure: bool = True, domain: str | None = None
     ) -> list[Cookie]:
+        self.reload_if_changed()
         return sorted(
             self._matching_cookies(path=path, secure=secure, domain=domain),
             key=lambda cookie: len(cookie.path),
@@ -153,58 +285,24 @@ class CookieJar:
 
     @staticmethod
     def _is_netscape_cookie_file(cookies_str: str) -> bool:
-        valid_row_count = 0
-        for line in cookies_str.splitlines():
-            if line.strip().lower() == "# netscape http cookie file":
-                return True
-            if CookieJar._parse_netscape_cookie_line(line) is not None:
-                valid_row_count += 1
-                if valid_row_count >= 2:
-                    return True
-        return False
+        return is_netscape_cookie_file(cookies_str)
 
     @staticmethod
     def _parse_netscape_cookie_line(
         line: str,
     ) -> tuple[str, str, str, str, int, str, str] | None:
-        if not line.strip():
+        cookie = parse_netscape_cookie_line(line)
+        if cookie is None:
             return None
-
-        line = line.lstrip()
-        if line.startswith("#") and not line.startswith("#HttpOnly_"):
-            return None
-
-        if line.startswith("#HttpOnly_"):
-            line = line.removeprefix("#HttpOnly_")
-
-        parts = line.split("\t")
-        if len(parts) != 7:
-            return None
-
-        domain, include_subdomains, path, secure, expires, name, value = parts
-        if not domain or not path or not name:
-            return None
-        if path[0] != "/":
-            return None
-        if any(sep in domain for sep in ("=", ";")):
-            return None
-        if any(char.isspace() for char in domain):
-            return None
-        if any(sep in name for sep in ("=", ";")):
-            return None
-        if any(char.isspace() for char in name):
-            return None
-        if include_subdomains.upper() not in {"TRUE", "FALSE"}:
-            return None
-        if secure.upper() not in {"TRUE", "FALSE"}:
-            return None
-
-        try:
-            expires_at = int(expires)
-        except ValueError:
-            return None
-
-        return domain, include_subdomains, path, secure, expires_at, name, value
+        return (
+            cookie.domain,
+            "TRUE" if cookie.include_subdomains else "FALSE",
+            cookie.path,
+            "TRUE" if cookie.secure else "FALSE",
+            cookie.expires,
+            cookie.name,
+            cookie.value,
+        )
 
     def _sync_cookies_str(self) -> None:
         self.cookies_str = "; ".join(f"{c.name}={c.value}" for c in self.cookies)
@@ -250,13 +348,12 @@ class CookieJar:
 
     def _load_from_netscape_cookies_str(self, cookies_str: str) -> None:
         for line in cookies_str.splitlines():
-            parsed = self._parse_netscape_cookie_line(line)
-            if parsed is None:
+            cookie = parse_netscape_cookie_line(line)
+            if cookie is None:
                 continue
 
-            domain, include_subdomains, path, secure, expires_at, name, value = parsed
-
-            if include_subdomains.upper() == "TRUE":
+            domain = cookie.domain
+            if cookie.include_subdomains:
                 if not domain.startswith("."):
                     domain = f".{domain}"
             else:
@@ -265,11 +362,11 @@ class CookieJar:
             self.cookies.append(
                 Cookie(
                     domain=domain,
-                    path=path,
-                    name=name,
-                    value=value,
-                    secure=secure.upper() == "TRUE",
-                    expires=expires_at,
+                    path=cookie.path,
+                    name=cookie.name,
+                    value=cookie.value,
+                    secure=cookie.secure,
+                    expires=cookie.expires,
                 )
             )
 
@@ -302,6 +399,7 @@ class CookieJar:
             )
 
         cj.save(ignore_discard=True, ignore_expires=True)
+        self._file_mtime = self._cookie_file_mtime()
         logger.debug(f"已保存 {len(cj)} 个 Cookie 到 {self.cookie_file}")
 
     def load_from_file(self) -> None:
@@ -326,6 +424,7 @@ class CookieJar:
             )
 
         self._sync_cookies_str()
+        self._file_mtime = self._cookie_file_mtime()
         logger.debug(f"从文件加载 {len(self.cookies)} 个 Cookie")
 
     # ---------------- update from response ----------------
