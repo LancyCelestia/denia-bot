@@ -389,6 +389,13 @@ class DashboardTest(unittest.TestCase):
                 saved = client.post('/api/topic', json={'group': '123', 'action': '开'}, headers=headers)
                 self.assertEqual(saved.status_code, 200)
                 self.assertEqual(saved.json()['group'], '123')
+                legacy = client.post('/api/topic', json={'group': '00123', 'action': '开'}, headers=headers)
+                self.assertEqual(legacy.status_code, 200)
+                self.assertEqual(legacy.json()['group'], '00123')
+                self.assertTrue(client.get('/api/group/00123').json()['enabled'])
+                self.assertEqual(client.post('/api/topic', json={'group': '00123', 'action': '关'}, headers=headers).status_code, 200)
+                self.assertFalse(client.get('/api/group/00123').json()['enabled'])
+                self.assertTrue(client.get('/api/group/123').json()['enabled'])
 
     def test_model_chat_test_endpoint_requires_csrf_and_maps_errors(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -320,3 +320,58 @@ def test_gateway_endpoint_helpers_reject_unusable_urls():
     assert gateway_session_logic.endpoint('') is None
     assert not gateway_session_logic.same_endpoint(None, None)
     assert not gateway_session_logic.same_endpoint('', '')
+
+
+def test_gateway_endpoint_normalizes_default_ports_and_accepts_url_objects():
+    assert gateway_session_logic.same_endpoint('https://gw/v1', 'https://gw:443/v1/')
+    assert gateway_session_logic.same_endpoint('http://gw/v1', 'http://gw:80/v1')
+    assert gateway_session_logic.same_endpoint(httpx.URL('https://gw/v1/'), 'https://gw/v1')
+    assert not gateway_session_logic.same_endpoint('https://gw:444/v1', 'https://gw/v1')
+    assert not gateway_session_logic.same_endpoint('https://gw/v1', 'https://gw/v2')
+    assert not gateway_session_logic.same_endpoint('http://gw/v1', 'https://gw/v1')
+
+
+def test_default_entry_with_explicit_port_still_gets_gateway_session(tmp_path, monkeypatch):
+    text = """direct:
+  provider: openai
+  default: true
+  model_name: direct-model
+  api_host: "https://api.example.test:443/v1/"
+  api_key: sk-secret-value
+relay:
+  api_host: "https://api.example.test/v1"
+"""
+    write_config(tmp_path, monkeypatch, text)
+    seen = {}
+
+    def handler(request):
+        seen['session'] = request.headers.get('x-opencode-session')
+        return httpx.Response(200, json={'choices': [{'message': {'content': 'ok'}}]})
+
+    patch_transport(monkeypatch, handler)
+    run_chat([{'role': 'user', 'content': 'hi'}])
+
+    assert seen['session'].startswith('qqbot-')
+
+
+def test_default_entry_with_different_path_has_no_gateway_session(tmp_path, monkeypatch):
+    text = """direct:
+  provider: openai
+  default: true
+  model_name: direct-model
+  api_host: "https://api.example.test/v2"
+  api_key: sk-secret-value
+relay:
+  api_host: "https://api.example.test/v1"
+"""
+    write_config(tmp_path, monkeypatch, text)
+    seen = {}
+
+    def handler(request):
+        seen['session'] = request.headers.get('x-opencode-session')
+        return httpx.Response(200, json={'choices': [{'message': {'content': 'ok'}}]})
+
+    patch_transport(monkeypatch, handler)
+    run_chat([{'role': 'user', 'content': 'hi'}])
+
+    assert seen['session'] is None

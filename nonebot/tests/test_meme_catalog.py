@@ -21,6 +21,12 @@ def picture(color):
     return data.getvalue()
 
 
+def large_picture(color='red', size=100):
+    data = io.BytesIO()
+    Image.new('RGB', (size, size), color).save(data, format='PNG')
+    return data.getvalue()
+
+
 def make_sticker_tree(root):
     folder = root / 'stickers' / '守岸人Q版表情包'
     folder.mkdir(parents=True)
@@ -105,6 +111,21 @@ def test_import_reads_bounded_and_accepts_exact_limit(tmp_path, monkeypatch):
     assert second['imported'] == 0
     assert second['failed'] == 1
     assert '超过 5 MB' in second['errors'][0]
+
+
+def test_import_continues_after_pillow_validation_failure(tmp_path, monkeypatch):
+    monkeypatch.setattr(meme_catalog, 'DATA_ROOT', tmp_path)
+    monkeypatch.setattr(meme_catalog, 'DEFAULT_IMPORT_ROOT', tmp_path / 'stickers')
+    folder = tmp_path / 'stickers' / '素材'
+    folder.mkdir(parents=True)
+    (folder / 'bad.png').write_bytes(large_picture())
+    (folder / 'ok.png').write_bytes(picture('blue'))
+    library = meme_logic.Library(tmp_path / 'library')
+    with patch.object(meme_logic.Image, 'MAX_IMAGE_PIXELS', 100):
+        result = meme_catalog.import_tree(library)
+    assert result['imported'] == 1
+    assert result['failed'] == 1
+    assert 'bad.png' in result['errors'][0]
 
 
 def test_import_limit_counts_only_new_files(tmp_path, monkeypatch):
@@ -254,6 +275,56 @@ def test_upload_preserves_explicit_empty_tags_and_weight(tmp_path):
             saved = library.images(category)[0]
             assert saved['tags'] == ''
             assert saved['weight'] == 1.0
+
+
+def test_upload_rejects_pillow_validation_failure_before_tagging(tmp_path):
+    library = meme_logic.Library(tmp_path / 'library')
+    category = library.put_category('Q版', '庆祝')
+    with patch.object(d, 'AUTH_FILE', tmp_path / 'auth'), \
+            patch.object(d, 'meme_library', library), \
+            patch.object(d, 'session_store_path', return_value=tmp_path / 'sessions'):
+        d.set_password('a-strong-test-password')
+        with TestClient(d.app, raise_server_exceptions=False) as client:
+            login = client.post('/api/login', json={'password': 'a-strong-test-password'})
+            headers = {
+                'Origin': 'http://testserver',
+                'X-CSRF-Token': login.json()['csrf'],
+                'Content-Type': 'application/octet-stream',
+            }
+            content = large_picture()
+            with patch.object(meme_logic.Image, 'MAX_IMAGE_PIXELS', 100):
+                for suffix in ('', '&tags=foo&weight=1.0'):
+                    response = client.post(
+                        f'/api/memes/image?category={category}{suffix}',
+                        content=content, headers=headers,
+                    )
+                    assert response.status_code == 400, (suffix, response.text)
+
+
+def test_upload_without_tags_auto_tags_and_skips_duplicate(tmp_path):
+    library = meme_logic.Library(tmp_path / 'library')
+    category = library.put_category('Q版', '庆祝')
+    with patch.object(d, 'AUTH_FILE', tmp_path / 'auth'), \
+            patch.object(d, 'meme_library', library), \
+            patch.object(d, 'session_store_path', return_value=tmp_path / 'sessions'):
+        d.set_password('a-strong-test-password')
+        with TestClient(d.app) as client:
+            login = client.post('/api/login', json={'password': 'a-strong-test-password'})
+            headers = {
+                'Origin': 'http://testserver',
+                'X-CSRF-Token': login.json()['csrf'],
+                'Content-Type': 'application/octet-stream',
+            }
+            content = picture('green')
+            first = client.post(f'/api/memes/image?category={category}', content=content, headers=headers)
+            assert first.status_code == 200, first.text
+            assert first.json()['created'] is True
+            saved = library.images(category)[0]
+            assert '风格:Q版' in saved['tags']
+            second = client.post(f'/api/memes/image?category={category}', content=content, headers=headers)
+            assert second.status_code == 200, second.text
+            assert second.json()['created'] is False
+            assert library.categories()[0]['count'] == 1
 
 
 def test_import_rejects_linked_root(tmp_path, monkeypatch):

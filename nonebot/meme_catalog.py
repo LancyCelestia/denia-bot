@@ -75,7 +75,7 @@ def _palette_emotion(content: bytes) -> str:
         if hue < 0.88:
             return '情绪:惊讶'
         return '情绪:喜欢'
-    except (OSError, ValueError):
+    except (OSError, ValueError, Image.DecompressionBombError):
         return '情绪:日常'
 
 
@@ -285,11 +285,13 @@ def import_tree(library=None) -> dict:
             rel = _relative(logical, target)
             try:
                 content = _read_limited(real, meme_logic.MAX_IMAGE_BYTES)
+                mime = meme_logic.image_mime(content)
                 _image_id, created = library.add_image(
                     category['id'], content,
                     tags=auto_tags(folder.name, logical.name, content),
                     weight=auto_weight(folder.name, logical.name),
                     source=_safe_source(real),
+                    mime=mime,
                 )
             except (OSError, ValueError) as exc:
                 fail(f'{rel}: {exc}')

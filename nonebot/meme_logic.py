@@ -124,12 +124,15 @@ def backfill_library(root, batch=100):
         db.close()
 
 
-def insert_image(db, category_id, content, tags='', weight=1.0, source=''):
-    """Insert one image inside the caller's write transaction; return (id, created)."""
+def insert_image(db, category_id, content, tags='', weight=1.0, source='', mime=None):
+    """Insert one image inside the caller's write transaction; return (id, created).
+
+    ``mime`` is only for callers that already ran ``image_mime`` on the bytes.
+    """
     if not _ID.fullmatch(str(category_id)):
         raise ValueError('分类不存在')
     content = bytes(content)
-    mime = image_mime(content)
+    mime = mime or image_mime(content)
     tags = _clean_tags(tags)
     weight = _clean_weight(weight)
     source = str(source or '').strip()
@@ -216,11 +219,11 @@ class Library:
             if not db.execute('DELETE FROM categories WHERE id=?', (category_id,)).rowcount:
                 raise ValueError('分类不存在')
 
-    def add_image(self, category_id, content, tags='', weight=1.0, source=''):
+    def add_image(self, category_id, content, tags='', weight=1.0, source='', mime=None):
         self.backfill()
         with self._connect() as db:
             db.execute('BEGIN IMMEDIATE')
-            return insert_image(db, category_id, content, tags, weight, source)
+            return insert_image(db, category_id, content, tags, weight, source, mime)
 
     def images(self, category_id):
         with self._connect() as db:

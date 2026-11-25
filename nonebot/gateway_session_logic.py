@@ -16,6 +16,8 @@ def endpoint(value):
     host = (parsed.hostname or '').lower()
     if not scheme or not host:
         return None
+    if port is None:
+        port = {'http': 80, 'https': 443}.get(scheme)
     return (
         scheme,
         host,

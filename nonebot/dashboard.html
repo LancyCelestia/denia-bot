@@ -1509,7 +1509,7 @@ async function skipPluginGuide(){
   $('pluginGuide').close();
   if(!data.warning)$('pluginSaveState').textContent='已跳过引导；之后可在插件管理中修改';
 }
-async function refresh(){let s=await api('/api/state');options('users',s.users.map(x=>({value:x,label:x})));options('groups',s.groups.map(x=>({value:x.group_id,label:x.group_id+(x.enabled?'（开启）':'（关闭）')})));$('host').value=s.weather.host;$('weatherState').textContent=s.weather.configured?'已设置 API Key':'尚未设置 API Key';$('pushes').replaceChildren();s.pushes.forEach(x=>{let li=document.createElement('li');li.append(document.createTextNode(`${x.kind==='group'?'群':'私聊'} ${x.target} · ${x.city} · ${x.clock} `),button('删除',async()=>{await api('/api/push',{action:'delete',id:x.id});await refresh()}));$('pushes').append(li)});await loadUser();await loadGroup()}
+async function refresh(selectedGroup, selectedLabel){let s=await api('/api/state');options('users',s.users.map(x=>({value:x,label:x})));options('groups',s.groups.map(x=>({value:x.group_id,label:x.group_id+(x.enabled?'（开启）':'（关闭）')})));if(selectedGroup){if(![...$('groups').options].some(option=>option.value===selectedGroup)){const option=document.createElement('option');option.value=selectedGroup;option.textContent=selectedLabel||selectedGroup;$('groups').append(option)}$('groups').value=selectedGroup}$('host').value=s.weather.host;$('weatherState').textContent=s.weather.configured?'已设置 API Key':'尚未设置 API Key';$('pushes').replaceChildren();s.pushes.forEach(x=>{let li=document.createElement('li');li.append(document.createTextNode(`${x.kind==='group'?'群':'私聊'} ${x.target} · ${x.city} · ${x.clock} `),button('删除',async()=>{await api('/api/push',{action:'delete',id:x.id});await refresh()}));$('pushes').append(li)});await loadUser();await loadGroup()}
 function memoryText(value,max=40){let t=String(value||'');return t.length>max?t.slice(0,max)+'…':t}
 function memoryStamp(ts){try{return new Date(ts*1000).toLocaleString('zh-CN',{hour12:false})}catch(e){return '时间未知'}}
 function memoryRelationText(r){let labels={corroborates:'印证',refines:'补充',contradicts:'矛盾',related:'相关',shared_context:'同场相近'};let label=labels[r.kind]||r.kind;let who=r.scope==='cross'?`用户 ${r.user_id} #${r.id}`:`#${r.id}`;return `${label} ${who}《${memoryText(r.text)}》`}
@@ -1520,7 +1520,7 @@ async function memoryAction(action){run(async()=>{await api('/api/memory',{user:
 let groupRequest=0;
 async function loadGroup(){let id=$('groups').value,request=++groupRequest;$('topics').replaceChildren();$('speakers').replaceChildren();$('topicCloud').replaceChildren();$('topicRankingWrap').hidden=true;$('speakersWrap').hidden=true;function empty(text){let p=document.createElement('p');p.className='topic-empty';p.textContent=text;$('topicCloud').append(p)}if(!id){$('groupState').textContent='暂无群统计';empty('选择群聊后查看话题');return}let x=await api('/api/group/'+encodeURIComponent(id));if(request!==groupRequest)return;$('groupState').textContent=x.enabled?'统计已开启，最近约 7 天':'统计已关闭';if(!x.enabled){empty('该群的话题统计已关闭');return}if(!x.topics.length){empty('暂时还没有话题，等待群里产生更多聊天后再来看看')}else{let max=Math.max(...x.topics.map(t=>t[1]));x.topics.forEach(([word,count],index)=>{let span=document.createElement('span');span.className='topic-word';span.textContent=word;span.title=`${count} 条消息`;span.style.fontSize=`${Math.round(14+16*Math.sqrt(count/max))}px`;$('topicCloud').append(span);rankingRow($('topics'),index,word,count,max)});$('topicRankingWrap').hidden=false}let speakers=x.speakers||[];$('speakersWrap').hidden=false;$('speakersEmpty').hidden=!!speakers.length;if(speakers.length){let max=Math.max(...speakers.map(s=>s.count));speakers.forEach((s,index)=>rankingRow($('speakers'),index,s.display_name?`${s.display_name} (${s.user_id})`:s.user_id,s.count,max))}}
 function rankingRow(list,index,labelText,count,max){let li=document.createElement('li'),rank=document.createElement('span'),label=document.createElement('span'),bar=document.createElement('span'),fill=document.createElement('span'),number=document.createElement('span');rank.className='topic-rank';rank.textContent=String(index+1).padStart(2,'0');label.className='topic-label';label.textContent=labelText;bar.className='topic-bar';bar.setAttribute('aria-hidden','true');fill.className='topic-fill';fill.style.width=`${100*count/max}%`;bar.append(fill);number.className='topic-count';number.textContent=`${count} 条`;li.append(rank,label,bar,number);list.append(li)}
-async function topicAction(action){run(async()=>{const group=($('newGroup').value.trim()||$('groups').value||'').trim();if(!group)throw Error('请先选择或输入群号');if(!/^[1-9][0-9]{0,19}$/.test(group))throw Error('群号无效');if(action==='清除'&&!confirm('清除该群的话题统计？'))return;const data=await api('/api/topic',{group,action});const accepted=String(data.group||group);$('newGroup').value='';await refresh();if(![...$('groups').options].some(option=>option.value===accepted)){const option=document.createElement('option');option.value=accepted;option.textContent=accepted+(action==='开'?'（开启）':'（关闭）');$('groups').append(option)}$('groups').value=accepted;await loadGroup()})}
+async function topicAction(action){run(async()=>{const group=($('newGroup').value.trim()||$('groups').value||'').trim();if(!group)throw Error('请先选择或输入群号');if(!/^[0-9]{1,20}$/.test(group)||!/[1-9]/.test(group))throw Error('群号无效');if(action==='清除'&&!confirm('清除该群的话题统计？'))return;const data=await api('/api/topic',{group,action});const accepted=String(data.group||group);$('newGroup').value='';const suffix=action==='开'?'（开启）':action==='关'?'（关闭）':'';await refresh(accepted,accepted+suffix)})}
 function disasterOptions(id,items){options(id,(items||[]).map(x=>({value:x,label:x})))}
 async function loadRenderer(){
   const d=await api('/api/renderer');$('rendererUrl').value=d.url;
@@ -1809,9 +1809,9 @@ async function loadTokens(){
 }
 function confirmClearTokens(){if(!confirm('清空全部 token 统计？此操作不可撤销。'))return;run(async()=>{await api('/api/token/clear',{});await loadTokens()})}
 let eventEntries=[],runtimeLogData=null,logSourceTouched=false,runtimeLogRequest=0;
-async function loadEvents(){let data=await api('/api/parser-events?limit=200');eventEntries=data.entries||[];let st=data.stats||{};let c=st.counts||{};
+async function loadEvents(){try{let data=await api('/api/parser-events?limit=200');eventEntries=data.entries||[];let st=data.stats||{};let c=st.counts||{};
   $('eventStats').innerHTML=`共 <b>${st.total||0}</b> 条 · 报错 ${c.error||0} · 超阈值 ${c.limit||0} · 提示 ${c.warn||0}`+(st.latest?` · 最近 ${st.latest}`:'');
-  renderEvents()}
+  renderEvents()}catch(error){eventEntries=[];$('eventStats').textContent='解析事件读取失败：'+error.message;$('eventList').replaceChildren();$('eventEmpty').hidden=false;$('eventEmpty').textContent='解析事件读取失败：'+error.message;$('eventFilterState').textContent=''}}
 function switchLogMode(){
   const parser=$('logMode').value==='parser';
   $('runtimeLogPanel').hidden=parser;
@@ -1873,9 +1873,10 @@ async function copyRuntimeLog(){const text=$('logView').innerText;try{await navi
 function downloadRuntimeLog(){const data=runtimeLogData;if(!data){notice('暂无日志可下载');return}const text=$('logView').innerText,blob=new Blob([text],{type:'text/plain;charset=utf-8'}),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=`${String(data.name||'runtime').replace(/[^\w.-]/g,'_')}.txt`;document.body.append(link);link.click();link.remove();URL.revokeObjectURL(url)}
 const CHAT_MAX_MESSAGES=20,CHAT_MAX_CHARS=12000;
 let chatHistory=[],chatPending=null,chatRequest=0;
+function charCount(value){return Array.from(String(value??'')).length}
 function fitChatHistory(history,extraChars=0,extraMessages=0){
   const out=history.slice();
-  const size=()=>out.reduce((n,m)=>n+String(m.content||'').length,0);
+  const size=()=>out.reduce((n,m)=>n+charCount(m.content),0);
   while(out.length&&(out.length+extraMessages>CHAT_MAX_MESSAGES||size()+extraChars>CHAT_MAX_CHARS)){
     out.splice(0,2);
   }
@@ -1890,8 +1891,9 @@ function renderChat(){
 async function sendModelChat(){
   if(chatPending)return;
   const input=$('chatInput'),text=input.value.trim();if(!text)return;
-  if(text.length>CHAT_MAX_CHARS){$('chatState').textContent=`消息过长，最多 ${CHAT_MAX_CHARS} 字符`;return}
-  const prior=fitChatHistory(chatHistory,text.length,1);
+  const chars=charCount(text);
+  if(chars>CHAT_MAX_CHARS){$('chatState').textContent=`消息过长，最多 ${CHAT_MAX_CHARS} 字符`;return}
+  const prior=fitChatHistory(chatHistory,chars,1);
   const messages=prior.concat([{role:'user',content:text}]).map(({role,content})=>({role,content}));
   const request=++chatRequest;
   chatPending={role:'user',content:text};input.value='';
@@ -1900,7 +1902,7 @@ async function sendModelChat(){
     const data=await api('/api/model/chat',{messages,model:$('chatModel').value.trim()||undefined});
     if(request!==chatRequest)return;
     const usage=data.usage&&data.usage.total_tokens?` · ${data.usage.total_tokens} tokens`:'';
-    chatHistory=fitChatHistory(chatHistory.concat([{role:'user',content:text},{role:'assistant',content:data.content,meta:`${data.model||'模型'} · ${data.latency_ms} ms${usage}`}]));
+    chatHistory=chatHistory.concat([{role:'user',content:text},{role:'assistant',content:data.content,meta:`${data.model||'模型'} · ${data.latency_ms} ms${usage}`}]);
     chatPending=null;renderChat();$('chatState').textContent='完成';
   }catch(error){
     if(request!==chatRequest)return;
@@ -1913,10 +1915,8 @@ async function sendModelChat(){
 }
 function clearModelChat(){chatRequest++;chatHistory=[];chatPending=null;$('chatInput').value='';$('chatSend').disabled=false;renderChat();$('chatState').textContent=''}
 async function loadLogsPage(){
-  const results=await Promise.allSettled([loadRuntimeLogs(),loadEvents()]);
-  const failed=results.find(result=>result.status==='rejected');
-  if(failed)throw failed.reason;
   startLogPolling();
+  await Promise.allSettled([loadRuntimeLogs(),loadEvents()]);
 }
 function renderEvents(){
   const q=$('eventSearch').value.trim().toLowerCase(),kind=$('eventKind').value;

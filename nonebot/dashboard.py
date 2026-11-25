@@ -56,7 +56,7 @@ from bot_monitor import Monitor, Restart, RestartController, WindowsRestart  # n
 
 ROOT = Path(__file__).resolve().parent
 AUTH_FILE = ROOT / 'data' / 'dashboard-auth.json'
-_GROUP_ID = re.compile(r'^[1-9][0-9]{0,19}$')
+_GROUP_ID = re.compile(r'^[0-9]{1,20}$')
 attempts = {}
 log = logging.getLogger(__name__)
 
@@ -66,6 +66,8 @@ def _group_id(value, *, empty_message='群号无效'):
     if not text:
         raise HTTPException(400, empty_message)
     if not _GROUP_ID.fullmatch(text):
+        raise HTTPException(400, '群号无效')
+    if not any(char != '0' for char in text):
         raise HTTPException(400, '群号无效')
     return text
 
@@ -308,10 +310,11 @@ async def upload_meme_image(req: Request, category: str, tags: str | None = None
     payload = bytes(content)
     try:
         def save_upload():
+            mime = meme_logic.image_mime(payload)
             category_name = next((item['name'] for item in meme_library.categories() if item['id'] == category), '')
             final_tags = meme_catalog.auto_tags(category_name, '', payload) if tags is None else tags
             final_weight = meme_catalog.auto_weight(category_name) if weight is None else weight
-            return meme_library.add_image(category, payload, tags=final_tags, weight=final_weight)
+            return meme_library.add_image(category, payload, tags=final_tags, weight=final_weight, mime=mime)
 
         image_id, created = await asyncio.to_thread(save_upload)
         return {'id': image_id, 'created': created}
