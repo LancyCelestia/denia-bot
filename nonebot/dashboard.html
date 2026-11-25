@@ -1212,7 +1212,16 @@ html[data-skin="academia"] #app .head-right .btn:hover{background:#5c4033;border
 <script id="appScript">
 let csrf='';const $=x=>document.getElementById(x);
 function cssVar(name){try{return getComputedStyle(document.documentElement).getPropertyValue(name).trim()}catch(e){return ''}}
-let lastStatusPoints=null;function gsuidConsoleHref(){const scheme=location.protocol==='https:'?'https:':'http:';let host=location.hostname||'127.0.0.1';if(host.includes(':')&&!host.startsWith('['))host='['+host+']';return `${scheme}//${host}:8765/app`}if(typeof location!=='undefined'){const gsuidConsoleLink=$('gsuidConsoleLink');if(gsuidConsoleLink)gsuidConsoleLink.href=gsuidConsoleHref()}function notice(t){$('message').textContent=t;$('appMessage').textContent=t}async function api(path,body){let o=body?{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:JSON.stringify(body)}:{};let r=await fetch(path,o);let v=await r.json();if(!r.ok)throw Error(v.detail||'操作失败');return v}async function run(f){try{notice('');await f()}catch(e){notice(e.message)}}
+let lastStatusPoints=null;function gsuidConsoleHref(){const scheme=location.protocol==='https:'?'https:':'http:';let host=location.hostname||'127.0.0.1';if(host.includes(':')&&!host.startsWith('['))host='['+host+']';return `${scheme}//${host}:8765/app`}if(typeof location!=='undefined'){const gsuidConsoleLink=$('gsuidConsoleLink');if(gsuidConsoleLink)gsuidConsoleLink.href=gsuidConsoleHref()}function notice(t){$('message').textContent=t;$('appMessage').textContent=t}
+async function api(path,body,signal){
+  const options=body?{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:JSON.stringify(body)}:{};
+  if(signal)options.signal=signal;
+  const response=await fetch(path,options);
+  const data=await response.json();
+  if(!response.ok)throw Error(data.detail||'操作失败');
+  return data;
+}
+async function run(f){try{notice('');await f()}catch(e){notice(e.message)}}
 
 async function loadMemes(){
   const data=await api('/api/memes');$('memeEnabled').checked=data.rules.enabled;
@@ -1808,29 +1817,60 @@ async function loadTokens(){
   });
 }
 function confirmClearTokens(){if(!confirm('清空全部 token 统计？此操作不可撤销。'))return;run(async()=>{await api('/api/token/clear',{});await loadTokens()})}
-let eventEntries=[],runtimeLogData=null,logSourceTouched=false,runtimeLogRequest=0;
-async function loadEvents(){try{let data=await api('/api/parser-events?limit=200');eventEntries=data.entries||[];let st=data.stats||{};let c=st.counts||{};
-  $('eventStats').innerHTML=`共 <b>${st.total||0}</b> 条 · 报错 ${c.error||0} · 超阈值 ${c.limit||0} · 提示 ${c.warn||0}`+(st.latest?` · 最近 ${st.latest}`:'');
-  renderEvents()}catch(error){eventEntries=[];$('eventStats').textContent='解析事件读取失败：'+error.message;$('eventList').replaceChildren();$('eventEmpty').hidden=false;$('eventEmpty').textContent='解析事件读取失败：'+error.message;$('eventFilterState').textContent=''}}
+let eventEntries=[],eventLoadError='',eventRequest=0;
+let runtimeLogData=null,logSourceTouched=false,runtimeLogPending=null;
+async function loadEvents(){
+  const request=++eventRequest;
+  let data;
+  try{
+    data=await api('/api/parser-events?limit=200');
+  }catch(error){
+    if(request!==eventRequest)return;
+    eventEntries=[];
+    eventLoadError='解析事件读取失败：'+error.message;
+    $('eventStats').textContent=eventLoadError;
+    renderEvents();
+    return;
+  }
+  if(request!==eventRequest)return;
+  eventLoadError='';
+  eventEntries=data.entries||[];
+  const stats=data.stats||{},counts=stats.counts||{};
+  $('eventStats').innerHTML=`共 <b>${stats.total||0}</b> 条 · 报错 ${counts.error||0} · 超阈值 ${counts.limit||0} · 提示 ${counts.warn||0}`+(stats.latest?` · 最近 ${stats.latest}`:'');
+  renderEvents();
+}
 function switchLogMode(){
   const parser=$('logMode').value==='parser';
   $('runtimeLogPanel').hidden=parser;
   $('parserEventsPanel').hidden=!parser;
 }
-async function loadRuntimeLogs(){
+const LOG_REQUEST_TIMEOUT_MS=15000;
+async function loadRuntimeLogs({polling=false}={}){
   const name=$('logSource').value,tail=Number($('logTail').value)||200;
-  const request=++runtimeLogRequest;
+  if(polling&&runtimeLogPending?.name===name&&runtimeLogPending.tail===tail)return;
+  const request={name,tail};
+  runtimeLogPending=request;
   $('logMeta').textContent='正在读取运行日志…';
-  let data;
-  try{data=await api(`/api/logs?name=${encodeURIComponent(name)}&tail=${tail}`)}
-  catch(error){if(request===runtimeLogRequest)$('logMeta').textContent='日志读取失败：'+error.message;throw error}
-  if(request!==runtimeLogRequest||name!==$('logSource').value)return;
-  if(!data.available&&!logSourceTouched&&data.sources){
-    const fallback=data.sources.find(item=>item.available&&item.name!==name);
-    if(fallback){$('logSource').value=fallback.name;return loadRuntimeLogs()}
+  const controller=new AbortController();
+  const timeout=setTimeout(()=>controller.abort(),LOG_REQUEST_TIMEOUT_MS);
+  try{
+    const data=await api(`/api/logs?name=${encodeURIComponent(name)}&tail=${tail}`,undefined,controller.signal);
+    if(runtimeLogPending!==request||name!==$('logSource').value)return;
+    if(!data.available&&!logSourceTouched&&data.sources){
+      const fallback=data.sources.find(item=>item.available&&item.name!==name);
+      if(fallback){$('logSource').value=fallback.name;return loadRuntimeLogs()}
+    }
+    runtimeLogData=data;
+    renderRuntimeLog();
+  }catch(error){
+    if(runtimeLogPending!==request||name!==$('logSource').value)return;
+    const failure=controller.signal.aborted?Error('读取超时，请重试'):error;
+    $('logMeta').textContent='日志读取失败：'+failure.message;
+    throw failure;
+  }finally{
+    clearTimeout(timeout);
+    if(runtimeLogPending===request)runtimeLogPending=null;
   }
-  runtimeLogData=data;
-  renderRuntimeLog();
 }
 let logPaused=false,logTimer=null;
 function classifyRuntimeLog(line){
@@ -1868,7 +1908,7 @@ function renderRuntimeLog(){
   if($('logAutoScroll').checked)box.scrollTop=box.scrollHeight;
 }
 function toggleLogPause(){logPaused=!logPaused;$('logPause').textContent=logPaused?'继续':'暂停';$('logPause').setAttribute('aria-pressed',String(logPaused));if(!logPaused)run(loadRuntimeLogs)}
-function startLogPolling(){if(logTimer)return;logTimer=setInterval(()=>{if(!logPaused&&!document.hidden&&location.hash==='#events')loadRuntimeLogs().catch(()=>{})},5000)}
+function startLogPolling(){if(logTimer)return;logTimer=setInterval(()=>{if(!logPaused&&!document.hidden&&location.hash==='#events')loadRuntimeLogs({polling:true}).catch(()=>{})},5000)}
 async function copyRuntimeLog(){const text=$('logView').innerText;try{await navigator.clipboard.writeText(text);notice('当前日志已复制')}catch(e){notice('复制失败，请手动选择文本')}}
 function downloadRuntimeLog(){const data=runtimeLogData;if(!data){notice('暂无日志可下载');return}const text=$('logView').innerText,blob=new Blob([text],{type:'text/plain;charset=utf-8'}),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=`${String(data.name||'runtime').replace(/[^\w.-]/g,'_')}.txt`;document.body.append(link);link.click();link.remove();URL.revokeObjectURL(url)}
 const CHAT_MAX_MESSAGES=20,CHAT_MAX_CHARS=12000;
@@ -1919,16 +1959,23 @@ async function loadLogsPage(){
   await Promise.allSettled([loadRuntimeLogs(),loadEvents()]);
 }
 function renderEvents(){
+  const list=$('eventList'),empty=$('eventEmpty'),filterState=$('eventFilterState');
+  list.replaceChildren();
+  if(eventLoadError){
+    empty.hidden=false;
+    empty.textContent=eventLoadError;
+    filterState.textContent='';
+    return;
+  }
   const q=$('eventSearch').value.trim().toLowerCase(),kind=$('eventKind').value;
-  const list=$('eventList');list.replaceChildren();
   const shown=eventEntries.filter(e=>{
     if(kind&&e.kind!==kind)return false;
     if(!q)return true;
     return `${e.platform||''} ${e.reason||''} ${e.detail||''} ${e.url||''}`.toLowerCase().includes(q);
   });
-  $('eventEmpty').hidden=shown.length>0;
-  $('eventEmpty').textContent=eventEntries.length?'没有匹配的记录。':'暂时没有记录 —— 说明一切正常。';
-  $('eventFilterState').textContent=(q||kind)?`筛选中：显示 ${shown.length} 条`:'';
+  empty.hidden=shown.length>0;
+  empty.textContent=eventEntries.length?'没有匹配的记录。':'暂时没有记录 —— 说明一切正常。';
+  filterState.textContent=(q||kind)?`筛选中：显示 ${shown.length} 条`:'';
   const labels={error:'报错',limit:'超出阈值',warn:'提示'};
   shown.forEach(e=>{
     const li=document.createElement('li'),head=document.createElement('div');
