@@ -13,6 +13,7 @@ from pathlib import Path
 import httpx
 import gate_logic as gl
 import model_dispatch
+import prompt_logic as pl
 from rag_client import RagConsistencyError, RagEmbeddingError
 from rag_client import embed as _rag_embed
 from nonebot import get_driver, logger, on_message
@@ -45,6 +46,7 @@ _worker_task = None
 _wake = None
 _graph_last = 0.0
 _graph_skip = {}
+_ORIGIN_WINDOW = 1800
 
 
 def _private(event: Event) -> bool:
@@ -77,6 +79,14 @@ def _event_key(event: Event):
 
 def _event_ts(event):
     value = getattr(event, 'time', None)
+    if isinstance(value, bool):
+        return int(time.time())
+    if isinstance(value, (int, float)):
+        return int(value)
+    if isinstance(value, str):
+        text = value.strip()
+        if text.isdigit():
+            return int(text)
     try:
         return int(value.timestamp())
     except Exception:
@@ -84,13 +94,35 @@ def _event_ts(event):
 
 
 def _history_name(text):
-    match = re.match(r'^<([^<>\n]{1,32})>\s', str(text or ''))
-    return match.group(1).strip() if match else ''
+    return pl.split_speaker(text)[0]
+
+
+def _session_bot(groupid):
+    parts = str(groupid or '').rsplit('_', 2)
+    return parts[-2] if len(parts) == 3 else ''
+
+
+def _scope_match(groupid, scope, bot):
+    if pl.group_token(str(groupid or '-1')) != scope:
+        return False
+    if scope != '-1' and bot:
+        session_bot = _session_bot(groupid)
+        if session_bot and session_bot != bot:
+            return False
+    return True
 
 
 def _conversation_origin(event, request, uid, scope):
-    relevant = [m for m in (request.history or [])
-                if str(getattr(m, 'groupid', '-1') or '-1') == scope]
+    origin_ts = _event_ts(event)
+    bot = str(getattr(event, 'self_id', '') or '')
+    relevant = []
+    for message in request.history or []:
+        if not _scope_match(getattr(message, 'groupid', '-1'), scope, bot):
+            continue
+        stamp = pl.parse_time(str(getattr(message, 'time', '') or ''))
+        if stamp is not None and abs(int(stamp.timestamp()) - origin_ts) > _ORIGIN_WINDOW:
+            continue
+        relevant.append(message)
     relevant.sort(key=lambda m: (str(getattr(m, 'time', '')), int(getattr(m, 'id', 0) or 0)))
     names = {}
     for item in relevant[-24:]:
@@ -104,8 +136,8 @@ def _conversation_origin(event, request, uid, scope):
         if mid and mid != uid and mid not in participants:
             participants.append(mid)
     return {'group_id': None if scope == '-1' else scope,
-            'bot_id': str(getattr(event, 'self_id', '') or ''),
-            'origin_ts': _event_ts(event),
+            'bot_id': bot,
+            'origin_ts': origin_ts,
             'participants': participants,
             'names': {pid: names[pid] for pid in participants if pid in names}}
 
@@ -194,8 +226,9 @@ async def inject(request: ModelRequest, event: Event) -> None:
             return
         key = _event_key(event)
         scope = str(getattr(event, 'group_id', '-1'))
+        bot = str(getattr(event, 'self_id', '') or '')
         previous = [str(m.message or '')[:600] for m in request.history or []
-                    if str(m.userid) == uid and str(m.groupid or '-1') == scope]
+                    if str(m.userid) == uid and _scope_match(m.groupid, scope, bot)]
         origin = _conversation_origin(event, request, uid, scope)
         if len(_contexts) >= 256:
             _contexts.pop(next(iter(_contexts)))
@@ -218,7 +251,7 @@ async def inject(request: ModelRequest, event: Event) -> None:
 
 async def _classify_relations(inspected):
     batch = [(index, item) for index, item in enumerate(inspected)
-             if not item.get('exact_id') and not item.get('capacity')]
+             if not item.get('exact_id')]
     if not any(item.get('similar') and
                max(candidate['score'] for candidate in item['similar']) >= memory.CLASSIFY_TRIGGER
                for _, item in batch):
@@ -280,17 +313,26 @@ async def _extract(uid: str, text: str, source: str, version: int, context=None,
         if item['exact_id']:
             items.append({'action': 'observe', 'text': item['text'], 'memory_id': item['exact_id']})
             continue
-        if item['capacity']:
-            similar_id = item['near_duplicate'] or (item['similar'][0]['id'] if item['similar'] else None)
-            items.append({'action': 'candidate', 'text': item['text'], 'similar_id': similar_id,
-                          'reason': 'capacity', 'weight': 0.5})
-            continue
         fact_links = by_fact.get(index, [])
         conflicts = [link for link in fact_links if link['kind'] == 'contradicts']
         if conflicts:
             best = max(conflicts, key=lambda link: link['weight'])
             items.append({'action': 'candidate', 'text': item['text'], 'similar_id': best['to'],
                           'reason': 'conflict', 'weight': best['weight']})
+            continue
+        near_ids = {candidate['id'] for candidate in item['similar']
+                    if candidate['score'] >= memory.NEAR_DUPLICATE}
+        equivalent = next((link for link in fact_links
+                           if link['kind'] == 'corroborates'
+                           and link['to'] in near_ids), None)
+        if equivalent:
+            items.append({'action': 'corroborate', 'text': item['text'],
+                          'memory_id': equivalent['to']})
+            continue
+        if item['capacity']:
+            similar_id = item['near_duplicate'] or (item['similar'][0]['id'] if item['similar'] else None)
+            items.append({'action': 'candidate', 'text': item['text'], 'similar_id': similar_id,
+                          'reason': 'capacity', 'weight': 0.5})
             continue
         if item['near_duplicate']:
             score = next((c['score'] for c in item['similar'] if c['id'] == item['near_duplicate']), 0.9)
@@ -299,7 +341,9 @@ async def _extract(uid: str, text: str, source: str, version: int, context=None,
             continue
         items.append({'action': 'save', 'text': item['text'], 'vector': vectors[index],
                       'allowed': [c['id'] for c in item['similar']],
-                      'links': [link for link in fact_links if link['kind'] != 'contradicts']})
+                      'links': [{'target_id': link['to'], 'kind': link['kind'],
+                                 'weight': link['weight']}
+                                for link in fact_links if link['kind'] != 'contradicts']})
     outcomes = memory.apply_facts(memory.DEFAULT_PATH, uid, source, version, items,
                                   event_id=event_id, origin=origin)
     statuses = [outcome.get('status') for outcome in outcomes]
@@ -365,7 +409,9 @@ async def _refine_legacy_edges(uid):
     decisions = []
     for pair in pairs:
         kind, weight = by_pair.get((pair['a_id'], pair['b_id']), ('related', pair['weight']))
-        decisions.append({'a': pair['a_id'], 'b': pair['b_id'], 'kind': kind, 'weight': weight})
+        decisions.append({'a': pair['a_id'], 'b': pair['b_id'],
+                          'a_text': pair['a_text'], 'b_text': pair['b_text'],
+                          'kind': kind, 'weight': weight})
     return memory.refine_edges(memory.DEFAULT_PATH, uid, decisions)
 
 

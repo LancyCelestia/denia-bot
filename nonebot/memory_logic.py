@@ -168,7 +168,11 @@ def _memory_rows(con, user_id):
     return [dict(r) for r in con.execute('''
         SELECT m.id, m.text, v.vector FROM memories m
         LEFT JOIN memory_vectors v ON m.id=v.memory_id AND v.model='siliconflow-bge-m3-v1'
-        WHERE m.user_id=?''', (str(user_id),))]
+        WHERE m.user_id=? ORDER BY m.id''', (str(user_id),))]
+
+
+def _memory_signature(rows):
+    return tuple((row['id'], row['text'], row['vector']) for row in rows)
 
 
 def _has_missing_vectors(con, user_id):
@@ -462,7 +466,10 @@ def inspect_facts(path, user_id, facts, vectors):
 
 
 def apply_facts(path, user_id, source, expected_revision, items, event_id='', origin=None):
-    """Apply observe/candidate/save decisions in one revision-guarded transaction."""
+    """Apply observe/corroborate/candidate/save decisions in one revision-guarded transaction.
+
+    `corroborate` observes an equivalent restatement whose text differs from the target.
+    """
     uid = str(user_id)
     if source not in ('private', 'group'):
         return [{'status': 'invalid', 'id': None} for _ in items]
@@ -481,11 +488,11 @@ def apply_facts(path, user_id, source, expected_revision, items, event_id='', or
                 continue
             action = item.get('action')
             text = _clean_fact(item.get('text'))
-            if action not in ('save', 'candidate', 'observe') or text is None:
+            if action not in ('save', 'candidate', 'observe', 'corroborate') or text is None:
                 continue
-            if action == 'observe':
+            if action in ('observe', 'corroborate'):
                 target = by_id.get(_as_int(item.get('memory_id')))
-                if target is None or target['text'] != text:
+                if target is None or (action == 'observe' and target['text'] != text):
                     results[index] = {'status': 'missing', 'id': None}
                     continue
                 _add_observation(con, target['id'], event_id, source, clean_origin)
@@ -516,6 +523,15 @@ def apply_facts(path, user_id, source, expected_revision, items, event_id='', or
             if not isinstance(item.get('vector'), list):
                 raise ValueError('invalid vector')
             packed = _pack(item['vector'])
+            nearest = max(((_similarity(packed, row['vector']), row['id'])
+                           for row in rows if row.get('vector')), default=(-1.0, None))
+            if nearest[0] >= NEAR_DUPLICATE:
+                cid = _add_candidate(con, uid, text, source, nearest[1], 'similar',
+                                     _clamp_weight(nearest[0], NEAR_DUPLICATE),
+                                     event_id, clean_origin)
+                results[index] = ({'status': 'candidate', 'id': cid} if cid is not None
+                                  else {'status': 'candidate_full', 'id': None})
+                continue
             cur = con.execute('INSERT INTO memories(user_id,text,source) VALUES(?,?,?)', (uid, text, source))
             mid = cur.lastrowid
             con.execute('INSERT INTO memory_vectors(memory_id,vector,model) VALUES(?,?,?)',
@@ -893,6 +909,7 @@ def backfill_edges(path, user_id):
         state = con.execute('SELECT memory_count FROM memory_graph_state WHERE user_id=?', (uid,)).fetchone()
         if state and state['memory_count'] == count:
             return 0
+    signature = _memory_signature(rows)
     pairs = {}
     for index, left in enumerate(rows):
         for right in rows[index + 1:]:
@@ -913,7 +930,8 @@ def backfill_edges(path, user_id):
             selected[key] = max(score, selected.get(key, -1.0))
     with _connect(path) as con:
         con.execute('BEGIN IMMEDIATE')
-        if con.execute('SELECT COUNT(*) FROM memories WHERE user_id=?', (uid,)).fetchone()[0] != count:
+        current = _memory_rows(con, uid)
+        if len(current) != count or _memory_signature(current) != signature:
             return 0
         state = con.execute('SELECT memory_count FROM memory_graph_state WHERE user_id=?', (uid,)).fetchone()
         if state and state['memory_count'] == count:
@@ -956,9 +974,15 @@ def refine_edges(path, user_id, decisions):
                 continue
             if kind not in ('corroborates', 'refines', 'contradicts', 'related', 'unrelated'):
                 continue
-            if not con.execute('SELECT 1 FROM memories WHERE id=? AND user_id=?', (a, uid)).fetchone():
+            a_row = con.execute('SELECT text FROM memories WHERE id=? AND user_id=?',
+                                (a, uid)).fetchone()
+            b_row = con.execute('SELECT text FROM memories WHERE id=? AND user_id=?',
+                                (b, uid)).fetchone()
+            if not a_row or not b_row:
                 continue
-            if not con.execute('SELECT 1 FROM memories WHERE id=? AND user_id=?', (b, uid)).fetchone():
+            if isinstance(item.get('a_text'), str) and a_row['text'] != item['a_text']:
+                continue
+            if isinstance(item.get('b_text'), str) and b_row['text'] != item['b_text']:
                 continue
             _upsert_model_edge(con, a, b, kind, _clamp_weight(item.get('weight'), 0.7))
             written += 1

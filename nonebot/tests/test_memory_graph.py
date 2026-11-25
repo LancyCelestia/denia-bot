@@ -2,6 +2,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import memory_logic as m
@@ -88,7 +89,7 @@ class MemoryGraphTest(unittest.TestCase):
 
     def test_conflict_candidate_replace_updates_text_and_clears_old_graph(self):
         first = self.save('1', '用户喜欢喝咖啡', [1, 0], event='e1')
-        self.save('1', '用户每天喝咖啡', [0.95, 0.2], event='e2', ts=1001)
+        self.save('1', '用户每天喝咖啡', [0.8, 0.6], event='e2', ts=1001)
         self.assertEqual(m.describe_user(self.db, '1')['stats']['relations'], 1)
         m.apply_facts(self.db, '1', 'group', 0,
                       [{'action': 'candidate', 'text': '用户喜欢喝茶',
@@ -151,7 +152,7 @@ class MemoryGraphTest(unittest.TestCase):
 
     def test_correct_and_forget_remove_edges_and_observations(self):
         first = self.save('1', '用户喜欢喝咖啡', [1, 0], event='e1')
-        self.save('1', '用户每天喝咖啡', [0.95, 0.2], event='e2', ts=1001)
+        self.save('1', '用户每天喝咖啡', [0.8, 0.6], event='e2', ts=1001)
         self.assertEqual(m.describe_user(self.db, '1')['stats']['relations'], 1)
         self.assertTrue(m.correct(self.db, '1', first[0]['id'], '用户喜欢喝茶'))
         self.assertEqual(m.describe_user(self.db, '1')['stats']['relations'], 0)
@@ -168,7 +169,7 @@ class MemoryGraphTest(unittest.TestCase):
     def test_describe_user_stats_and_origin_names(self):
         m.remember_people(self.db, '123', {'2': '小明'})
         first = self.save('1', '用户喜欢咖啡', [1, 0], ts=1000, participants=['2'], event='e1')
-        self.save('1', '用户每天喝咖啡', [0.95, 0.2], ts=1010, participants=['2'], event='e2')
+        self.save('1', '用户每天喝咖啡', [0.8, 0.6], ts=1010, participants=['2'], event='e2')
         self.save('2', '用户也喜欢咖啡', [0.99, 0.1], ts=1020, participants=['1'], event='e3')
         described = m.describe_user(self.db, '1')
         self.assertEqual(described['stats'], {
@@ -198,6 +199,74 @@ class MemoryGraphTest(unittest.TestCase):
         self.assertEqual(m.backfill_edges(self.db, '1'), 0)
         self.assertEqual(m.describe_user(self.db, '1')['memories'][0]['relations'][0]['kind'],
                          'corroborates')
+
+
+    def test_save_rechecks_near_duplicate_in_transaction(self):
+        outcomes = m.apply_facts(
+            self.db, '1', 'private', 0,
+            [{'action': 'save', 'text': '用户喜欢咖啡', 'vector': [1.0, 0.0],
+              'links': [], 'allowed': []},
+             {'action': 'save', 'text': '用户很爱喝咖啡', 'vector': [0.99, 0.1],
+              'links': [], 'allowed': []}],
+            event_id='e1')
+        self.assertEqual([item['status'] for item in outcomes], ['saved', 'candidate'])
+        self.assertEqual(len(m.list_memories(self.db, '1')), 1)
+        candidate = m.list_candidates(self.db, '1')[0]
+        self.assertEqual(candidate['reason'], 'similar')
+        self.assertEqual(candidate['similar_id'], outcomes[0]['id'])
+
+    def test_parallel_snapshot_second_write_enters_candidate(self):
+        facts = ['用户喜欢咖啡', '用户很爱喝咖啡']
+        vectors = [[1.0, 0.0], [0.99, 0.1]]
+        inspected = m.inspect_facts(self.db, '1', facts, vectors)
+        self.assertTrue(all(not item['similar'] for item in inspected))
+        first = m.apply_facts(
+            self.db, '1', 'private', 0,
+            [{'action': 'save', 'text': facts[0], 'vector': vectors[0],
+              'links': [], 'allowed': []}], event_id='e1')
+        second = m.apply_facts(
+            self.db, '1', 'private', 0,
+            [{'action': 'save', 'text': facts[1], 'vector': vectors[1],
+              'links': [], 'allowed': []}], event_id='e2')
+        self.assertEqual(first[0]['status'], 'saved')
+        self.assertEqual(second[0]['status'], 'candidate')
+        self.assertEqual(len(m.list_memories(self.db, '1')), 1)
+        self.assertEqual(m.list_candidates(self.db, '1')[0]['similar_id'], first[0]['id'])
+
+    def test_refine_edges_rejects_stale_text(self):
+        first = self.save('1', '用户喜欢喝咖啡', [1, 0], event='e1')
+        self.save('1', '用户每天喝咖啡', [0.8, 0.6], event='e2', ts=1001)
+        pair = m.legacy_edge_candidates(self.db, '1')[0]
+        self.assertTrue(m.correct(self.db, '1', first[0]['id'], '用户改喝咖啡'))
+        written = m.refine_edges(self.db, '1', [{
+            'a': pair['a_id'], 'b': pair['b_id'],
+            'a_text': pair['a_text'], 'b_text': pair['b_text'],
+            'kind': 'contradicts', 'weight': 0.9,
+        }])
+        self.assertEqual(written, 0)
+        with m._connect(self.db) as con:
+            self.assertEqual(con.execute('SELECT COUNT(*) FROM memory_edges').fetchone()[0], 0)
+
+    def test_backfill_discards_stale_snapshot(self):
+        m.store(self.db, '1', ['用户喜欢喝咖啡', '用户每天喝咖啡'], 'private', 0)
+        vectors = {'用户喜欢喝咖啡': [1, 0], '用户每天喝咖啡': [0.8, 0.6]}
+        rows = m.list_memories(self.db, '1')
+        for row in rows:
+            m.set_vector(self.db, '1', row['id'], row['text'], vectors[row['text']])
+        first_id = next(row['id'] for row in rows if row['text'] == '用户喜欢喝咖啡')
+        real = m._similarity
+        changed = []
+
+        def flaky(a, b):
+            if not changed:
+                changed.append(True)
+                with m._connect(self.db) as con:
+                    con.execute('UPDATE memories SET text=? WHERE id=?', ('用户改喝咖啡', first_id))
+            return real(a, b)
+
+        with patch.object(m, '_similarity', side_effect=flaky):
+            self.assertEqual(m.backfill_edges(self.db, '1'), 0)
+        self.assertEqual(m.describe_user(self.db, '1')['stats']['relations'], 0)
 
 
 if __name__ == '__main__':
