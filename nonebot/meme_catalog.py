@@ -113,18 +113,15 @@ def _category_description(folder: str) -> str:
     return f'本机导入 · {str(folder).strip()[:280]}'
 
 
-def _safe_source(path: Path) -> str:
-    try:
-        return path.relative_to(ROOT).as_posix()[:500]
-    except ValueError:
-        return path.name[:500]
-
-
 def _relative(path: Path, base: Path) -> str:
     try:
         return path.relative_to(base).as_posix()
     except ValueError:
         return path.name
+
+
+def _safe_source(path: Path) -> str:
+    return _relative(path, ROOT)[:500]
 
 
 def _is_reparse(path: Path) -> bool:
@@ -201,7 +198,7 @@ def auto_tag_library(library, category_id: str | None = None) -> dict:
     return {'updated': updated, 'categories': len(categories)}
 
 
-def import_tree(library=None, root=None) -> dict:
+def import_tree(library=None) -> dict:
     """Import every supported image under the fixed sticker directory.
 
     Re-running is safe: the storage layer records each image digest and returns
@@ -209,15 +206,13 @@ def import_tree(library=None, root=None) -> dict:
     folder names.
     """
     library = library or meme_logic.Library()
-    data_root = DATA_ROOT.resolve()
-    default_root = DEFAULT_IMPORT_ROOT.resolve()
-    if default_root.name != 'stickers' or default_root.parent != data_root:
-        raise ValueError('表情包导入根配置错误')
-    expected = (DATA_ROOT / 'stickers').resolve()
-    if default_root != expected:
-        raise ValueError('表情包导入根配置错误')
-    target = default_root if root is None else Path(root).resolve()
-    if target != expected:
+    root_path = DEFAULT_IMPORT_ROOT
+    if not root_path.is_dir():
+        raise ValueError('本机表情包目录不存在')
+    if _is_reparse(root_path):
+        raise ValueError('只能导入 data/stickers 目录')
+    target = root_path.resolve()
+    if target != (DATA_ROOT / 'stickers').resolve():
         raise ValueError('只能导入 data/stickers 目录')
     if not target.is_dir():
         raise ValueError('本机表情包目录不存在')
@@ -263,6 +258,9 @@ def import_tree(library=None, root=None) -> dict:
         files = list(_iter_image_files(folder, target, fail))
         if not files:
             continue
+        if imported >= MAX_IMAGES:
+            more = True
+            break
         category = existing.get(category_name)
         if category is None:
             try:

@@ -298,20 +298,22 @@ async def update_meme_metadata(req: Request):
 
 
 @app.post('/api/memes/image')
-async def upload_meme_image(req: Request, category: str, tags: str = '', weight: float = 1.0):
+async def upload_meme_image(req: Request, category: str, tags: str | None = None, weight: float | None = None):
     mutate(req)
     content = bytearray()
     async for chunk in req.stream():
         content.extend(chunk)
         if len(content) > meme_logic.MAX_IMAGE_BYTES:
             raise HTTPException(413, '图片大小须在 5 MB 以内')
+    payload = bytes(content)
     try:
-        category_name = next((item['name'] for item in meme_library.categories() if item['id'] == category), '')
-        if not tags:
-            tags = meme_catalog.auto_tags(category_name, '', bytes(content))
-        if weight == 1.0:
-            weight = meme_catalog.auto_weight(category_name)
-        image_id, created = meme_library.add_image(category, bytes(content), tags=tags, weight=weight)
+        def save_upload():
+            category_name = next((item['name'] for item in meme_library.categories() if item['id'] == category), '')
+            final_tags = meme_catalog.auto_tags(category_name, '', payload) if tags is None else tags
+            final_weight = meme_catalog.auto_weight(category_name) if weight is None else weight
+            return meme_library.add_image(category, payload, tags=final_tags, weight=final_weight)
+
+        image_id, created = await asyncio.to_thread(save_upload)
         return {'id': image_id, 'created': created}
     except ValueError as e:
         raise HTTPException(400, str(e)) from e

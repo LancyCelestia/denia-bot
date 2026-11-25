@@ -2475,7 +2475,7 @@ async function loadStatus(){
   $('statusStamp').textContent=`实时采集于 ${stamp} · 采样 ${(x.counts&&x.counts.resource_samples)||0} 条 · 数据 ${x.stores&&x.stores.ready?'就绪':'未就绪'}`;
   const box=$('statusMetrics');box.replaceChildren();
   const sys=x.system||{},cpu=live.cpu||{},cpuTemp=cpu.temp,mem=live.memory||{},swap=live.swap||{};
-  box.append(statusMetric('服务',bot.online?'在线':'离线',bot.nick?`${bot.nick}${bot.protocol?` · ${bot.protocol}`:''}`:'QQ 连接不可用'));
+  box.append(statusMetric('服务',bot.online===true?'在线':bot.online===false?'离线':'未知',bot.nick?`${bot.nick}${bot.protocol?` · ${bot.protocol}`:''}`:'QQ 连接不可用'));
   box.append(statusMetric('主机',sys.hostname||x.host||'—',sys.os||''));
   box.append(statusMetric('运行时长',statusDuration(live.uptime),live.load?`负载 ${live.load}`:null));
   box.append(statusMetric('本月流量',`↑ ${statusBytes(net.month_up)}`,`↓ ${statusBytes(net.month_down)}${net.interface?` · ${net.interface}`:''}`));

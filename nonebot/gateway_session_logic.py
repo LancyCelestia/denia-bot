@@ -12,9 +12,13 @@ def endpoint(value):
         port = parsed.port
     except (TypeError, ValueError):
         return None
+    scheme = (parsed.scheme or '').lower()
+    host = (parsed.hostname or '').lower()
+    if not scheme or not host:
+        return None
     return (
-        (parsed.scheme or '').lower(),
-        (parsed.hostname or '').lower(),
+        scheme,
+        host,
         port,
         (parsed.path or '').rstrip('/'),
     )

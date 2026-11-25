@@ -18,6 +18,17 @@ MAX_IMAGE_BYTES = 5 * 1024 * 1024
 _ID = re.compile(r'^[a-f0-9]{12}$')
 _SCOPE = re.compile(r'^(?:group|private):[0-9]{1,20}$')
 _TAG_SPLIT = re.compile(r'[,，、\n]+')
+_SCHEMA = '''
+    CREATE TABLE IF NOT EXISTS categories (id TEXT PRIMARY KEY, name TEXT UNIQUE NOT NULL, description TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS images (id TEXT PRIMARY KEY, category TEXT NOT NULL REFERENCES categories(id) ON DELETE CASCADE, content BLOB NOT NULL, mime TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS image_meta (
+        image_id TEXT PRIMARY KEY REFERENCES images(id) ON DELETE CASCADE,
+        tags TEXT NOT NULL DEFAULT '', weight REAL NOT NULL DEFAULT 1.0,
+        digest TEXT NOT NULL DEFAULT '', source TEXT NOT NULL DEFAULT ''
+    );
+    CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+    CREATE INDEX IF NOT EXISTS image_meta_digest ON image_meta(digest);
+'''
 
 
 def _clean_tags(value):
@@ -34,8 +45,8 @@ def _clean_tags(value):
             raise ValueError('单个标签须在 24 个字符以内')
         if tag not in tags:
             tags.append(tag)
-        if len(tags) >= 20:
-            raise ValueError('标签最多 20 个')
+            if len(tags) > 20:
+                raise ValueError('标签最多 20 个')
     return ', '.join(tags)
 
 
@@ -64,27 +75,53 @@ def image_mime(content):
         raise ValueError('图片格式无效') from e
 
 
+def _backfill_batch(db, size):
+    rows = db.execute(
+        '''SELECT i.id, i.content FROM images i
+           LEFT JOIN image_meta m ON m.image_id = i.id
+           WHERE m.image_id IS NULL OR m.digest = ''
+           ORDER BY i.rowid LIMIT ?''',
+        (max(1, int(size)),),
+    ).fetchall()
+    for image_id, content in rows:
+        digest = hashlib.sha256(bytes(content)).hexdigest()
+        db.execute('INSERT OR IGNORE INTO image_meta(image_id,digest) VALUES (?,?)',
+                   (image_id, digest))
+        db.execute("UPDATE image_meta SET digest=? WHERE image_id=? AND digest=''",
+                   (digest, image_id))
+    return len(rows)
+
+
 def backfill_digests(db, batch=100):
     """Fill missing image_meta.digest values in small batches; caller owns the transaction."""
     total = 0
-    size = max(1, int(batch))
     while True:
-        rows = db.execute(
-            '''SELECT i.id, i.content FROM images i
-               LEFT JOIN image_meta m ON m.image_id = i.id
-               WHERE m.image_id IS NULL OR m.digest = ''
-               ORDER BY i.rowid LIMIT ?''',
-            (size,),
-        ).fetchall()
-        if not rows:
+        count = _backfill_batch(db, batch)
+        if not count:
             return total
-        for image_id, content in rows:
-            digest = hashlib.sha256(bytes(content)).hexdigest()
-            db.execute('INSERT OR IGNORE INTO image_meta(image_id,digest) VALUES (?,?)',
-                       (image_id, digest))
-            db.execute("UPDATE image_meta SET digest=? WHERE image_id=? AND digest=''",
-                       (digest, image_id))
-            total += 1
+        total += count
+
+
+def backfill_library(root, batch=100):
+    """Backfill an existing library with one short write transaction per batch."""
+    root = Path(root)
+    root.mkdir(parents=True, exist_ok=True)
+    db = sqlite3.connect(root / 'library.sqlite3', timeout=10)
+    db.execute('PRAGMA foreign_keys=ON')
+    try:
+        db.executescript(_SCHEMA)
+        db.commit()
+        total = 0
+        while True:
+            db.execute('BEGIN IMMEDIATE')
+            count = _backfill_batch(db, batch)
+            if not count:
+                db.rollback()
+                return total
+            db.commit()
+            total += count
+    finally:
+        db.close()
 
 
 def insert_image(db, category_id, content, tags='', weight=1.0, source=''):
@@ -127,6 +164,14 @@ def insert_image(db, category_id, content, tags='', weight=1.0, source=''):
 class Library:
     def __init__(self, root=DEFAULT_ROOT):
         self.root = Path(root)
+        self._backfilled = False
+
+    def backfill(self):
+        if self._backfilled:
+            return 0
+        total = backfill_library(self.root)
+        self._backfilled = True
+        return total
 
     @contextmanager
     def _connect(self):
@@ -134,17 +179,7 @@ class Library:
         db = sqlite3.connect(self.root / 'library.sqlite3', timeout=10)
         db.execute('PRAGMA foreign_keys=ON')
         try:
-            db.executescript('''
-                CREATE TABLE IF NOT EXISTS categories (id TEXT PRIMARY KEY, name TEXT UNIQUE NOT NULL, description TEXT NOT NULL);
-                CREATE TABLE IF NOT EXISTS images (id TEXT PRIMARY KEY, category TEXT NOT NULL REFERENCES categories(id) ON DELETE CASCADE, content BLOB NOT NULL, mime TEXT NOT NULL);
-                CREATE TABLE IF NOT EXISTS image_meta (
-                    image_id TEXT PRIMARY KEY REFERENCES images(id) ON DELETE CASCADE,
-                    tags TEXT NOT NULL DEFAULT '', weight REAL NOT NULL DEFAULT 1.0,
-                    digest TEXT NOT NULL DEFAULT '', source TEXT NOT NULL DEFAULT ''
-                );
-                CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
-                CREATE INDEX IF NOT EXISTS image_meta_digest ON image_meta(digest);
-            ''')
+            db.executescript(_SCHEMA)
             with db:
                 yield db
         finally:
@@ -182,6 +217,7 @@ class Library:
                 raise ValueError('分类不存在')
 
     def add_image(self, category_id, content, tags='', weight=1.0, source=''):
+        self.backfill()
         with self._connect() as db:
             db.execute('BEGIN IMMEDIATE')
             return insert_image(db, category_id, content, tags, weight, source)

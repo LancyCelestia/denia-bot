@@ -8,6 +8,7 @@ import httpx
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import gateway_session_logic
 import model_chat
 import model_publication
 
@@ -312,3 +313,10 @@ def test_invalid_base_url_is_rejected(tmp_path, monkeypatch, base):
         run_chat([{'role': 'user', 'content': 'hi'}])
 
     assert 'base URL' in str(excinfo.value)
+
+
+def test_gateway_endpoint_helpers_reject_unusable_urls():
+    assert gateway_session_logic.endpoint(None) is None
+    assert gateway_session_logic.endpoint('') is None
+    assert not gateway_session_logic.same_endpoint(None, None)
+    assert not gateway_session_logic.same_endpoint('', '')

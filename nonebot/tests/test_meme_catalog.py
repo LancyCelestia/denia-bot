@@ -57,12 +57,12 @@ def test_local_import_creates_metadata_and_skips_duplicates(tmp_path, monkeypatc
 
 def test_import_rejects_root_outside_the_fixed_directory(tmp_path, monkeypatch):
     monkeypatch.setattr(meme_catalog, 'DATA_ROOT', tmp_path)
-    monkeypatch.setattr(meme_catalog, 'DEFAULT_IMPORT_ROOT', tmp_path / 'stickers')
-    outside = tmp_path / 'outside'
-    outside.mkdir()
+    outside = tmp_path / 'outside' / 'stickers'
+    outside.mkdir(parents=True)
     (outside / 'x.png').write_bytes(picture('red'))
+    monkeypatch.setattr(meme_catalog, 'DEFAULT_IMPORT_ROOT', outside)
     with pytest.raises(ValueError, match='data/stickers'):
-        meme_catalog.import_tree(meme_logic.Library(tmp_path / 'library'), root=outside)
+        meme_catalog.import_tree(meme_logic.Library(tmp_path / 'library'))
 
 
 def test_import_skips_links_and_keeps_failure_count(tmp_path, monkeypatch):
@@ -229,3 +229,58 @@ def test_dashboard_bulk_import_and_metadata_api(tmp_path, monkeypatch):
             assert saved.status_code == 200
             assert saved.json()['weight'] == 1.4
             assert client.post('/api/memes/metadata', json={'id': image['id']}, headers=headers).status_code == 400
+
+
+def test_upload_preserves_explicit_empty_tags_and_weight(tmp_path):
+    library = meme_logic.Library(tmp_path / 'library')
+    category = library.put_category('Q版', '庆祝')
+    with patch.object(d, 'AUTH_FILE', tmp_path / 'auth'), \
+            patch.object(d, 'meme_library', library), \
+            patch.object(d, 'session_store_path', return_value=tmp_path / 'sessions'):
+        d.set_password('a-strong-test-password')
+        with TestClient(d.app) as client:
+            login = client.post('/api/login', json={'password': 'a-strong-test-password'})
+            headers = {
+                'Origin': 'http://testserver',
+                'X-CSRF-Token': login.json()['csrf'],
+                'Content-Type': 'application/octet-stream',
+            }
+            response = client.post(
+                f'/api/memes/image?category={category}&tags=&weight=1.0',
+                content=picture('red'), headers=headers,
+            )
+            assert response.status_code == 200, response.text
+            assert response.json()['created'] is True
+            saved = library.images(category)[0]
+            assert saved['tags'] == ''
+            assert saved['weight'] == 1.0
+
+
+def test_import_rejects_linked_root(tmp_path, monkeypatch):
+    data = tmp_path / 'data'
+    data.mkdir()
+    target = tmp_path / 'outside'
+    target.mkdir()
+    link = data / 'stickers'
+    try:
+        os.symlink(target, link, target_is_directory=True)
+    except OSError as exc:
+        pytest.skip(f'cannot create symlink: {exc}')
+    monkeypatch.setattr(meme_catalog, 'DATA_ROOT', data)
+    monkeypatch.setattr(meme_catalog, 'DEFAULT_IMPORT_ROOT', link)
+    with pytest.raises(ValueError, match='data/stickers'):
+        meme_catalog.import_tree(meme_logic.Library(tmp_path / 'library'))
+
+
+def test_import_cap_does_not_create_the_next_category(tmp_path, monkeypatch):
+    monkeypatch.setattr(meme_catalog, 'DATA_ROOT', tmp_path)
+    monkeypatch.setattr(meme_catalog, 'DEFAULT_IMPORT_ROOT', tmp_path / 'stickers')
+    monkeypatch.setattr(meme_catalog, 'MAX_IMAGES', 1)
+    for name, color in (('a', 'red'), ('b', 'blue')):
+        folder = tmp_path / 'stickers' / name
+        folder.mkdir(parents=True)
+        (folder / 'x.png').write_bytes(picture(color))
+    library = meme_logic.Library(tmp_path / 'library')
+    first = meme_catalog.import_tree(library)
+    assert (first['imported'], first['more']) == (1, True)
+    assert [category['name'] for category in library.categories()] == ['a']

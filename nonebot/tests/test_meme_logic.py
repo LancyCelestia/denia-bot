@@ -137,3 +137,32 @@ def test_connections_close_after_read_and_write(tmp_path):
     lib.categories()
     db = tmp_path / 'library.sqlite3'
     db.rename(tmp_path / 'renamed.sqlite3')
+
+
+def test_backfill_library_fills_legacy_images_without_outer_transaction(tmp_path):
+    lib = m.Library(tmp_path)
+    category = lib.put_category('开心', '庆祝')
+    content = picture()
+    image_id = 'b' * 12
+    with lib._connect() as db:
+        db.execute('INSERT INTO images(id,category,content,mime) VALUES (?,?,?,?)',
+                   (image_id, category, content, 'image/png'))
+        db.execute('INSERT INTO image_meta(image_id,tags,weight,digest,source) VALUES (?,?,?,?,?)',
+                   (image_id, '旧标签', 2.5, '', '旧来源'))
+    assert m.backfill_library(tmp_path) == 1
+    with lib._connect() as db:
+        row = db.execute('SELECT digest,tags,weight,source FROM image_meta WHERE image_id=?',
+                         (image_id,)).fetchone()
+    assert row[0] == hashlib.sha256(content).hexdigest()
+    assert tuple(row[1:]) == ('旧标签', 2.5, '旧来源')
+    assert m.backfill_library(tmp_path) == 0
+
+
+def test_metadata_accepts_twenty_tags_and_rejects_twenty_one(tmp_path):
+    lib = m.Library(tmp_path)
+    category = lib.put_category('开心', '庆祝')
+    image, _ = lib.add_image(category, picture())
+    tags = ', '.join(f'tag{i}' for i in range(20))
+    assert lib.set_metadata(image, tags=tags)['tags'] == tags
+    with pytest.raises(ValueError, match='最多 20'):
+        lib.set_metadata(image, tags=tags + ', tag20')

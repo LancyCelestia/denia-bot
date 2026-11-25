@@ -110,9 +110,9 @@ class Store:
     def enqueue(self, owner, content, admitted=False):
         mime = meme_logic.image_mime(content)
         digest = hashlib.sha256(content).hexdigest()
+        self.library.backfill()
         with self.db() as db:
             db.execute('BEGIN IMMEDIATE')
-            meme_logic.backfill_digests(db)
             mode = db.execute('SELECT enabled FROM meme_learning_mode WHERE owner=?', (str(owner),)).fetchone()
             if not admitted and (not mode or not mode[0]):
                 return 'disabled'
@@ -170,6 +170,7 @@ class Store:
         name, category_description, description = str(name).strip(), str(category_description).strip(), str(description).strip()
         if not name or len(name) > 40 or any(c in name for c in '/\\\r\n') or not description or len(description) > 1000 or len(category_description) > 300:
             raise ValueError('识别结果无效')
+        self.library.backfill()
         with self.db() as db:
             db.execute('BEGIN IMMEDIATE')
             job = db.execute("SELECT digest,content,mime FROM meme_learning_jobs WHERE id=? AND status IN ('pending','inflight')", (job_id,)).fetchone()
