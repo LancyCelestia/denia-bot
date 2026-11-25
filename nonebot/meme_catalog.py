@@ -6,8 +6,10 @@ It never accepts an arbitrary filesystem path from the dashboard.
 from __future__ import annotations
 
 import colorsys
-import hashlib
 import io
+import os
+import stat
+from collections.abc import Iterator
 from pathlib import Path
 
 from PIL import Image, ImageStat
@@ -118,6 +120,67 @@ def _safe_source(path: Path) -> str:
         return path.name[:500]
 
 
+def _relative(path: Path, base: Path) -> str:
+    try:
+        return path.relative_to(base).as_posix()
+    except ValueError:
+        return path.name
+
+
+def _is_reparse(path: Path) -> bool:
+    try:
+        info = path.lstat()
+    except OSError:
+        return True
+    reparse = getattr(stat, 'FILE_ATTRIBUTE_REPARSE_POINT', 0)
+    return stat.S_ISLNK(info.st_mode) or bool(
+        getattr(info, 'st_file_attributes', 0) & reparse
+    )
+
+
+def _read_limited(path: Path, limit: int) -> bytes:
+    with path.open('rb') as handle:
+        content = handle.read(limit + 1)
+    if len(content) > limit:
+        raise ValueError('超过 5 MB')
+    return content
+
+
+def _iter_image_files(folder: Path, base: Path, fail) -> Iterator[tuple[Path, Path]]:
+    try:
+        with os.scandir(folder) as scanned:
+            entries = sorted(scanned, key=lambda entry: entry.name.lower())
+    except OSError as exc:
+        fail(f'{_relative(folder, base)}: {exc}')
+        return
+    for entry in entries:
+        path = Path(entry.path)
+        rel = _relative(path, base)
+        try:
+            if _is_reparse(path):
+                fail(f'{rel}: 跳过链接')
+                continue
+            if entry.is_dir(follow_symlinks=False):
+                try:
+                    path.resolve().relative_to(base)
+                except (OSError, ValueError):
+                    fail(f'{rel}: 超出导入根')
+                    continue
+                yield from _iter_image_files(path, base, fail)
+            elif entry.is_file(follow_symlinks=False) and path.suffix.lower() in _IMAGE_SUFFIXES:
+                try:
+                    real = path.resolve(strict=True)
+                    real.relative_to(base)
+                    if not real.is_file():
+                        raise ValueError('不是普通文件')
+                except (OSError, ValueError) as exc:
+                    fail(f'{rel}: {exc}')
+                    continue
+                yield path, real
+        except OSError as exc:
+            fail(f'{rel}: {exc}')
+
+
 def auto_tag_library(library, category_id: str | None = None) -> dict:
     """Recompute tags and the folder-level weight for existing images."""
     categories = library.categories()
@@ -141,33 +204,65 @@ def auto_tag_library(library, category_id: str | None = None) -> dict:
 def import_tree(library=None, root=None) -> dict:
     """Import every supported image under the fixed sticker directory.
 
-    Re-running is safe: the image digest is stored and duplicates are skipped.
-    Categories are created from the immediate folder names.
+    Re-running is safe: the storage layer records each image digest and returns
+    the existing row for duplicates. Categories are created from immediate
+    folder names.
     """
     library = library or meme_logic.Library()
-    root = Path(root) if root is not None else DEFAULT_IMPORT_ROOT
-    try:
-        resolved = root.resolve()
-        resolved.relative_to(DATA_ROOT.resolve())
-    except (OSError, ValueError) as exc:
-        raise ValueError('只能导入 data 目录下的表情包') from exc
-    if not resolved.is_dir():
+    data_root = DATA_ROOT.resolve()
+    default_root = DEFAULT_IMPORT_ROOT.resolve()
+    if default_root.name != 'stickers' or default_root.parent != data_root:
+        raise ValueError('表情包导入根配置错误')
+    expected = (DATA_ROOT / 'stickers').resolve()
+    if default_root != expected:
+        raise ValueError('表情包导入根配置错误')
+    target = default_root if root is None else Path(root).resolve()
+    if target != expected:
+        raise ValueError('只能导入 data/stickers 目录')
+    if not target.is_dir():
         raise ValueError('本机表情包目录不存在')
 
     existing = {category['name']: category for category in library.categories()}
     imported = skipped = 0
+    failed = 0
+    more = False
     errors: list[str] = []
+
+    def fail(message):
+        nonlocal failed
+        failed += 1
+        if len(errors) < 20:
+            errors.append(str(message)[:240])
+
+    try:
+        with os.scandir(target) as scanned:
+            folders = sorted(scanned, key=lambda entry: entry.name.lower())
+    except OSError as exc:
+        raise ValueError('本机表情包目录不存在') from exc
+
     categories = 0
-    for folder in sorted(resolved.iterdir(), key=lambda item: item.name.lower()):
-        if not folder.is_dir() or folder.name.startswith('.'):
+    for entry in folders:
+        if more:
+            break
+        if entry.name.startswith('.'):
             continue
-        files = sorted(
-            (path for path in folder.rglob('*') if path.is_file() and path.suffix.lower() in _IMAGE_SUFFIXES),
-            key=lambda item: item.as_posix().lower(),
-        )
+        folder = Path(entry.path)
+        rel_folder = _relative(folder, target)
+        if _is_reparse(folder):
+            fail(f'{rel_folder}: 跳过链接目录')
+            continue
+        try:
+            if not entry.is_dir(follow_symlinks=False):
+                continue
+            folder.resolve().relative_to(target)
+        except (OSError, ValueError) as exc:
+            fail(f'{rel_folder}: {exc}')
+            continue
+
+        category_name = _category_name(folder.name)
+        files = list(_iter_image_files(folder, target, fail))
         if not files:
             continue
-        category_name = _category_name(folder.name)
         category = existing.get(category_name)
         if category is None:
             try:
@@ -176,33 +271,43 @@ def import_tree(library=None, root=None) -> dict:
                 existing[category_name] = category
                 categories += 1
             except ValueError as exc:
-                errors.append(f'{folder.name}: {exc}')
-                continue
-        for path in files:
-            if imported + skipped >= MAX_IMAGES:
-                errors.append(f'达到单次导入上限 {MAX_IMAGES} 张')
-                break
-            try:
-                content = path.read_bytes()
-                if len(content) > meme_logic.MAX_IMAGE_BYTES:
-                    raise ValueError('超过 5 MB')
-                digest = hashlib.sha256(content).hexdigest()
-                if library.find_digest(digest):
-                    skipped += 1
-                    continue
-                library.add_image(
-                    category['id'], content,
-                    tags=auto_tags(folder.name, path.name, content),
-                    weight=auto_weight(folder.name, path.name),
-                    digest=digest,
-                    source=_safe_source(path),
+                category = next(
+                    (item for item in library.categories() if item['name'] == category_name),
+                    None,
                 )
-                imported += 1
+                if category is None:
+                    fail(f'{folder.name}: {exc}')
+                    continue
+                existing[category_name] = category
+
+        for logical, real in files:
+            if imported >= MAX_IMAGES:
+                more = True
+                break
+            rel = _relative(logical, target)
+            try:
+                content = _read_limited(real, meme_logic.MAX_IMAGE_BYTES)
+                _image_id, created = library.add_image(
+                    category['id'], content,
+                    tags=auto_tags(folder.name, logical.name, content),
+                    weight=auto_weight(folder.name, logical.name),
+                    source=_safe_source(real),
+                )
             except (OSError, ValueError) as exc:
-                errors.append(f'{path.name}: {exc}'[:240])
+                fail(f'{rel}: {exc}')
+                continue
+            if created:
+                imported += 1
+            else:
+                skipped += 1
+        if more:
+            break
+
     return {
         'imported': imported,
         'skipped': skipped,
+        'failed': failed,
         'categories': categories,
         'errors': errors[:20],
+        'more': more,
     }

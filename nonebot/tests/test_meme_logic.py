@@ -1,7 +1,10 @@
 import io
 import base64
+import hashlib
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from PIL import Image
@@ -19,7 +22,7 @@ def picture(fmt='PNG'):
 def test_library_upload_scope_and_delete(tmp_path):
     lib = m.Library(tmp_path)
     category = lib.put_category('开心', '庆祝、快乐')
-    image = lib.add_image(category, picture())
+    image, _ = lib.add_image(category, picture())
     assert lib.categories()[0]['count'] == 1
     assert lib.image(image) == picture()
     assert lib.enabled('group:123')
@@ -31,6 +34,71 @@ def test_library_upload_scope_and_delete(tmp_path):
     assert lib.enabled('private:123')
     lib.delete_image(image)
     assert lib.categories()[0]['count'] == 0
+
+
+def test_add_image_deduplicates_and_returns_created(tmp_path):
+    lib = m.Library(tmp_path)
+    category = lib.put_category('开心', '庆祝')
+    first, created = lib.add_image(category, picture())
+    second, duplicate = lib.add_image(category, picture())
+    assert created is True
+    assert duplicate is False
+    assert second == first
+    assert lib.categories()[0]['count'] == 1
+    with lib._connect() as db:
+        digest = db.execute('SELECT digest FROM image_meta WHERE image_id=?', (first,)).fetchone()[0]
+    assert digest == hashlib.sha256(picture()).hexdigest()
+
+
+def test_concurrent_add_image_creates_one_row(tmp_path):
+    category = m.Library(tmp_path).put_category('开心', '庆祝')
+    def add():
+        return m.Library(tmp_path).add_image(category, picture())
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = [future.result() for future in [pool.submit(add), pool.submit(add)]]
+    assert sum(1 for _, created in results if created) == 1
+    assert m.Library(tmp_path).categories()[0]['count'] == 1
+
+
+def test_backfill_digests_preserves_metadata(tmp_path):
+    lib = m.Library(tmp_path)
+    category = lib.put_category('开心', '庆祝')
+    content = picture()
+    image_id = 'a' * 12
+    with lib._connect() as db:
+        db.execute('INSERT INTO images(id,category,content,mime) VALUES (?,?,?,?)',
+                   (image_id, category, content, 'image/png'))
+        db.execute('INSERT INTO image_meta(image_id,tags,weight,digest,source) VALUES (?,?,?,?,?)',
+                   (image_id, '情绪:开心', 2.5, '', '旧来源'))
+    with lib._connect() as db:
+        db.execute('BEGIN IMMEDIATE')
+        assert m.backfill_digests(db) == 1
+    with lib._connect() as db:
+        row = db.execute('SELECT digest,tags,weight,source FROM image_meta WHERE image_id=?',
+                         (image_id,)).fetchone()
+    assert row[0] == hashlib.sha256(content).hexdigest()
+    assert tuple(row[1:]) == ('情绪:开心', 2.5, '旧来源')
+    with lib._connect() as db:
+        db.execute('BEGIN IMMEDIATE')
+        assert m.backfill_digests(db) == 0
+
+
+def test_choose_can_limit_to_image_ids(tmp_path):
+    lib = m.Library(tmp_path)
+    category = lib.put_category('开心', '庆祝')
+    first, _ = lib.add_image(category, picture())
+    lib.add_image(category, picture('JPEG'))
+    seen = {}
+    def choose(rows, weights, k):
+        seen['ids'] = [row[0] for row in rows]
+        seen['weights'] = list(weights)
+        return [rows[0]]
+    with patch.object(m.random, 'choices', choose):
+        image, mime = lib.choose(category, image_ids={first})
+    assert seen['ids'] == [first]
+    assert seen['weights'] == [1.0]
+    assert image == picture()
+    assert mime == 'image/png'
 
 
 def test_reject_invalid_names_and_uploads(tmp_path):

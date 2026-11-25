@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import io
+import hashlib
 import json
 import random
 import re
@@ -16,7 +17,6 @@ DEFAULT_ROOT = Path(__file__).resolve().parent / 'data' / 'memes'
 MAX_IMAGE_BYTES = 5 * 1024 * 1024
 _ID = re.compile(r'^[a-f0-9]{12}$')
 _SCOPE = re.compile(r'^(?:group|private):[0-9]{1,20}$')
-_DIGEST = re.compile(r'^[a-f0-9]{64}$')
 _TAG_SPLIT = re.compile(r'[,，、\n]+')
 
 
@@ -62,6 +62,66 @@ def image_mime(content):
             return mime
     except (UnidentifiedImageError, OSError, SyntaxError, EOFError, Image.DecompressionBombError) as e:
         raise ValueError('图片格式无效') from e
+
+
+def backfill_digests(db, batch=100):
+    """Fill missing image_meta.digest values in small batches; caller owns the transaction."""
+    total = 0
+    size = max(1, int(batch))
+    while True:
+        rows = db.execute(
+            '''SELECT i.id, i.content FROM images i
+               LEFT JOIN image_meta m ON m.image_id = i.id
+               WHERE m.image_id IS NULL OR m.digest = ''
+               ORDER BY i.rowid LIMIT ?''',
+            (size,),
+        ).fetchall()
+        if not rows:
+            return total
+        for image_id, content in rows:
+            digest = hashlib.sha256(bytes(content)).hexdigest()
+            db.execute('INSERT OR IGNORE INTO image_meta(image_id,digest) VALUES (?,?)',
+                       (image_id, digest))
+            db.execute("UPDATE image_meta SET digest=? WHERE image_id=? AND digest=''",
+                       (digest, image_id))
+            total += 1
+
+
+def insert_image(db, category_id, content, tags='', weight=1.0, source=''):
+    """Insert one image inside the caller's write transaction; return (id, created)."""
+    if not _ID.fullmatch(str(category_id)):
+        raise ValueError('分类不存在')
+    content = bytes(content)
+    mime = image_mime(content)
+    tags = _clean_tags(tags)
+    weight = _clean_weight(weight)
+    source = str(source or '').strip()
+    if len(source) > 500 or any(ord(ch) < 32 for ch in source):
+        raise ValueError('图片来源无效')
+    digest = hashlib.sha256(content).hexdigest()
+    missing = db.execute("SELECT 1 FROM image_meta WHERE digest='' LIMIT 1").fetchone()
+    if not missing:
+        missing = db.execute(
+            'SELECT 1 FROM images i LEFT JOIN image_meta m ON m.image_id=i.id'
+            ' WHERE m.image_id IS NULL LIMIT 1'
+        ).fetchone()
+    if missing:
+        backfill_digests(db)
+    row = db.execute('SELECT image_id FROM image_meta WHERE digest=? ORDER BY image_id LIMIT 1',
+                     (digest,)).fetchone()
+    if row:
+        return row[0], False
+    image_id = secrets.token_hex(6)
+    try:
+        db.execute('INSERT INTO images(id,category,content,mime) VALUES (?,?,?,?)',
+                   (image_id, category_id, content, mime))
+        db.execute(
+            'INSERT INTO image_meta(image_id,tags,weight,digest,source) VALUES (?,?,?,?,?)',
+            (image_id, tags, weight, digest, source),
+        )
+    except sqlite3.IntegrityError as e:
+        raise ValueError('分类不存在') from e
+    return image_id, True
 
 
 class Library:
@@ -121,33 +181,10 @@ class Library:
             if not db.execute('DELETE FROM categories WHERE id=?', (category_id,)).rowcount:
                 raise ValueError('分类不存在')
 
-    def add_image(self, category_id, content, tags='', weight=1.0, digest='', source=''):
-        if not _ID.fullmatch(str(category_id)):
-            raise ValueError('分类不存在')
-        mime = image_mime(content)
-        tags = _clean_tags(tags)
-        weight = _clean_weight(weight)
-        digest = str(digest or '').strip().lower()
-        if digest and not _DIGEST.fullmatch(digest):
-            raise ValueError('图片摘要无效')
-        source = str(source or '').strip()
-        if len(source) > 500 or any(ord(ch) < 32 for ch in source):
-            raise ValueError('图片来源无效')
-        image_id = secrets.token_hex(6)
+    def add_image(self, category_id, content, tags='', weight=1.0, source=''):
         with self._connect() as db:
-            if digest:
-                row = db.execute('SELECT image_id FROM image_meta WHERE digest=?', (digest,)).fetchone()
-                if row:
-                    return row[0]
-            try:
-                db.execute('INSERT INTO images VALUES (?,?,?,?)', (image_id, category_id, bytes(content), mime))
-                db.execute(
-                    'INSERT INTO image_meta(image_id,tags,weight,digest,source) VALUES (?,?,?,?,?)',
-                    (image_id, tags, weight, digest, source),
-                )
-            except sqlite3.IntegrityError as e:
-                raise ValueError('分类不存在') from e
-        return image_id
+            db.execute('BEGIN IMMEDIATE')
+            return insert_image(db, category_id, content, tags, weight, source)
 
     def images(self, category_id):
         with self._connect() as db:
@@ -159,14 +196,6 @@ class Library:
             ).fetchall()
         return [dict(id=i, mime=mime, tags=tags, weight=weight, source=source)
                 for i, mime, tags, weight, source in rows]
-
-    def find_digest(self, digest):
-        digest = str(digest or '').strip().lower()
-        if not _DIGEST.fullmatch(digest):
-            raise ValueError('图片摘要无效')
-        with self._connect() as db:
-            row = db.execute('SELECT image_id FROM image_meta WHERE digest=?', (digest,)).fetchone()
-        return row[0] if row else None
 
     def set_metadata(self, image_id, tags=None, weight=None):
         if not _ID.fullmatch(str(image_id)):
@@ -203,7 +232,7 @@ class Library:
     def image(self, image_id):
         return self.image_info(image_id)[0]
 
-    def choose(self, category_id, tags=None):
+    def choose(self, category_id, tags=None, image_ids=None):
         with self._connect() as db:
             rows = db.execute(
                 '''SELECT i.id,COALESCE(m.tags,''),COALESCE(m.weight,1.0)
@@ -211,6 +240,9 @@ class Library:
                    WHERE i.category=?''',
                 (category_id,),
             ).fetchall()
+        if image_ids is not None:
+            allowed = {str(value) for value in image_ids}
+            rows = [row for row in rows if row[0] in allowed]
         if not rows:
             return None
         wanted = [tag.strip().lower() for tag in _TAG_SPLIT.split(str(tags or '')) if tag.strip()]

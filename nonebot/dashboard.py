@@ -5,6 +5,7 @@ import hmac
 import json
 import logging
 import os
+import re
 import secrets
 import sqlite3
 import time
@@ -55,8 +56,18 @@ from bot_monitor import Monitor, Restart, RestartController, WindowsRestart  # n
 
 ROOT = Path(__file__).resolve().parent
 AUTH_FILE = ROOT / 'data' / 'dashboard-auth.json'
+_GROUP_ID = re.compile(r'^[1-9][0-9]{0,19}$')
 attempts = {}
 log = logging.getLogger(__name__)
+
+
+def _group_id(value, *, empty_message='群号无效'):
+    text = '' if value is None else str(value).strip()
+    if not text:
+        raise HTTPException(400, empty_message)
+    if not _GROUP_ID.fullmatch(text):
+        raise HTTPException(400, '群号无效')
+    return text
 
 
 def onboarding_path() -> Path:
@@ -300,7 +311,8 @@ async def upload_meme_image(req: Request, category: str, tags: str = '', weight:
             tags = meme_catalog.auto_tags(category_name, '', bytes(content))
         if weight == 1.0:
             weight = meme_catalog.auto_weight(category_name)
-        return {'id': meme_library.add_image(category, bytes(content), tags=tags, weight=weight)}
+        image_id, created = meme_library.add_image(category, bytes(content), tags=tags, weight=weight)
+        return {'id': image_id, 'created': created}
     except ValueError as e:
         raise HTTPException(400, str(e)) from e
 
@@ -959,8 +971,7 @@ async def clear_token_usage(req: Request):
 @app.get('/api/group/{gid}')
 def group(gid: str, req: Request):
     authorized(req)
-    if not gid.isdigit() or int(gid) <= 0:
-        raise HTTPException(400, '群号无效')
+    gid = _group_id(gid)
     return {'enabled':topics.enabled(topics.DEFAULT_PATH,gid),'topics':topics.top(topics.DEFAULT_PATH,gid,limit=20), 'speakers':topics.speaker_top(topics.DEFAULT_PATH,gid,limit=20)}
 
 @app.post('/api/topic')
@@ -972,15 +983,13 @@ async def topic(req: Request):
         raise HTTPException(400, '请求体不是合法 JSON') from exc
     if not isinstance(b, dict):
         raise HTTPException(400, '请求体必须是对象')
-    gid = str(b.get('group', '')).strip()
+    gid = _group_id(b.get('group', ''), empty_message='请先选择或输入群号')
     action = b.get('action')
-    if not gid.isdigit() or int(gid) <= 0:
-        raise HTTPException(400, '请先选择或输入群号')
     if action not in ('开', '关', '清除'):
         raise HTTPException(400, '操作无效')
     if action == '清除': topics.clear(topics.DEFAULT_PATH,gid)
     else: topics.set_enabled(topics.DEFAULT_PATH,gid,action=='开')
-    return {'ok':True}
+    return {'ok':True, 'group':gid}
 
 @app.post('/api/memory')
 async def change_memory(req: Request):

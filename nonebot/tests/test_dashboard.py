@@ -370,13 +370,25 @@ class DashboardTest(unittest.TestCase):
             with TestClient(d.app) as client:
                 login = client.post('/api/login', json={'password': 'a-strong-test-password'})
                 headers = {'Origin': 'http://testserver', 'X-CSRF-Token': login.json()['csrf']}
-                empty = client.post('/api/topic', json={'group': '', 'action': '开'}, headers=headers)
+                empty = client.post('/api/topic', json={'group': '   ', 'action': '开'}, headers=headers)
                 self.assertEqual(empty.status_code, 400)
                 self.assertEqual(empty.json()['detail'], '请先选择或输入群号')
-                bad = client.get('/api/group/abc')
-                self.assertEqual(bad.status_code, 400)
-                self.assertEqual(bad.json()['detail'], '群号无效')
-                self.assertEqual(client.post('/api/topic', json={'group': '123', 'action': 'x'}, headers=headers).status_code, 400)
+                for bad in ('abc', '0', '000', '²', '1' * 21):
+                    response = client.get('/api/group/' + bad)
+                    self.assertEqual(response.status_code, 400, bad)
+                    self.assertEqual(response.json()['detail'], '群号无效')
+                    response = client.post('/api/topic', json={'group': bad, 'action': '开'}, headers=headers)
+                    self.assertEqual(response.status_code, 400, bad)
+                    self.assertEqual(response.json()['detail'], '群号无效')
+                numeric_zero = client.post('/api/topic', json={'group': 0, 'action': '开'}, headers=headers)
+                self.assertEqual(numeric_zero.status_code, 400)
+                self.assertEqual(numeric_zero.json()['detail'], '群号无效')
+                invalid_action = client.post('/api/topic', json={'group': '123', 'action': 'x'}, headers=headers)
+                self.assertEqual(invalid_action.status_code, 400)
+                self.assertEqual(invalid_action.json()['detail'], '操作无效')
+                saved = client.post('/api/topic', json={'group': '123', 'action': '开'}, headers=headers)
+                self.assertEqual(saved.status_code, 200)
+                self.assertEqual(saved.json()['group'], '123')
 
     def test_model_chat_test_endpoint_requires_csrf_and_maps_errors(self):
         with tempfile.TemporaryDirectory() as tmp:

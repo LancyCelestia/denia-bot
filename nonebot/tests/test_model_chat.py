@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -8,6 +9,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import model_chat
+import model_publication
 
 MODEL_TEXT = """# provider config
 relay:
@@ -43,6 +45,7 @@ BLANK_KEY_TEXT = """relay:
 def write_config(tmp_path, monkeypatch, text=MODEL_TEXT):
     path = tmp_path / 'models.yml'
     path.write_text(text, encoding='utf-8')
+    model_publication.approve_existing(path, hashlib.sha256(path.read_bytes()).hexdigest())
     monkeypatch.setattr(model_chat, 'MODELS_PATH', path)
     return path
 
@@ -209,6 +212,54 @@ INVALID_MESSAGES = [
     pytest.param(['hi'], id='not-a-mapping'),
     pytest.param([{'role': 'user', 'content': '字' * 12_001}], id='too-long'),
 ]
+
+
+def test_gateway_request_gets_an_anonymous_session_header(models, monkeypatch):
+    seen = {}
+
+    def handler(request):
+        seen['session'] = request.headers.get('x-opencode-session')
+        return httpx.Response(200, json={'choices': [{'message': {'content': 'ok'}}]})
+
+    patch_transport(monkeypatch, handler)
+    run_chat([{'role': 'user', 'content': 'hi'}])
+
+    assert seen['session'].startswith('qqbot-')
+    assert len(seen['session']) > len('qqbot-')
+
+
+def test_direct_provider_has_no_session_header(tmp_path, monkeypatch):
+    text = """direct:
+  provider: openai
+  default: true
+  model_name: direct-model
+  api_host: https://direct.example/v1
+  api_key: sk-secret-value
+"""
+    write_config(tmp_path, monkeypatch, text)
+    seen = {}
+
+    def handler(request):
+        seen['session'] = request.headers.get('x-opencode-session')
+        return httpx.Response(200, json={'choices': [{'message': {'content': 'ok'}}]})
+
+    patch_transport(monkeypatch, handler)
+    run_chat([{'role': 'user', 'content': 'hi'}])
+
+    assert seen['session'] is None
+
+
+def test_unpublished_config_is_rejected_before_any_request(tmp_path, monkeypatch):
+    path = tmp_path / 'models.yml'
+    path.write_text(MODEL_TEXT, encoding='utf-8')
+    monkeypatch.setattr(model_chat, 'MODELS_PATH', path)
+
+    def fail_factory(**kwargs):
+        raise AssertionError('no HTTP client should be created')
+
+    monkeypatch.setattr(model_chat.httpx, 'AsyncClient', fail_factory)
+    with pytest.raises(model_chat.ChatError, match='模型配置尚未发布'):
+        run_chat([{'role': 'user', 'content': 'hi'}])
 
 
 @pytest.mark.parametrize('messages', INVALID_MESSAGES)

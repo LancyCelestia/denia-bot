@@ -13,6 +13,8 @@ from urllib.parse import urlsplit
 import httpx
 import yaml
 
+import gateway_session_logic
+import model_publication
 import persona_settings
 
 MODELS_PATH = persona_settings.MODELS_PATH
@@ -86,16 +88,28 @@ def _normalized_messages(messages) -> list[dict]:
     return normalized
 
 
-def _provider() -> tuple[str, str, Mapping]:
-    """Read the default entry; return (base_url, api_key, raw entry)."""
+def _provider() -> tuple[str, str, Mapping, Mapping]:
+    """Read the published default entry; return (base_url, api_key, entry, configs)."""
     try:
-        _, data = persona_settings._read_models(MODELS_PATH)
-    except (OSError, ValueError, yaml.YAMLError) as exc:
-        raise ChatError("无法读取模型配置") from exc
-    entry = data.get(persona_settings._default_model(data))
+        raw = model_publication.read_published(MODELS_PATH)
+    except model_publication.UnpublishedConfig as exc:
+        raise ChatError('模型配置尚未发布') from exc
+    except OSError as exc:
+        raise ChatError('无法读取模型配置') from exc
+    try:
+        data = yaml.safe_load(raw.decode('utf-8'))
+    except (UnicodeError, yaml.YAMLError, ValueError) as exc:
+        raise ChatError('模型配置格式无效') from exc
+    if not isinstance(data, dict) or not data:
+        raise ChatError('模型配置格式无效')
+    try:
+        default = persona_settings._default_model(data)
+    except (KeyError, StopIteration, TypeError) as exc:
+        raise ChatError('模型配置格式无效') from exc
+    entry = data.get(default)
     if not isinstance(entry, Mapping):
-        raise ChatError("模型配置格式无效")
-    return _base_url(entry.get("api_host")), _api_key(entry.get("api_key")), entry
+        raise ChatError('模型配置格式无效')
+    return _base_url(entry.get('api_host')), _api_key(entry.get('api_key')), entry, data
 
 
 def _content(payload) -> str:
@@ -131,16 +145,21 @@ async def chat(messages: list[dict], model: str | None = None, *,
     trip time in milliseconds.
     """
     normalized = _normalized_messages(messages)
-    base_url, api_key, entry = _provider()
+    base_url, api_key, entry, configs = _provider()
     model_id = _model_name(model) if model is not None else _model_name(entry.get("model_name"))
     seconds = _timeout(timeout)
+    headers = {"Authorization": f"Bearer {api_key}"}
+    relay = configs.get("relay")
+    if isinstance(relay, Mapping) and gateway_session_logic.same_endpoint(
+            base_url, relay.get("api_host")):
+        headers["x-opencode-session"] = gateway_session_logic.anonymous_session()
 
     started = time.perf_counter()
     try:
         async with httpx.AsyncClient(timeout=seconds, follow_redirects=False) as client:
             response = await client.post(
                 f"{base_url}/chat/completions",
-                headers={"Authorization": f"Bearer {api_key}"},
+                headers=headers,
                 json={
                     "model": model_id,
                     "messages": normalized,
