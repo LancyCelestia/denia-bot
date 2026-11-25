@@ -28,6 +28,13 @@ $LOG        = "$ROOT\logs"
 $GSUID_CORE = "$ROOT\gsuid\core"
 $GSUID_PY   = "$GSUID_CORE\.venv\Scripts\python.exe"
 
+# 管理面板与机器人共用 DASHBOARD_HOST / DASHBOARD_PORT；通配绑定只用于显示回环入口。
+$DASH_BIND = if ($env:DASHBOARD_HOST) { $env:DASHBOARD_HOST } else { '127.0.0.1' }
+$DASH_PORT = 8092
+if ($env:DASHBOARD_PORT -match '^\d+$') { $DASH_PORT = [int]$env:DASHBOARD_PORT }
+$DASH_HOST = if ($DASH_BIND -in @('0.0.0.0', '::')) { '127.0.0.1' } else { $DASH_BIND }
+$DASH_DISPLAY = if ($DASH_HOST -match ':') { "[$DASH_HOST]" } else { $DASH_HOST }
+
 # 否则 Python 在 Windows 上重定向输出时会用 GBK，日志里的中文会变成乱码
 $env:PYTHONIOENCODING = 'utf-8'
 $env:PYTHONUTF8 = '1'
@@ -116,7 +123,7 @@ if (Test-Path -LiteralPath $ragKeyFile -PathType Leaf) {
     }
 }
 $ragExpected = (Test-Path "$ragIndex\vectors.npy") -and $ragKeyConfigured
-Write-Host "[1/5] RAG 检索服务 (8091) ..." -NoNewline
+Write-Host "[1/6] RAG 检索服务 (8091) ..." -NoNewline
 if (Test-Listening 8091) {
     Write-Host " 已在运行" -ForegroundColor Yellow
 } elseif (-not (Test-Path "$ragIndex\vectors.npy")) {
@@ -146,7 +153,7 @@ if (Test-Path -LiteralPath $pluginSettings) {
         $gsuidEnabled = $true
     }
 }
-Write-Host "[2/5] gsuid_core (8765) ..." -NoNewline
+Write-Host "[2/6] gsuid_core (8765) ..." -NoNewline
 if (-not $gsuidEnabled) {
     Write-Host " [--] 已由插件管理关闭" -ForegroundColor Yellow
 } elseif (Test-Listening 8765) {
@@ -169,7 +176,7 @@ if (-not $gsuidEnabled) {
 }
 
 # ---------- 3. NoneBot2 + MuiceBot ----------
-Write-Host "[3/5] NoneBot2 + MuiceBot ..." -NoNewline
+Write-Host "[3/6] NoneBot2 + MuiceBot ..." -NoNewline
 if (Test-Listening 8080) {
     Write-Host " 已在运行" -ForegroundColor Yellow
 } else {
@@ -181,7 +188,7 @@ if (Test-Listening 8080) {
     Write-Host " 已启动" -ForegroundColor Green}
 
 # ---------- 4. SnowLuma ----------
-Write-Host "[4/5] SnowLuma (QQ 协议端) ..." -NoNewline
+Write-Host "[4/6] SnowLuma (QQ 协议端) ..." -NoNewline
 if (Test-Listening 5099) {
     Write-Host " 已在运行" -ForegroundColor Yellow
 } else {
@@ -193,9 +200,26 @@ if (Test-Listening 5099) {
     Write-Host " 已启动" -ForegroundColor Green
 }
 
-# ---------- 5. 等待各端就绪 ----------
-Write-Host "[5/5] 等待服务就绪 ..." -NoNewline
-$ok1 = $false; $ok2 = $false; $ok3 = $false; $ok4 = $false
+# ---------- 5. 管理面板 ----------
+Write-Host "[5/6] 管理面板 ($DASH_PORT) ..." -NoNewline
+if (Test-Listening $DASH_PORT) {
+    Write-Host " 已在运行" -ForegroundColor Yellow
+} elseif (-not (Test-Path -LiteralPath $NONE_LUA)) {
+    Write-Host " [!!] NoneBot venv 不存在 $NONE_LUA" -ForegroundColor Red
+    $script:StartupFailed = $true
+} else {
+    Start-Process -FilePath $NONE_LUA `
+        -ArgumentList '-m', 'uvicorn', 'dashboard:app', '--host', $DASH_BIND, '--port', $DASH_PORT, '--no-access-log' `
+        -WorkingDirectory "$ROOT\nonebot" `
+        -RedirectStandardOutput "$LOG\dashboard.out.log" `
+        -RedirectStandardError  "$LOG\dashboard.err.log" `
+        -WindowStyle Hidden
+    Write-Host " 已启动" -ForegroundColor Green
+}
+
+# ---------- 6. 等待各端就绪 ----------
+Write-Host "[6/6] 等待服务就绪 ..." -NoNewline
+$ok1 = $false; $ok2 = $false; $ok3 = $false; $ok4 = $false; $ok5 = $false
 $coreExpected = $gsuidEnabled -and (Test-Path $GSUID_PY)
 for ($i = 0; $i -lt 30; $i++) {
     Start-Sleep -Seconds 2
@@ -204,12 +228,13 @@ for ($i = 0; $i -lt 30; $i++) {
     if (-not $ok2) { $ok2 = Test-Listening 5099 }
     if (-not $ok3) { $ok3 = Test-Listening 8091 }
     if ($coreExpected -and -not $ok4) { $ok4 = Test-Listening 8765 }
-    if ($ok1 -and $ok2 -and ($ok3 -or -not $ragExpected) -and ($ok4 -or -not $coreExpected)) { break }
+    if (-not $ok5) { $ok5 = Test-Listening $DASH_PORT }
+    if ($ok1 -and $ok2 -and ($ok3 -or -not $ragExpected) -and ($ok4 -or -not $coreExpected) -and $ok5) { break }
 }
 Write-Host ""
 Write-Host ""
 
-if (-not $ok1 -or -not $ok2) { $script:StartupFailed = $true }
+if (-not $ok1 -or -not $ok2 -or -not $ok5) { $script:StartupFailed = $true }
 
 if ($ok1) { Write-Host "  [OK] NoneBot2          : http://127.0.0.1:8080" -ForegroundColor Green }
 else      { Write-Host "  [!!] NoneBot2 未就绪，看日志: $LOG\nonebot.out.log" -ForegroundColor Red }
@@ -232,7 +257,10 @@ if ($ok4) {
     Write-Host "  [!!] gsuid_core 未就绪，看日志: $LOG\gsuid.out.log" -ForegroundColor Red
 }
 
-# ---------- 5. 收敛注入账号：只保留小号 ----------
+if ($ok5) { Write-Host "  [OK] 管理面板          : http://${DASH_DISPLAY}:$DASH_PORT" -ForegroundColor Green }
+else      { Write-Host "  [!!] 管理面板未就绪，看日志: $LOG\dashboard.err.log" -ForegroundColor Red }
+
+# ---------- 7. 收敛注入账号：只保留小号 ----------
 Write-Host ""
 Write-Host "收敛 QQ 注入账号（只保留 $BotUin）..." -ForegroundColor Cyan
 if ($ok2 -and $BotUin) {
@@ -247,6 +275,7 @@ if ($ok2 -and $BotUin) {
 Write-Host ""
 Write-Host "---------------- 连接信息 ----------------" -ForegroundColor DarkGray
 Write-Host "  OneBot 反向 WS : ws://127.0.0.1:8080/onebot/v11/ws" -ForegroundColor DarkGray
+Write-Host "  管理面板       : http://${DASH_DISPLAY}:$DASH_PORT" -ForegroundColor DarkGray
 Write-Host "  机器人 QQ      : $BotUin" -ForegroundColor DarkGray
 if ($ok4) {
     Write-Host "  gsuid_core     : http://127.0.0.1:8765/app（本机）" -ForegroundColor DarkGray

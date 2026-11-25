@@ -13,9 +13,9 @@ exit /b %RC%
 setlocal EnableExtensions
 rem QQBOT-ENTRY-START-v1
 rem ---------------------------------------------------------------------
-rem  QQ bot start (SnowLuma + NoneBot2/MuiceBot + RAG + gsuid_core)
+rem  QQ bot start (SnowLuma + NoneBot2/MuiceBot + RAG + gsuid_core + dashboard)
 rem  Root comes from %~dp0, so any checkout path works. No drive letters.
-rem  Order: RAG -> gsuid_core (optional) -> NoneBot(8080) -> SnowLuma(5099)
+rem  Order: RAG -> gsuid_core (optional) -> NoneBot(8080) -> SnowLuma(5099) -> dashboard(8092)
 rem  Keep this file ASCII-only: cmd.exe misparses non-ASCII text in long
 rem  UTF-8 batch files and then runs fragments of lines as commands.
 rem ---------------------------------------------------------------------
@@ -27,13 +27,19 @@ set "LOG=%ROOT%\logs"
 
 rem Cloud RAG index: KB_CLOUD_INDEX may be absolute or relative to the repo root.
 set "RAG_INDEX=%ROOT%\rag\index-siliconflow"
-if defined KB_CLOUD_INDEX (
-    set "RAG_INDEX=%KB_CLOUD_INDEX%"
-    if "%KB_CLOUD_INDEX:~0,1%"=="\" goto :rag_index_ready
-    if "%KB_CLOUD_INDEX:~1,1%"==":" goto :rag_index_ready
-    set "RAG_INDEX=%ROOT%\%KB_CLOUD_INDEX%"
-)
+if not defined KB_CLOUD_INDEX goto :rag_index_ready
+set "RAG_INDEX=%KB_CLOUD_INDEX%"
+if "%KB_CLOUD_INDEX:~0,1%"=="\" goto :rag_index_ready
+if "%KB_CLOUD_INDEX:~1,1%"==":" goto :rag_index_ready
+set "RAG_INDEX=%ROOT%\%KB_CLOUD_INDEX%"
 :rag_index_ready
+
+rem Parse-only hook for tests: the RAG index block above is the part that used to
+rem abort cmd.exe when KB_CLOUD_INDEX was unset.
+if defined QQBOT_DRY_RUN (
+    echo [dry-run] launcher configuration parsed; no service was started
+    exit /b 0
+)
 
 rem Python falls back to GBK when stdout is redirected on Windows
 set "PYTHONUTF8=1"
@@ -58,13 +64,14 @@ if not defined BOT_UIN call :read_self_id "%ROOT%\nonebot\.env"
 if defined BOT_UIN set "BOT_UIN=%BOT_UIN:"=%"
 if defined BOT_UIN set "BOT_UIN=%BOT_UIN: =%"
 
-rem ---------- admin dashboard address (display only) ----------
-rem The panel is a separate process; this script does not start it.
-rem Default is loopback 127.0.0.1:8092. DASHBOARD_HOST / DASHBOARD_PORT
-rem (the same variables the dashboard service uses) override the shown
-rem address. A wildcard bind is shown as the local loopback entry point.
-set "DASH_HOST=%DASHBOARD_HOST%"
-if not defined DASH_HOST set "DASH_HOST=127.0.0.1"
+rem ---------- admin dashboard (separate process, started here) ----------
+rem The panel is a separate process, but this one-click launcher starts it and
+rem the matching stop launcher stops it. DASHBOARD_HOST / DASHBOARD_PORT are the
+rem same variables the dashboard service uses. Display a wildcard bind as the
+rem local loopback entry point, but pass the raw bind address to uvicorn.
+set "DASH_BIND=%DASHBOARD_HOST%"
+if not defined DASH_BIND set "DASH_BIND=127.0.0.1"
+set "DASH_HOST=%DASH_BIND%"
 if "%DASH_HOST%"=="0.0.0.0" set "DASH_HOST=127.0.0.1"
 if "%DASH_HOST%"=="::" set "DASH_HOST=127.0.0.1"
 if "%DASH_HOST:~0,1%"==":" set "DASH_HOST=[%DASH_HOST%]"
@@ -72,10 +79,10 @@ set "DASH_PORT=%DASHBOARD_PORT%"
 if not defined DASH_PORT set "DASH_PORT=8092"
 
 echo ==========================================
-echo   QQ bot start (SnowLuma + NoneBot2 + gsuid_core)
+echo   QQ bot start (SnowLuma + NoneBot2 + gsuid_core + dashboard)
 echo ==========================================
 echo   Repo root: %ROOT%
-echo   Admin panel URL: http://%DASH_HOST%:%DASH_PORT%  (separate process)
+echo   Admin panel URL: http://%DASH_HOST%:%DASH_PORT%
 echo.
 
 if not exist "%ROOT%\nonebot\bot.py" goto :not_checkout
@@ -85,7 +92,7 @@ call :is_listening 8080
 if not errorlevel 1 goto :already_running
 
 rem Dependency check/installation must finish before any service starts.
-echo [0/5] Checking startup dependencies ...
+echo [0/6] Checking startup dependencies ...
 powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\tools\startup-preflight.ps1" -Root "%ROOT%" -NoPause
 if errorlevel 1 (
     echo       [!!] dependency check failed; no service was started
@@ -111,9 +118,11 @@ set "NB_EXPECT=0"
 set "NB_READY=0"
 set "SNOW_EXPECT=0"
 set "SNOW_READY=0"
+set "DASH_EXPECT=0"
+set "DASH_READY=0"
 
-rem ---------- 1/4 RAG service (8091, SiliconFlow cloud) ----------
-echo [1/4] RAG service (8091) ...
+rem ---------- 1/6 RAG service (8091, SiliconFlow cloud) ----------
+echo [1/6] RAG service (8091) ...
 call :is_listening 8091
 if not errorlevel 1 goto :rag_running
 if not exist "%RAG_INDEX%\vectors.npy" goto :rag_no_index
@@ -153,8 +162,8 @@ goto :rag_done
 
 :rag_done
 
-rem ---------- 2/4 gsuid_core (8765, optional) ----------
-echo [2/4] gsuid_core (8765, optional) ...
+rem ---------- 2/6 gsuid_core (8765, optional) ----------
+echo [2/6] gsuid_core (8765, optional) ...
 if exist "%ROOT%\nonebot\data\plugins.json" (
     findstr /C:"gsuid" "%ROOT%\nonebot\data\plugins.json" >nul 2>&1
     if not errorlevel 1 (
@@ -186,8 +195,8 @@ goto :gs_done
 
 :gs_done
 
-rem ---------- 3/4 NoneBot2 + MuiceBot (8080) ----------
-echo [3/4] NoneBot2 + MuiceBot (8080) ...
+rem ---------- 3/6 NoneBot2 + MuiceBot (8080) ----------
+echo [3/6] NoneBot2 + MuiceBot (8080) ...
 if not exist "%NONE_PY%" goto :nb_missing
 call :start_service "%NONE_PY%" "bot.py" "%ROOT%\nonebot" "nonebot" ""
 if errorlevel 1 (
@@ -207,8 +216,8 @@ goto :nb_done
 
 :nb_done
 
-rem ---------- 4/4 SnowLuma (5099) ----------
-echo [4/4] SnowLuma (5099) ...
+rem ---------- 4/6 SnowLuma (5099) ----------
+echo [4/6] SnowLuma (5099) ...
 call :is_listening 5099
 if not errorlevel 1 goto :snow_running
 if not exist "%SNOW_NODE%" goto :snow_missing
@@ -235,8 +244,36 @@ goto :snow_done
 
 :snow_done
 
-rem ---------- 5/5 wait for readiness (max 60s) ----------
-echo [5/5] waiting for services to become ready ...
+rem ---------- 5/6 Admin dashboard (8092) ----------
+echo [5/6] Admin dashboard (%DASH_PORT%) ...
+call :is_listening %DASH_PORT%
+if not errorlevel 1 goto :dash_running
+if not exist "%NONE_PY%" goto :dash_missing
+call :start_service "%NONE_PY%" "-m uvicorn dashboard:app --host %DASH_BIND% --port %DASH_PORT% --no-access-log" "%ROOT%\nonebot" "dashboard" ""
+if errorlevel 1 (
+    echo       [!!] failed to start, see log: %LOG%\dashboard.err.log
+    set "FAILED=1"
+    goto :dash_done
+)
+echo       started
+set "DASH_EXPECT=1"
+goto :dash_done
+
+:dash_running
+echo       already listening, skipped
+set "DASH_EXPECT=1"
+set "DASH_READY=1"
+goto :dash_done
+
+:dash_missing
+echo       [!!] NoneBot venv missing: %NONE_PY%
+set "FAILED=1"
+goto :dash_done
+
+:dash_done
+
+rem ---------- 6/6 wait for readiness (max 60s) ----------
+echo [6/6] waiting for services to become ready ...
 set /a WAIT=30
 :wait_loop
 if "%NB_EXPECT%%NB_READY%"=="10" (
@@ -255,11 +292,16 @@ if "%GS_EXPECT%%GS_READY%"=="10" (
     call :is_listening 8765
     if not errorlevel 1 set "GS_READY=1"
 )
+if "%DASH_EXPECT%%DASH_READY%"=="10" (
+    call :is_listening %DASH_PORT%
+    if not errorlevel 1 set "DASH_READY=1"
+)
 set "ALL_READY=1"
 if "%NB_EXPECT%%NB_READY%"=="10" set "ALL_READY=0"
 if "%SNOW_EXPECT%%SNOW_READY%"=="10" set "ALL_READY=0"
 if "%RAG_EXPECT%%RAG_READY%"=="10" set "ALL_READY=0"
 if "%GS_EXPECT%%GS_READY%"=="10" set "ALL_READY=0"
+if "%DASH_EXPECT%%DASH_READY%"=="10" set "ALL_READY=0"
 if "%ALL_READY%"=="1" goto :wait_done
 set /a WAIT-=1
 if %WAIT% LEQ 0 goto :wait_done
@@ -287,6 +329,11 @@ if "%RAG_EXPECT%%RAG_READY%"=="00" echo   [--] RAG not enabled (needs SiliconFlo
 
 if "%GS_EXPECT%%GS_READY%"=="11" echo   [OK] gsuid_core WebUI  : http://127.0.0.1:8765/app
 if "%GS_EXPECT%%GS_READY%"=="10" echo   [!!] gsuid_core not ready (optional), see log: %LOG%\gsuid.out.log
+
+if "%DASH_EXPECT%%DASH_READY%"=="11" echo   [OK] Admin dashboard   : http://%DASH_HOST%:%DASH_PORT%
+if "%DASH_EXPECT%%DASH_READY%"=="10" echo   [!!] Admin dashboard not ready, see log: %LOG%\dashboard.err.log
+if "%DASH_EXPECT%%DASH_READY%"=="10" set "FAILED=1"
+if "%DASH_EXPECT%%DASH_READY%"=="00" echo   [--] Admin dashboard not started
 
 echo.
 echo ---------------- connection info ----------------

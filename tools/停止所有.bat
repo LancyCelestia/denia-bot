@@ -60,13 +60,13 @@ set "PS_STOP=%PS_STOP%   }"
 set "PS_STOP=%PS_STOP% };"
 
 rem Other services: stop only when the command line contains this repo path
-rem AND one of this project's entry points (bot.py / serve_cloud.py / gsuid /
+rem AND one of this project's entry points (bot.py / serve_cloud.py / dashboard / gsuid /
 rem snowluma on node.exe).
-set "PS_STOP=%PS_STOP% $targets=@(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object { $_.ProcessId -ne $PID -and ( (($_.Name -eq 'node.exe') -and (Test-Snow $_.CommandLine)) -or ((Test-Own $_.CommandLine) -and (((($_.Name -eq 'python.exe') -or ($_.Name -eq 'pythonw.exe')) -and ($_.CommandLine -match '(?i)(bot\.py|serve(?:_cloud)?\.py|gsuid_core|gsuid[\\/]core)')))) ) });"
+set "PS_STOP=%PS_STOP% $targets=@(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object { $_.ProcessId -ne $PID -and ( (($_.Name -eq 'node.exe') -and (Test-Snow $_.CommandLine)) -or ((Test-Own $_.CommandLine) -and (((($_.Name -eq 'python.exe') -or ($_.Name -eq 'pythonw.exe')) -and ($_.CommandLine -match '(?i)(bot\.py|serve(?:_cloud)?\.py|dashboard(?::app|\.py)|gsuid_core|gsuid[\\/]core)')))) ) });"
 
 set "PS_STOP=%PS_STOP% foreach ($t in $targets) {"
 set "PS_STOP=%PS_STOP%   $l='NoneBot2';"
-set "PS_STOP=%PS_STOP%   if ($t.Name -eq 'node.exe') { $l='SnowLuma' } elseif ($t.CommandLine -match '(?i)gsuid') { $l='gsuid_core' } elseif ($t.CommandLine -match '(?i)serve(?:_cloud)?\.py') { $l='RAG' };"
+set "PS_STOP=%PS_STOP%   if ($t.Name -eq 'node.exe') { $l='SnowLuma' } elseif ($t.CommandLine -match '(?i)gsuid') { $l='gsuid_core' } elseif ($t.CommandLine -match '(?i)serve(?:_cloud)?\.py') { $l='RAG' } elseif ($t.CommandLine -match '(?i)dashboard(?::app|\.py)') { $l='Dashboard' };"
 set "PS_STOP=%PS_STOP%   try { Stop-Process -Id $t.ProcessId -Force -ErrorAction Stop; Write-Output ('  stopped ' + $l + ' (PID ' + $t.ProcessId + ')'); $killed++ } catch { }"
 set "PS_STOP=%PS_STOP% };"
 set "PS_STOP=%PS_STOP% if ($killed -eq 0) { Write-Output '  no matching process found' } else { Write-Output ('  stopped ' + $killed + ' process(es)') }"
