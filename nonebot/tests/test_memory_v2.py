@@ -30,19 +30,37 @@ class MemoryV2Test(unittest.TestCase):
         self.assertEqual(m.recall(self.db, '1', [1, 0], '咖啡'), [])
         self.assertEqual(len(m.list_memories(self.db, '2')), 1)
 
-    def test_near_duplicate_and_conflict_become_review_candidates(self):
+    def test_near_duplicate_becomes_review_candidate_and_can_replace(self):
         m.store(self.db, '1', ['用户喜欢喝咖啡'], 'private', 0)
         original = m.list_memories(self.db, '1')[0]
         m.set_vector(self.db, '1', original['id'], original['text'], [1, 0])
-        result = m.store_vector_fact(self.db, '1', '用户爱喝咖啡', 'private', 0, [1, 0])
-        self.assertEqual(result, 'candidate')
+        inspected = m.inspect_facts(self.db, '1', ['用户爱喝咖啡'], [[1, 0]])
+        self.assertEqual(inspected[0]['near_duplicate'], original['id'])
+        outcomes = m.apply_facts(self.db, '1', 'private', 0,
+                                 [{'action': 'candidate', 'text': '用户爱喝咖啡',
+                                   'similar_id': original['id'], 'reason': 'similar', 'weight': 1.0}],
+                                 event_id='e1')
+        self.assertEqual(outcomes[0]['status'], 'candidate')
         self.assertEqual(len(m.list_memories(self.db, '1')), 1)
         self.assertEqual(len(m.list_candidates(self.db, '1')), 1)
         candidate = m.list_candidates(self.db, '1')[0]
+        self.assertEqual(candidate['reason'], 'similar')
+        self.assertEqual(candidate['similar_text'], '用户喜欢喝咖啡')
         self.assertFalse(m.resolve_candidate(self.db, '2', candidate['id'], 'replace'))
         self.assertTrue(m.resolve_candidate(self.db, '1', candidate['id'], 'replace'))
         self.assertEqual(m.list_memories(self.db, '1')[0]['text'], '用户爱喝咖啡')
         self.assertEqual(m.list_candidates(self.db, '1'), [])
+
+    def test_apply_facts_rejects_stale_revision(self):
+        saved = m.apply_facts(self.db, '1', 'private', 0,
+                              [{'action': 'save', 'text': '用户喜欢咖啡',
+                                'vector': [1, 0], 'links': [], 'allowed': []}], event_id='e1')
+        self.assertEqual(saved[0]['status'], 'saved')
+        m.forget(self.db, '1', '全部')
+        stale = m.apply_facts(self.db, '1', 'private', 0,
+                              [{'action': 'save', 'text': '旧的异步任务',
+                                'vector': [1, 0], 'links': [], 'allowed': []}], event_id='e2')
+        self.assertEqual(stale[0]['status'], 'stale')
 
     def test_durable_jobs_retry_and_forget_prevents_resurrection(self):
         job = m.enqueue(self.db, '1', '一次对话', 'private', 'event-1', [])
