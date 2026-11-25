@@ -1,6 +1,10 @@
 """Wiring tests for the Windows launchers and the legacy-local boundary."""
 
+import os
+import subprocess
 from pathlib import Path
+
+import pytest
 
 REPO = Path(__file__).resolve().parents[2]
 TOOLS = REPO / 'tools'
@@ -8,6 +12,7 @@ PS_START = TOOLS / '启动所有.ps1'
 BAT_START = TOOLS / '启动所有.bat'
 PS_STOP = TOOLS / '停止所有.ps1'
 BAT_STOP = TOOLS / '停止所有.bat'
+REQUIREMENTS = REPO / 'requirements.lock'
 
 
 def test_start_launchers_use_the_cloud_entrypoint():
@@ -35,6 +40,41 @@ def test_stop_scripts_recognize_cloud_and_legacy_processes():
     bat = BAT_STOP.read_text(encoding='utf-8')
     assert 'serve(?:_cloud)?\\.py' in ps
     assert 'serve(?:_cloud)?\\.py' in bat
+
+
+def test_start_and_stop_launchers_manage_the_dashboard():
+    ps_start = PS_START.read_text(encoding='utf-8-sig')
+    bat_start = BAT_START.read_text(encoding='utf-8')
+    for text in (ps_start, bat_start):
+        assert 'dashboard:app' in text
+        assert '--port' in text
+
+    ps_stop = PS_STOP.read_text(encoding='utf-8-sig')
+    bat_stop = BAT_STOP.read_text(encoding='utf-8')
+    for text in (ps_stop, bat_stop):
+        assert 'dashboard(?::app|\\.py)' in text
+
+
+def test_rag_tokenizer_dependency_is_locked():
+    assert 'jieba==' in REQUIREMENTS.read_text(encoding='utf-8')
+
+
+@pytest.mark.skipif(os.name != 'nt', reason='Windows batch launcher only')
+def test_bat_launcher_parses_without_kb_cloud_index():
+    env = os.environ.copy()
+    env.pop('KB_CLOUD_INDEX', None)
+    env['QQBOT_NO_PAUSE'] = '1'
+    env['QQBOT_DRY_RUN'] = '1'
+    result = subprocess.run(
+        [env.get('COMSPEC', 'cmd.exe'), '/d', '/c', str(BAT_START), '--no-pause'],
+        cwd=REPO,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert 'launcher configuration parsed' in result.stdout
 
 
 def test_legacy_onnx_entrypoints_live_under_legacy_local():

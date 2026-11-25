@@ -400,6 +400,38 @@ class DashboardTest(unittest.TestCase):
                     self.assertEqual(response.status_code, 400)
                     self.assertEqual(response.json()['detail'], '模型提供商返回 HTTP 500')
 
+    def test_user_memory_payload_includes_origin_relations_and_stats(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            d.AUTH_FILE = root/'auth'
+            d.sessions.clear()
+            d.attempts.clear()
+            old = memory.DEFAULT_PATH
+            memory.DEFAULT_PATH = root/'memory.db'
+            try:
+                d.set_password('a-strong-test-password')
+                origin = {'group_id':'123','bot_id':'1000','origin_ts':1000,'participants':['2']}
+                memory.remember_people(memory.DEFAULT_PATH, '123', {'2':'小明'})
+                memory.apply_facts(memory.DEFAULT_PATH, '1', 'group', 0,
+                                   [{'action':'save','text':'用户喜欢咖啡','vector':[1.0,0.0],
+                                     'links':[],'allowed':[]}], event_id='e1', origin=origin)
+                memory.apply_facts(memory.DEFAULT_PATH, '1', 'group', 0,
+                                   [{'action':'candidate','text':'用户不喜欢咖啡',
+                                     'similar_id':1,'reason':'conflict','weight':0.9}],
+                                   event_id='e2', origin=origin)
+                with TestClient(d.app) as client:
+                    login = client.post('/api/login', json={'password':'a-strong-test-password'})
+                    self.assertEqual(login.status_code, 200)
+                    payload = client.get('/api/user/1').json()
+                self.assertEqual(payload['memories'][0]['text'], '用户喜欢咖啡')
+                self.assertEqual(payload['memories'][0]['origin']['participants'],
+                                 [{'id':'2','name':'小明'}])
+                self.assertEqual(payload['memories'][0]['relations'], [])
+                self.assertEqual(payload['stats']['memories'], 1)
+                self.assertEqual(payload['candidates'][0]['reason'], 'conflict')
+            finally:
+                memory.DEFAULT_PATH = old
+
     def test_status_grafana_token_is_stored_separately(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

@@ -26,6 +26,24 @@ class MemoryTest(unittest.TestCase):
         self.assertIn('私聊', rendered)
         self.assertIn('不要主动', rendered)
 
+    def test_parse_relations_clamps_weights_and_prefers_conflicts(self):
+        links = ml.parse_relations(
+            '{"links":[{"from":0,"to":5,"kind":"related","weight":2},'
+            '{"from":0,"to":5,"kind":"contradicts","weight":0.6}]}',
+            {0: {5}})
+        self.assertEqual(links, [{'from': 0, 'to': 5, 'kind': 'contradicts', 'weight': 0.6}])
+        self.assertEqual(ml.parse_relations('{"links":[]}', {}), [])
+
+    def test_remember_people_defaults_private_group_and_drops_invalid_ids(self):
+        with tempfile.TemporaryDirectory(dir=Path(__file__).parent) as folder:
+            db = Path(folder) / 'memories.sqlite3'
+            self.assertEqual(ml.remember_people(db, None, {'1': '小明', 'bad id': '无效', '2': ''}), 1)
+            self.assertEqual(ml.remember_people(db, 'bad id', {'1': '小明'}), 0)
+            with ml._connect(db) as con:
+                rows = [tuple(row) for row in con.execute(
+                    'SELECT user_id,group_id,display_name FROM memory_people')]
+            self.assertEqual(rows, [('1', '-1', '小明')])
+
 
 if __name__ == '__main__':
     unittest.main()

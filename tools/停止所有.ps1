@@ -63,6 +63,15 @@ Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
         $killed++
     }
 
+# 管理面板（uvicorn dashboard:app）
+Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
+    Where-Object { $_.Name -eq 'python.exe' -and $_.CommandLine -match 'dashboard(?::app|\.py)' } |
+    ForEach-Object {
+        Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
+        Write-Host "  已停止管理面板 (PID $($_.ProcessId))" -ForegroundColor Green
+        $killed++
+    }
+
 # SnowLuma
 Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
     Where-Object {
